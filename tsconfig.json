@@ -1,0 +1,17 @@
+{
+  "include": ["index.d.ts", "src/**/*"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "target": "ES2019",
+    "module": "commonjs",
+    "lib": ["ES2019"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "ts-node": {
+    "files": true
+  }
+}
