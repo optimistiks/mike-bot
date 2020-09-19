@@ -34,6 +34,8 @@ Resources:
         Variables:
           BOT_KEY: "{{resolve:ssm:BOT_KEY:1}}"
           BOT_USERNAME: "{{resolve:ssm:BOT_USERNAME:1}}"
+          BOT_URL: "{{resolve:ssm:BOT_URL:1}}"
+          NAH_TABLE_NAME: !Ref NahTable
       Role:
         Fn::GetAtt:
           - LambdaExecutionRole
@@ -59,4 +61,7 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonPollyFullAccess"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonDynamoDBFullAccess"
       PermissionsBoundary: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/CodeStar_${ProjectId}_PermissionsBoundary"
+  NahTable:
+    Type: AWS::Serverless::SimpleTable
