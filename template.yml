@@ -35,7 +35,7 @@ Resources:
           BOT_KEY: "{{resolve:ssm:BOT_KEY:1}}"
           BOT_USERNAME: "{{resolve:ssm:BOT_USERNAME:1}}"
           BOT_URL: "{{resolve:ssm:BOT_URL:1}}"
-          NAH_TABLE_NAME: !Ref NahTable
+          LOL_TABLE_NAME: !Ref LolTable
       Role:
         Fn::GetAtt:
           - LambdaExecutionRole
@@ -65,3 +65,9 @@ Resources:
       PermissionsBoundary: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/CodeStar_${ProjectId}_PermissionsBoundary"
   NahTable:
     Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: nahTable
+  LolTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: lolTable

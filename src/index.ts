@@ -16,16 +16,23 @@ export const lambda = async (
       await bot.telegram.setWebhook(process.env.BOT_URL);
       return respond(200, "webhook set");
     } catch (err) {
-      return respond(500, err.message);
+      console.error(err);
+      return respond(500, "could not set webhook");
     }
   }
 
   if (event.body) {
-    const request = JSON.parse(event.body);
-    await bot.handleUpdate(request);
+    try {
+      const request = JSON.parse(event.body);
+      await bot.handleUpdate(request);
+      return respond(200, "ok");
+    } catch (err) {
+      console.error(err);
+      return respond(500, "could not handle update");
+    }
   }
 
-  return respond(200, "ok");
+  return respond(200, "missing body");
 };
 
 function respond(statusCode: number, result: string) {
