@@ -44,8 +44,7 @@ bot.command("lol", async (ctx, next) => {
       (entity) => entity.type === ENTITY_TYPE.mention
     );
 
-    if (!mention || !ctx.chat || !ctx.from) {
-      await ctx.reply(`not enough data`);
+    if (!mention || !ctx.chat || !ctx.from || !ctx.message) {
       return next();
     }
 
@@ -61,27 +60,28 @@ bot.command("lol", async (ctx, next) => {
     );
 
     if (!admin) {
-      await ctx.reply(`user ${username} not found`);
+      console.error("admin not found");
       return next();
     }
 
-    const fromUser = new User(
-      ctx.from.id,
-      ctx.from.username,
-      ctx.from.first_name
-    );
+    if (admin.user.id === ctx.from.id) {
+      await ctx.reply("сам над своей шуткой посмеялся?", {
+        reply_to_message_id: ctx.message.message_id,
+      });
+      return next();
+    }
 
-    const toUser = new User(
-      admin.user.id,
-      admin.user.username,
-      admin.user.first_name
-    );
-
+    const fromUser = new User(ctx.from.id, ctx.from.username);
+    const toUser = new User(admin.user.id, admin.user.username);
     const lol = Lol.create(fromUser, toUser);
-
     await saveLol(lol);
 
-    await ctx.reply(`фиксирую данную информацию...`);
+    await ctx.deleteMessage(ctx.message.message_id);
+    await ctx.reply(
+      `${toUser.username || "???"} получает лол от ${
+        fromUser.username || "???"
+      }`
+    );
 
     return next();
   } catch (err) {
@@ -103,18 +103,18 @@ bot.command("stats", async (ctx, next) => {
     results[lol.toUser.id].username = lol.toUser.username || "unknown";
   }
 
-  const keys = (Object.keys(results) as unknown) as number[];
+  const values = Object.values(results);
 
-  if (keys.length === 0) {
-    await ctx.reply(`пока ничего нет`);
+  if (values.length === 0) {
     return next();
   }
 
+  values.sort((a, b) => b.total - a.total);
+
   let resultMessage = "";
 
-  keys.forEach((userId: number) => {
-    const result = results[userId];
-    resultMessage += `@${result.username}: ${result.total}\n`;
+  values.forEach((result) => {
+    resultMessage += `${result.username}: ${result.total}\n`;
   });
 
   await ctx.reply(resultMessage);

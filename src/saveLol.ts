@@ -21,15 +21,11 @@ export class User {
   id: number;
 
   @attribute()
-  name?: string;
-
-  @attribute()
   username?: string;
 
-  constructor(id: number, username?: string, name?: string) {
+  constructor(id: number, username?: string) {
     this.id = id;
     this.username = username;
-    this.name = name;
   }
 }
 
