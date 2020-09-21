@@ -15,6 +15,11 @@ if (!process.env.LOL_TABLE_NAME) {
 }
 
 // https://aws.amazon.com/blogs/developer/introducing-the-amazon-dynamodb-datamapper-for-javascript-developer-preview/
+export enum LolType {
+  lol = "lol",
+  plus = "plus",
+  minus = "minus",
+}
 
 export class User {
   @attribute()
@@ -38,6 +43,9 @@ export class Lol {
   chatId: number;
 
   @attribute()
+  lolType: LolType;
+
+  @attribute()
   fromUser: User;
 
   @attribute()
@@ -46,12 +54,20 @@ export class Lol {
   @rangeKey()
   createdAt: Date;
 
-  static create(chatId: number, fromUser: User, toUser: User): Lol {
+  static create(
+    chatId: number,
+    fromUser: User,
+    toUser: User,
+    lolType: LolType
+  ): Lol {
     const lol = new Lol();
+
     lol.fromUser = fromUser;
     lol.toUser = toUser;
     lol.createdAt = new Date();
     lol.chatId = chatId;
+    lol.lolType = lolType;
+
     return lol;
   }
 }
