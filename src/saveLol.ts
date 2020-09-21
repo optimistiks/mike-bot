@@ -35,6 +35,9 @@ export class Lol {
   id: string;
 
   @attribute()
+  chatId: number;
+
+  @attribute()
   fromUser: User;
 
   @attribute()
@@ -43,16 +46,17 @@ export class Lol {
   @rangeKey()
   createdAt: Date;
 
-  static create(fromUser: User, toUser: User): Lol {
+  static create(chatId: number, fromUser: User, toUser: User): Lol {
     const lol = new Lol();
     lol.fromUser = fromUser;
     lol.toUser = toUser;
     lol.createdAt = new Date();
+    lol.chatId = chatId;
     return lol;
   }
 }
 
-export async function saveLol(lol: Lol): Promise<Lol> {
-  const result = await mapper.put(lol);
-  return result;
+export async function saveLol(lols: Lol[]): Promise<Lol[]> {
+  const promises = lols.map((lol) => mapper.put(lol));
+  return Promise.all(promises);
 }

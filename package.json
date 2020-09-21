@@ -33,6 +33,7 @@
   "dependencies": {
     "@aws/dynamodb-data-mapper": "^0.7.3",
     "@aws/dynamodb-data-mapper-annotations": "^0.7.3",
+    "@aws/dynamodb-expressions": "^0.7.3",
     "aws-sdk": "^2.755.0",
     "telegraf": "^3.38.0"
   }

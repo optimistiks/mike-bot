@@ -1,3 +1,4 @@
+import { equals } from "@aws/dynamodb-expressions";
 import { Telegraf } from "telegraf";
 import { Lol, mapper, saveLol, User } from "./saveLol";
 import { textToSpeech } from "./textToSpeech";
@@ -38,64 +39,104 @@ enum ENTITY_TYPE {
   mention = "mention",
 }
 
-bot.command("lol", async (ctx, next) => {
+enum MSG {
+  lol = "лол",
+}
+
+bot.hears(new RegExp(MSG.lol, "i"), async (ctx, next) => {
   try {
-    const mention = ctx.message?.entities?.find(
+    const mentions = ctx.message?.entities?.filter(
       (entity) => entity.type === ENTITY_TYPE.mention
     );
 
-    if (!mention || !ctx.chat || !ctx.from || !ctx.message) {
+    if (!mentions) {
       return next();
     }
 
-    const username = ctx.message?.text?.slice(
-      mention.offset,
-      mention.offset + mention.length
-    );
+    const usernames: string[] = [];
+
+    let text = ctx.message?.text || "";
+
+    mentions.forEach((mention) => {
+      const username = ctx.message?.text?.slice(
+        mention.offset,
+        mention.offset + mention.length
+      );
+
+      if (!username) {
+        return;
+      }
+
+      text = text.replace(username, "");
+
+      usernames.push(username);
+    });
+
+    if (text.trim().toLowerCase() !== MSG.lol) {
+      return next();
+    }
+
+    if (!ctx.chat) {
+      return next();
+    }
 
     const admins = await bot.telegram.getChatAdministrators(ctx.chat?.id);
 
-    const admin = admins.find(
-      (admin) => username === `@${admin.user.username}`
-    );
+    const targets = admins
+      .filter((admin) =>
+        usernames.find((username) => username === `@${admin.user.username}`)
+      )
+      .filter(
+        (target) => target.user.id !== ctx.from?.id && !target.user.is_bot
+      );
 
-    if (!admin) {
-      console.error("admin not found");
+    if (targets.length === 0) {
       return next();
     }
 
-    if (admin.user.id === ctx.from.id) {
-      await ctx.reply("сам над своей шуткой посмеялся?", {
-        reply_to_message_id: ctx.message.message_id,
-      });
-      return next();
-    }
+    const lols: Lol[] = [];
 
-    const fromUser = new User(ctx.from.id, ctx.from.username);
-    const toUser = new User(admin.user.id, admin.user.username);
-    const lol = Lol.create(fromUser, toUser);
-    await saveLol(lol);
+    targets.forEach((target) => {
+      if (!ctx.from || !ctx.chat) {
+        return;
+      }
+      const fromUser = new User(ctx.from.id, ctx.from.username);
+      const toUser = new User(target.user.id, target.user.username);
+      const lol = Lol.create(ctx.chat.id, fromUser, toUser);
+      lols.push(lol);
+    });
 
-    await ctx.deleteMessage(ctx.message.message_id);
+    await saveLol(lols);
+
+    const receivers = lols
+      .map((lol) => lol.toUser.username || "???")
+      .join(", ");
+    const word = lols.length === 1 ? "получает" : "получают";
+
     await ctx.reply(
-      `${toUser.username || "???"} получает лол от ${
-        fromUser.username || "???"
-      }`
+      `${receivers} ${word} лол от ${ctx.from?.username || "???"}`
     );
 
     return next();
   } catch (err) {
-    console.error("command failed", err);
+    console.error(err);
     return next();
   }
+  return next();
 });
 
 bot.command("stats", async (ctx, next) => {
+  if (!ctx.chat) {
+    return next();
+  }
+
   const results: {
     [id: number]: { total: number; username: string };
   } = {};
 
-  const iterator = mapper.scan(Lol, {});
+  const iterator = mapper.scan(Lol, {
+    filter: { subject: "chatId", ...equals(ctx.chat.id) },
+  });
 
   for await (const lol of iterator) {
     results[lol.toUser.id] = results[lol.toUser.id] || { total: 0 };
