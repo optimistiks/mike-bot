@@ -1,13 +1,8 @@
-import { equals } from "@aws/dynamodb-expressions";
+import { v4 as uuidv4 } from "uuid";
 import { Telegraf } from "telegraf";
 import { TelegrafContext } from "telegraf/typings/context";
-import { ChatMember } from "telegraf/typings/telegram-types";
-import { Lol, LolType, mapper, saveLol, User } from "./saveLol";
+import { Lol, lolStore, LolType, User } from "./lolModel";
 import { textToSpeech } from "./textToSpeech";
-
-enum ENTITY_TYPE {
-  mention = "mention",
-}
 
 enum TRIGGER {
   lol = "лол",
@@ -56,102 +51,75 @@ bot.command("s", async (ctx, next) => {
 
 bot.hears(/[+|-]/, async (ctx, next) => {
   try {
-    const text = getTextWithoutMentions(ctx);
+    const text = getCleanText(ctx);
 
     if (text !== TRIGGER.plus && text !== TRIGGER.minus) {
       return next();
     }
 
-    const targets = await getTargets(ctx);
+    const lolExists = await isLolExists(ctx, [LolType.plus, LolType.minus]);
 
-    if (targets.length === 0) {
+    if (lolExists) {
       return next();
     }
 
-    const lols: Lol[] = [];
+    const lolType = TRIGGER.plus ? LolType.plus : LolType.minus;
 
-    targets.forEach((target) => {
-      if (!ctx.from || !ctx.chat) {
-        return;
-      }
-      const fromUser = new User(ctx.from.id, ctx.from.username);
-      const toUser = new User(target.user.id, target.user.username);
-      const lol = Lol.create(
-        ctx.chat.id,
-        fromUser,
-        toUser,
-        text === TRIGGER.plus ? LolType.plus : LolType.minus
-      );
-      lols.push(lol);
-    });
+    const lol = createLolFromCtx(ctx, lolType);
 
-    await saveLol(lols);
+    if (!lol) {
+      return next();
+    }
 
-    const receivers = lols
-      .map((lol) => lol.toUser.username || "???")
-      .join(", ");
-    const word = lols.length === 1 ? "получает" : "получают";
+    await saveLols([lol]);
 
     await ctx.deleteMessage(ctx.message?.message_id);
     await ctx.reply(
-      `${receivers} ${word} ${
+      `${lol.fromUser.username || "???"} получает ${
         text === TRIGGER.plus ? EMOJI.plus : EMOJI.minus
-      } от ${ctx.from?.username || "???"}`
+      } от ${lol.toUser.username || "???"}`,
+      { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
     );
-
-    return next();
-
-    return next();
   } catch (err) {
     console.error(err);
-    return next();
   }
+
   return next();
 });
 
 bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
   try {
-    const text = getTextWithoutMentions(ctx);
+    const text = getCleanText(ctx);
 
     if (text !== TRIGGER.lol) {
       return next();
     }
 
-    const targets = await getTargets(ctx);
+    const lolExists = await isLolExists(ctx, [LolType.lol]);
 
-    if (targets.length === 0) {
+    if (lolExists) {
       return next();
     }
 
-    const lols: Lol[] = [];
+    const lol = createLolFromCtx(ctx, LolType.lol);
 
-    targets.forEach((target) => {
-      if (!ctx.from || !ctx.chat) {
-        return;
-      }
-      const fromUser = new User(ctx.from.id, ctx.from.username);
-      const toUser = new User(target.user.id, target.user.username);
-      const lol = Lol.create(ctx.chat.id, fromUser, toUser, LolType.lol);
-      lols.push(lol);
-    });
+    if (!lol) {
+      return next();
+    }
 
-    await saveLol(lols);
-
-    const receivers = lols
-      .map((lol) => lol.toUser.username || "???")
-      .join(", ");
-    const word = lols.length === 1 ? "получает" : "получают";
+    await saveLols([lol]);
 
     await ctx.deleteMessage(ctx.message?.message_id);
     await ctx.reply(
-      `${receivers} ${word} лол от ${ctx.from?.username || "???"}`
+      `${lol.fromUser.username || "???"} получает лол от ${
+        lol.toUser.username || "???"
+      }`,
+      { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
     );
-
-    return next();
   } catch (err) {
     console.error(err);
-    return next();
   }
+
   return next();
 });
 
@@ -164,11 +132,13 @@ bot.command("stats", async (ctx, next) => {
     [id: number]: { lols: number; score: number; username: string };
   } = {};
 
-  const iterator = mapper.scan(Lol, {
-    filter: { subject: "chatId", ...equals(ctx.chat.id) },
-  });
+  const lols = await lolStore
+    .scan()
+    .whereAttribute("chatId")
+    .equals(ctx.chat.id)
+    .exec();
 
-  for await (const lol of iterator) {
+  lols.forEach((lol) => {
     const result = results[lol.toUser.id] || {
       lols: 0,
       score: 0,
@@ -190,7 +160,7 @@ bot.command("stats", async (ctx, next) => {
     }
 
     results[lol.toUser.id] = result;
-  }
+  });
 
   const values = Object.values(results);
 
@@ -233,72 +203,87 @@ bot.command("stats", async (ctx, next) => {
 
 export { bot };
 
-async function getTargets(ctx: TelegrafContext): Promise<ChatMember[]> {
-  if (!ctx.chat) {
-    return [];
+function createLolFromCtx(
+  ctx: TelegrafContext,
+  lolType: LolType
+): Lol | undefined {
+  const target = getTarget(ctx);
+
+  if (!target || !ctx.chat || !ctx.from || !ctx.message?.reply_to_message) {
+    return;
   }
 
-  const mentions = ctx.message?.entities?.filter(
-    (entity) => entity.type === ENTITY_TYPE.mention
-  );
+  const fromUser = new User();
+  fromUser.id = ctx.from.id;
+  fromUser.username = ctx.from.username;
 
-  if (!mentions) {
-    return [];
-  }
+  const toUser = new User();
+  toUser.id = target.id;
+  toUser.username = target.username;
 
-  const usernames: string[] = [];
+  const lol = new Lol();
+  lol.id = uuidv4();
+  lol.toUser = toUser;
+  lol.fromUser = fromUser;
+  lol.chatId = ctx.chat.id;
+  lol.toMessageId = ctx.message?.reply_to_message?.message_id;
+  lol.createdAt = new Date();
+  lol.lolType = lolType;
 
-  mentions.forEach((mention) => {
-    const username = ctx.message?.text?.slice(
-      mention.offset,
-      mention.offset + mention.length
-    );
-
-    if (!username) {
-      return;
-    }
-
-    usernames.push(username);
-  });
-
-  const admins = await bot.telegram.getChatAdministrators(ctx.chat?.id);
-
-  let targets = admins.filter((admin) =>
-    usernames.find((username) => username === `@${admin.user.username}`)
-  );
-
-  if (!process.env.AWS_SAM_LOCAL) {
-    targets = targets.filter(
-      (target) => target.user.id !== ctx.from?.id && !target.user.is_bot
-    );
-  }
-
-  return targets;
+  return lol;
 }
 
-function getTextWithoutMentions(ctx: TelegrafContext): string {
-  const mentions = ctx.message?.entities?.filter(
-    (entity) => entity.type === ENTITY_TYPE.mention
-  );
+async function saveLols(lols: Lol[]) {
+  const savePromises = lols.map((lol) => lolStore.put(lol).exec());
+  return await Promise.all(savePromises);
+}
 
-  if (!mentions) {
-    return ctx.message?.text || "";
+function getTarget(ctx: TelegrafContext) {
+  if (!ctx.message || !ctx.message.reply_to_message) {
+    return;
   }
 
-  let text = ctx.message?.text || "";
+  const target = ctx.message.reply_to_message.from;
 
-  mentions.forEach((mention) => {
-    const username = ctx.message?.text?.slice(
-      mention.offset,
-      mention.offset + mention.length
-    );
+  if (process.env.AWS_SAM_LOCAL) {
+    return target;
+  }
 
-    if (!username) {
-      return;
-    }
+  if (!target || target.id === ctx.from?.id || target.is_bot) {
+    return;
+  }
 
-    text = text.replace(username, "");
-  });
+  return target;
+}
 
-  return text.trim().toLowerCase();
+function getCleanText(ctx: TelegrafContext): string {
+  if (!ctx.message || !ctx.message.text) {
+    return "";
+  }
+  return ctx.message.text.trim().toLowerCase();
+}
+
+async function isLolExists(
+  ctx: TelegrafContext,
+  lolTypes: LolType[]
+): Promise<boolean> {
+  const targetMessageId = ctx.message?.reply_to_message?.message_id;
+
+  if (!targetMessageId) {
+    return false;
+  }
+
+  const searchResult = await lolStore
+    .scan()
+    .whereAttribute("toUser.id")
+    .equals(ctx.from?.id)
+    .whereAttribute("toMessageId")
+    .equals(targetMessageId)
+    .exec();
+
+  const existingLol = searchResult.find((lol) =>
+    lolTypes.find((type) => lol.lolType === type)
+  );
+
+  return existingLol != null;
 }

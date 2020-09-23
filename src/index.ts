@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { bot } from "./bot";
 
