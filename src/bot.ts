@@ -75,9 +75,9 @@ bot.hears(/[+|-]/, async (ctx, next) => {
 
     await ctx.deleteMessage(ctx.message?.message_id);
     await ctx.reply(
-      `${lol.fromUser.username || "???"} получает ${
+      `${lol.toUser.username || "???"} получает ${
         text === TRIGGER.plus ? EMOJI.plus : EMOJI.minus
-      } от ${lol.toUser.username || "???"}`,
+      } от ${lol.fromUser.username || "???"}`,
       { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
     );
   } catch (err) {
@@ -111,8 +111,8 @@ bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
 
     await ctx.deleteMessage(ctx.message?.message_id);
     await ctx.reply(
-      `${lol.fromUser.username || "???"} получает лол от ${
-        lol.toUser.username || "???"
+      `${lol.toUser.username || "???"} получает лол от ${
+        lol.fromUser.username || "???"
       }`,
       { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
     );
