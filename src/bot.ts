@@ -63,7 +63,7 @@ bot.hears(/[+|-]/, async (ctx, next) => {
       return next();
     }
 
-    const lolType = TRIGGER.plus ? LolType.plus : LolType.minus;
+    const lolType = text === TRIGGER.plus ? LolType.plus : LolType.minus;
 
     const lol = createLolFromCtx(ctx, lolType);
 
