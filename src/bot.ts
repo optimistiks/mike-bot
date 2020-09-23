@@ -275,7 +275,7 @@ async function isLolExists(
 
   const searchResult = await lolStore
     .scan()
-    .whereAttribute("toUser.id")
+    .whereAttribute("fromUser.id")
     .equals(ctx.from?.id)
     .whereAttribute("toMessageId")
     .equals(targetMessageId)
