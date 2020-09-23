@@ -108,7 +108,7 @@ bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
     await saveLols([lol]);
 
     await ctx.deleteMessage(ctx.message?.message_id);
-    await ctx.reply(`лол ${lol.fromUser.username || "???"}`, {
+    await ctx.reply(`лол (${lol.fromUser.username || "???"})`, {
       reply_to_message_id: ctx.message?.reply_to_message?.message_id,
     });
   } catch (err) {
