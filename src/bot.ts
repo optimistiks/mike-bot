@@ -74,12 +74,10 @@ bot.hears(/[+|-]/, async (ctx, next) => {
     await saveLols([lol]);
 
     await ctx.deleteMessage(ctx.message?.message_id);
-    await ctx.reply(
-      `${lol.toUser.username || "???"} получает ${
-        text === TRIGGER.plus ? EMOJI.plus : EMOJI.minus
-      } от ${lol.fromUser.username || "???"}`,
-      { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
-    );
+    const emoji = text === TRIGGER.plus ? EMOJI.plus : EMOJI.minus;
+    await ctx.reply(`${emoji} (${lol.fromUser.username || "???"})`, {
+      reply_to_message_id: ctx.message?.reply_to_message?.message_id,
+    });
   } catch (err) {
     console.error(err);
   }
@@ -110,12 +108,9 @@ bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
     await saveLols([lol]);
 
     await ctx.deleteMessage(ctx.message?.message_id);
-    await ctx.reply(
-      `${lol.toUser.username || "???"} получает лол от ${
-        lol.fromUser.username || "???"
-      }`,
-      { reply_to_message_id: ctx.message?.reply_to_message?.message_id }
-    );
+    await ctx.reply(`лол ${lol.fromUser.username || "???"}`, {
+      reply_to_message_id: ctx.message?.reply_to_message?.message_id,
+    });
   } catch (err) {
     console.error(err);
   }
