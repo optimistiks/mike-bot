@@ -32,6 +32,7 @@
     }
   },
   "dependencies": {
+    "@google-cloud/dialogflow": "^3.3.0",
     "@shiftcoders/dynamo-easy": "^7.0.0",
     "aws-sdk": "^2.755.0",
     "reflect-metadata": "^0.1.13",

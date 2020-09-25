@@ -3,6 +3,7 @@ import { Telegraf } from "telegraf";
 import { TelegrafContext } from "telegraf/typings/context";
 import { Lol, lolStore, LolType, User } from "./lolModel";
 import { textToSpeech } from "./textToSpeech";
+import { dialogflowMiddleware } from "./middleware/dialogflowMiddleware";
 
 enum TRIGGER {
   lol = "лол",
@@ -25,11 +26,11 @@ const bot = new Telegraf(process.env.BOT_KEY, {
   username: process.env.BOT_USERNAME,
 });
 
-bot.command("s", async (ctx, next) => {
+bot.command("s", async (ctx) => {
   const text = ctx.update.message?.text?.replace(/\/\S*\s*/, "");
 
   if (!text) {
-    return next();
+    return;
   }
 
   try {
@@ -45,22 +46,20 @@ bot.command("s", async (ctx, next) => {
   } catch (err) {
     console.error(err);
   }
-
-  return next();
 });
 
-bot.hears(/[+|-]/, async (ctx, next) => {
+bot.hears(/[+|-]/, async (ctx) => {
   try {
     const text = getCleanText(ctx);
 
     if (text !== TRIGGER.plus && text !== TRIGGER.minus) {
-      return next();
+      return;
     }
 
     const lolExists = await isLolExists(ctx, [LolType.plus, LolType.minus]);
 
     if (lolExists) {
-      return next();
+      return;
     }
 
     const lolType = text === TRIGGER.plus ? LolType.plus : LolType.minus;
@@ -68,7 +67,7 @@ bot.hears(/[+|-]/, async (ctx, next) => {
     const lol = createLolFromCtx(ctx, lolType);
 
     if (!lol) {
-      return next();
+      return;
     }
 
     await saveLols([lol]);
@@ -81,28 +80,26 @@ bot.hears(/[+|-]/, async (ctx, next) => {
   } catch (err) {
     console.error(err);
   }
-
-  return next();
 });
 
-bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
+bot.hears(new RegExp(/лол/, "i"), async (ctx) => {
   try {
     const text = getCleanText(ctx);
 
     if (text !== TRIGGER.lol) {
-      return next();
+      return;
     }
 
     const lolExists = await isLolExists(ctx, [LolType.lol]);
 
     if (lolExists) {
-      return next();
+      return;
     }
 
     const lol = createLolFromCtx(ctx, LolType.lol);
 
     if (!lol) {
-      return next();
+      return;
     }
 
     await saveLols([lol]);
@@ -114,13 +111,11 @@ bot.hears(new RegExp(/лол/, "i"), async (ctx, next) => {
   } catch (err) {
     console.error(err);
   }
-
-  return next();
 });
 
-bot.command("stats", async (ctx, next) => {
+bot.command("stats", async (ctx) => {
   if (!ctx.chat) {
-    return next();
+    return;
   }
 
   const results: {
@@ -160,7 +155,7 @@ bot.command("stats", async (ctx, next) => {
   const values = Object.values(results);
 
   if (values.length === 0) {
-    return next();
+    return;
   }
 
   let resultMessage = "";
@@ -192,9 +187,9 @@ bot.command("stats", async (ctx, next) => {
 
   await ctx.deleteMessage(ctx.message?.message_id);
   await ctx.reply(resultMessage, { parse_mode: "Markdown" });
-
-  return next();
 });
+
+dialogflowMiddleware(bot);
 
 export { bot };
 

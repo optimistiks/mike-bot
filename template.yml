@@ -30,12 +30,17 @@ Resources:
       FunctionName: !Sub "awscodestar-${ProjectId}-lambda-GetHelloWorld"
       Handler: dist/index.lambda
       Runtime: nodejs12.x
+      Timeout: 10
       Environment:
         Variables:
           BOT_KEY: "{{resolve:ssm:BOT_KEY:1}}"
           BOT_USERNAME: "{{resolve:ssm:BOT_USERNAME:1}}"
           BOT_URL: "{{resolve:ssm:BOT_URL:1}}"
+          GOOGLE_PROJECT_ID: "{{resolve:ssm:GOOGLE_PROJECT_ID:1}}"
+          GOOGLE_CLIENT_EMAIL: "{{resolve:ssm:GOOGLE_CLIENT_EMAIL:1}}"
+          GOOGLE_PRIVATE_KEY: "{{resolve:ssm:GOOGLE_PRIVATE_KEY:1}}"
           LOL_TABLE_NAME: !Ref LolTable
+          CHAT_SESSION_TABLE_NAME: !Ref ChatSessionTable
       Role:
         Fn::GetAtt:
           - LambdaExecutionRole
@@ -62,11 +67,11 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonPollyFullAccess"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonDynamoDBFullAccess"
-  NahTable:
-    Type: AWS::Serverless::SimpleTable
-    Properties:
-      TableName: nahTable
   LolTable:
     Type: AWS::Serverless::SimpleTable
     Properties:
       TableName: lolTable
+  ChatSessionTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: chatSession
