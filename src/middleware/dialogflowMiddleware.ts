@@ -38,10 +38,7 @@ export function dialogflowMiddleware(bot: Telegraf<TelegrafContext>): void {
     const sessionClient = new dialogflow.SessionsClient({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: Buffer.from(
-          process.env.GOOGLE_PRIVATE_KEY,
-          "base64"
-        ).toString("utf-8"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       },
     });
 

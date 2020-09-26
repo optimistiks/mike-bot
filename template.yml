@@ -38,7 +38,7 @@ Resources:
           BOT_URL: "{{resolve:ssm:BOT_URL:1}}"
           GOOGLE_PROJECT_ID: "{{resolve:ssm:GOOGLE_PROJECT_ID:1}}"
           GOOGLE_CLIENT_EMAIL: "{{resolve:ssm:GOOGLE_CLIENT_EMAIL:1}}"
-          GOOGLE_PRIVATE_KEY: "{{resolve:ssm:GOOGLE_PRIVATE_KEY:1}}"
+          GOOGLE_PRIVATE_KEY: "{{resolve:ssm:GOOGLE_PRIVATE_KEY:5}}"
           LOL_TABLE_NAME: !Ref LolTable
           CHAT_SESSION_TABLE_NAME: !Ref ChatSessionTable
       Role:
