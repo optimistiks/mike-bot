@@ -34,6 +34,11 @@ export function dialogflowMiddleware(bot: Telegraf<TelegrafContext>): void {
     // A unique identifier for the given session
     const { id: sessionId } = activeSession;
 
+    console.log("KEY", { key: process.env.GOOGLE_PRIVATE_KEY });
+    console.log("KEY_KEY", {
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    });
+
     // Create a new session
     const sessionClient = new dialogflow.SessionsClient({
       credentials: {
