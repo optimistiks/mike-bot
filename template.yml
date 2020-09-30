@@ -41,6 +41,7 @@ Resources:
           GOOGLE_PRIVATE_KEY: "{{resolve:ssm:GOOGLE_PRIVATE_KEY:5}}"
           LOL_TABLE_NAME: !Ref LolTable
           CHAT_SESSION_TABLE_NAME: !Ref ChatSessionTable
+          MIKE_APP_URL: "{{resolve:ssm:MIKE_APP_URL:1}}"
       Role:
         Fn::GetAtt:
           - LambdaExecutionRole

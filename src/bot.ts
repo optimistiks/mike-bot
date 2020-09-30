@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { Telegraf } from "telegraf";
 import { TelegrafContext } from "telegraf/typings/context";
+import axios from "axios";
 import { Lol, lolStore, LolType, User } from "./lolModel";
 import { textToSpeech } from "./textToSpeech";
 import { dialogflowMiddleware } from "./middleware/dialogflowMiddleware";
@@ -24,6 +25,35 @@ if (!process.env.BOT_KEY || !process.env.BOT_USERNAME) {
 
 const bot = new Telegraf(process.env.BOT_KEY, {
   username: process.env.BOT_USERNAME,
+});
+
+bot.catch((err: Error, ctx: TelegrafContext) => {
+  console.error("bot error", {
+    error: err.message,
+    chatId: ctx.chat?.id,
+    updateType: ctx.updateType,
+    message: ctx.message?.text,
+    messageId: ctx.message?.message_id,
+    userId: ctx.from?.id,
+  });
+});
+
+bot.command("q", async (ctx) => {
+  if (!process.env.MIKE_APP_URL) {
+    throw new Error("MIKE_APP_URL not set");
+  }
+
+  let url = `${process.env.MIKE_APP_URL}/quiz`;
+
+  if (url.includes("localhost")) {
+    url = url.replace("localhost", "host.docker.internal");
+  }
+
+  console.log("connect to url", { url });
+
+  await axios.get(url, {
+    params: { chatId: ctx.chat?.id },
+  });
 });
 
 bot.command("s", async (ctx) => {
