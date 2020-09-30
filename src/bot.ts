@@ -51,8 +51,29 @@ bot.command("q", async (ctx) => {
 
   console.log("connect to url", { url });
 
-  await axios.get(url, {
+  const response = await axios.get(url, {
     params: { chatId: ctx.chat?.id },
+  });
+
+  console.log("response data", response.data);
+});
+
+bot.on("message", async (ctx) => {
+  const answer = ctx.message?.text;
+  if (!answer) {
+    return;
+  }
+
+  let url = `${process.env.MIKE_APP_URL}/quiz`;
+
+  if (url.includes("localhost")) {
+    url = url.replace("localhost", "host.docker.internal");
+  }
+
+  console.log("connect to url", { url });
+
+  await axios.get(url, {
+    params: { chatId: ctx.chat?.id, answer },
   });
 });
 
