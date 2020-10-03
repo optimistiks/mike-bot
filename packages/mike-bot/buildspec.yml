@@ -1,0 +1,28 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 12
+    commands:
+      # Upgrade AWS CLI to the latest version
+      - pip install --upgrade awscli
+      # Install dependencies needed for running tests
+      - npm ci
+      - cd packages/mike-bot
+      - npm ci
+      - cd ../..
+  pre_build:
+    commands:
+      - npm run lint
+  build:
+    commands:
+      - cd packages/mike-bot
+      - npm run build
+      - npm prune --production
+      - zip ../mike-bot.zip -r * .[^.]*
+      - cd ..
+
+artifacts:
+  files:
+    - mike-bot.zip

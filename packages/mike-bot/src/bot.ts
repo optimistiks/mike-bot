@@ -26,6 +26,10 @@ const bot = new Telegraf(process.env.BOT_KEY, {
   username: process.env.BOT_USERNAME,
 });
 
+bot.catch((err: Error, ctx: TelegrafContext) => {
+  console.error(err, `bot error ${err.message}, ${ctx.updateType}`);
+});
+
 bot.command("s", async (ctx) => {
   const text = ctx.update.message?.text?.replace(/\/\S*\s*/, "");
 
@@ -235,7 +239,7 @@ function getTarget(ctx: TelegrafContext) {
 
   const target = ctx.message.reply_to_message.from;
 
-  if (process.env.AWS_SAM_LOCAL) {
+  if (process.env.APP_ENV === "development") {
     return target;
   }
 
