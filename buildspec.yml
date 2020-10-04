@@ -24,4 +24,5 @@ phases:
 
 artifacts:
   files:
-    - packages/mike-bot/**/*
+    - "**/*"
+  base-directory: "packages/mike-bot"
