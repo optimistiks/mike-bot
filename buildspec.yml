@@ -20,8 +20,8 @@ phases:
       - cd packages/mike-bot
       - npm run build
       - npm prune --production
-      - zip ../mike-bot.zip -r * .[^.]*
-      - cd ..
+      - zip ../../mike-bot.zip -r * .[^.]*
+      - cd ../..
 
 artifacts:
   files:
