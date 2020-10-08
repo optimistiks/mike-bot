@@ -5,10 +5,10 @@
 LOG_PATH=$(find /var/log/ -type f -iname 'eb-hooks.log')
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-CERTBOT_NAME='mike-bot-v2'
+CERTBOT_NAME='mike-bot'
 CERTBOT_EMAIL='optimistiks@gmail.com'
 # Multiple domain example: CERTBOT_DOMAINS='bort.com,www.bort.com,bort-env.eba-2kg3gsq2.us-east-2.elasticbeanstalk.com'
-CERTBOT_DOMAINS='mikebotv2-env.eba-at9sryrq.eu-central-1.elasticbeanstalk.com'
+CERTBOT_DOMAINS='mikebot-env.eba-pw3bf35k.eu-central-1.elasticbeanstalk.com'
 
 crontab_exists() {
     crontab -u root -l 2>/dev/null | grep 'certbot -q renew' >/dev/null 2>/dev/null
@@ -47,13 +47,13 @@ if yum list installed epel-release && ! command -v certbot &>/dev/null; then
     yum install certbot python2-certbot-nginx
 fi
 
-
 HTTP_STRING='^http\s*{$'
 NAME_LIMIT='http {\nserver_names_hash_bucket_size 192;\n'
+SERVER_NAMES_HASH='nserver_names_hash_bucket_size 192;'
 
 # Prevent replace if not clean sample app
 
-if ! grep -Fxq "$NAME_LIMIT" /etc/nginx/nginx.conf; then
+if ! grep -Fxq "SERVER_NAMES_HASH" /etc/nginx/nginx.conf; then
     # Increase size of string name for --domains (for default EB configs)
     
     if ! sed -i "s/$HTTP_STRING/$NAME_LIMIT/g" /etc/nginx/nginx.conf; then
@@ -61,13 +61,13 @@ if ! grep -Fxq "$NAME_LIMIT" /etc/nginx/nginx.conf; then
     fi
 fi
 
-# Prevent certificate installation if not clean sample app
+# # Prevent certificate installation if not clean sample app
 
-CERT_REGEX="Certificate Name:\s+$CERTBOT_NAME"
+# CERT_REGEX="Certificate Name:\s+$CERTBOT_NAME"
 
-if certbot certificates | grep -Ew "$CERT_REGEX"; then
-    log_and_exit 'INFO: Certificate already installed.'
-fi
+# if certbot certificates | grep -Ew "$CERT_REGEX"; then
+#     log_and_exit 'INFO: Certificate already installed.'
+# fi
 
 # Set up certificates
 
