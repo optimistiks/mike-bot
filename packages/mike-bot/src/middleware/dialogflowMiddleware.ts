@@ -34,7 +34,7 @@ export function dialogflowMiddleware(bot: Telegraf<TelegrafContext>): void {
 
     // A unique identifier for the given session
     const { id: sessionId } = activeSession;
-        
+
     console.log("PRIVATE KEY", process.env.GOOGLE_PRIVATE_KEY);
 
     // Create a new session
