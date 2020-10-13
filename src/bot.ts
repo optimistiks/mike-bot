@@ -181,15 +181,17 @@ bot.command("stats", async (ctx) => {
   values.sort((a, b) => b.lols - a.lols);
   values.forEach((result, index) => {
     const lossPercent = ((personsLength - index - 1) * decayScore) / 100;
+    result.lols = Math.round(result.lols - result.lols * lossPercent);
+  });
+  values.sort((a, b) => b.lols - a.lols);
+  values.forEach((result, index) => {
     const emoji =
       index === 0
         ? EMOJI.crown
         : index === values.length - 1
         ? EMOJI.chicken
         : "";
-    resultMessage += `${result.username}: ${Math.round(
-      result.lols - result.lols * lossPercent
-    )} ${emoji}\n`;
+    resultMessage += `${result.username}: ${result.lols} ${emoji}\n`;
   });
 
   await ctx.deleteMessage(ctx.message?.message_id);
