@@ -154,6 +154,10 @@ bot.command("stats", async (ctx) => {
 
   const values = Object.values(results);
 
+  const personsLength = values.length;
+  const decayPercent = 40;
+  const decayScore = decayPercent / personsLength;
+
   if (values.length === 0) {
     return;
   }
@@ -176,13 +180,16 @@ bot.command("stats", async (ctx) => {
   resultMessage += "*Юмористы:*\n";
   values.sort((a, b) => b.lols - a.lols);
   values.forEach((result, index) => {
+    const lossPercent = ((personsLength - index - 1) * decayScore) / 100;
     const emoji =
       index === 0
         ? EMOJI.crown
         : index === values.length - 1
         ? EMOJI.chicken
         : "";
-    resultMessage += `${result.username}: ${result.lols} ${emoji}\n`;
+    resultMessage += `${result.username}: ${Math.round(
+      result.lols - result.lols * lossPercent
+    )} ${emoji}\n`;
   });
 
   await ctx.deleteMessage(ctx.message?.message_id);
