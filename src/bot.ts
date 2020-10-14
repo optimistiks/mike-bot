@@ -216,6 +216,7 @@ bot.command("stats", async (ctx) => {
         : "";
     resultMessage += `${result.username}: ${result.lols} ${emoji}\n`;
   });
+  resultMessage += "\n";
 
   resultMessage += `*Поставили ${EMOJI.plus}:*\n`;
   values.sort((a, b) => b.plusGiven - a.plusGiven);
