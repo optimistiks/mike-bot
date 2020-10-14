@@ -119,7 +119,14 @@ bot.command("stats", async (ctx) => {
   }
 
   const results: {
-    [id: number]: { lols: number; score: number; username: string };
+    [id: number]: {
+      lols: number;
+      score: number;
+      username: string;
+      lolGiven: number;
+      plusGiven: number;
+      minusGiven: number;
+    };
   } = {};
 
   const lols = await lolStore
@@ -132,24 +139,40 @@ bot.command("stats", async (ctx) => {
     const result = results[lol.toUser.id] || {
       lols: 0,
       score: 0,
+      plusGiven: 0,
+      minusGiven: 0,
+      lolGiven: 0,
       username: lol.toUser.username || "???",
+    };
+
+    const resultFrom = results[lol.fromUser.id] || {
+      lols: 0,
+      score: 0,
+      plusGiven: 0,
+      minusGiven: 0,
+      lolGiven: 0,
+      username: lol.fromUser.username || "???",
     };
 
     switch (lol.lolType) {
       case LolType.lol:
         result.lols += 1;
+        resultFrom.lolGiven += 1;
         break;
       case LolType.plus:
         result.score += 1;
+        resultFrom.plusGiven += 1;
         break;
       case LolType.minus:
         result.score -= 1;
+        resultFrom.minusGiven += 1;
         break;
       default:
         break;
     }
 
     results[lol.toUser.id] = result;
+    results[lol.fromUser.id] = resultFrom;
   });
 
   const values = Object.values(results);
@@ -192,6 +215,26 @@ bot.command("stats", async (ctx) => {
         ? EMOJI.chicken
         : "";
     resultMessage += `${result.username}: ${result.lols} ${emoji}\n`;
+  });
+
+  resultMessage += `*Поставили ${EMOJI.plus}:*\n`;
+  values.sort((a, b) => b.plusGiven - a.plusGiven);
+  values.forEach((result) => {
+    resultMessage += `${result.username}: ${result.plusGiven}\n`;
+  });
+  resultMessage += "\n";
+
+  resultMessage += `*Поставили ${EMOJI.minus}:*\n`;
+  values.sort((a, b) => b.minusGiven - a.minusGiven);
+  values.forEach((result) => {
+    resultMessage += `${result.username}: ${result.minusGiven}\n`;
+  });
+  resultMessage += "\n";
+
+  resultMessage += `*Поставили лол:*\n`;
+  values.sort((a, b) => b.lolGiven - a.lolGiven);
+  values.forEach((result) => {
+    resultMessage += `${result.username}: ${result.lolGiven}\n`;
   });
 
   await ctx.deleteMessage(ctx.message?.message_id);
