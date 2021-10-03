@@ -42,6 +42,7 @@ bot.command("s", async (ctx) => {
         performer: ctx.from?.username,
       }
     );
+    await ctx.deleteMessage(ctx.message?.message_id);
   } catch (err) {
     console.error(err);
   }
@@ -71,6 +72,7 @@ bot.hears(/[+|-]/, async (ctx) => {
 
     await saveLols([lol]);
 
+    await ctx.deleteMessage(ctx.message?.message_id);
     const emoji = text === TRIGGER.plus ? EMOJI.plus : EMOJI.minus;
     await ctx.reply(`${emoji} (${lol.fromUser.username || "???"})`, {
       reply_to_message_id: ctx.message?.reply_to_message?.message_id,
@@ -102,6 +104,7 @@ bot.hears(new RegExp(/лол/, "i"), async (ctx) => {
 
     await saveLols([lol]);
 
+    await ctx.deleteMessage(ctx.message?.message_id);
     await ctx.reply(`лол (${lol.fromUser.username || "???"})`, {
       reply_to_message_id: ctx.message?.reply_to_message?.message_id,
     });
@@ -235,6 +238,7 @@ bot.command("stats", async (ctx) => {
     resultMessage += `${result.username}: ${result.lolGiven}\n`;
   });
 
+  await ctx.deleteMessage(ctx.message?.message_id);
   await ctx.reply(resultMessage, { parse_mode: "Markdown" });
 });
 
