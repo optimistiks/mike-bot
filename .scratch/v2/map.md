@@ -16,6 +16,10 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 ## Decisions so far
 
 - Destination and scoring rules — grilled 2026-08-18: same group, new bot; silent chat; mutually exclusive Karma plus/minus with switch-by-undo; Humor independent; Season = calendar month; Current Season highlighted in the Mini App.
+- [How does Grammy receive reaction Marks on Vercel?](issues/01-grammy-vercel-webhook.md) — Next.js `webhookCallback` + `std/http`, explicit `message_reaction` in `allowed_updates`, secret token; see `docs/research/01-grammy-vercel-webhook.md`.
+- [How does a Next.js Mini App authenticate on Vercel?](issues/02-mini-app-auth-next.md) — `Authorization: tma` + `@tma.js/init-data-node` on Route Handlers; see `docs/research/02-mini-app-auth-next.md`.
+- [How do we read v1 DynamoDB Marks?](issues/03-read-v1-dynamodb.md) — one-shot Scan import to Postgres, not live Vercel reads; see `docs/research/03-read-v1-dynamodb.md`.
+- [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')` for undo; see `docs/research/04-reaction-add-remove.md`.
 
 ## Not yet specified
 
