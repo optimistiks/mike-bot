@@ -57,7 +57,7 @@ A non-bot user in a Chat, identified by `user_id`. Members cannot Mark themselve
 _Avoid_: user, account (prefer Member in this domain)
 
 **Chat member**:
-A row in `chat_members` keyed by (`chat_id`, `user_id`) holding the latest known `@username` (or first name). Updated when a Member appears in a v2 Event. Seeded from `legacy_marks` on import for v1-only Members.
+A row in `chat_members` keyed by (`chat_id`, `user_id`) holding the latest known `@username` (or first name). Updated when a Member appears in a v2 Event. Seeded from v1 import (`fromUser`/`toUser` in `scripts/import-v1.ts`) for v1-only Members.
 _Avoid_: storing display names only on Event rows; conflating with chat membership roster
 
 **Message author**:
@@ -77,7 +77,7 @@ The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, 
 _Avoid_: stats command, /stats
 
 **v1**:
-The AWS Lambda Telegraf bot on `master`. It scored via reply text (`+`, `-`, `лол`) and stored rows in DynamoDB `lolTable`. v1 history imports as-is into `legacy_marks` — not into `events`.
+The AWS Lambda Telegraf bot on `master`. It scored via reply text (`+`, `-`, `лол`) and stored rows in DynamoDB `lolTable`. v1 history is one-shot imported into `events` (converted to v2 event types, `legacy_id` set) — see [v1 import into events](.scratch/v2/issues/21-v1-import-into-events.md).
 _Avoid_: old bot, legacy bot as glossary terms (say v1)
 
 **Crown**:

@@ -9,4 +9,4 @@ Leaderboards are keyed by Telegram user id, but names change. v1 `legacy_marks` 
 
 ## Answer
 
-Separate `chat_members` table: (`chatId`, `userId`) → latest `@username` or first name. Updated on every v2 Mark (reactor and author). Seeded from `legacy_marks` on import so v1-only Members still have a label. Leaderboards aggregate by `userId`, join `chat_members` for display. v1 Mark rows stay as-is; display name is not read from individual Mark rows.
+Separate `chat_members` table: (`chatId`, `userId`) → latest `@username` or first name. Updated on every v2 Mark (reactor and author). Seeded from v1 import script (`fromUser`/`toUser`) so v1-only Members still have a label. Leaderboards aggregate by `userId`, join `chat_members` for display.

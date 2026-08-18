@@ -11,3 +11,7 @@ Do we one-shot export/import v1 DynamoDB Marks into v2 storage (read-only histor
 ## Answer
 
 One-shot Scan from DynamoDB `lolTable` into a separate Postgres `legacy_marks` table. Import **as-is** — same fields, no transformation. Mini App queries `marks` (v2) and `legacy_marks` (v1) and merges for display. No live DynamoDB reads from Vercel. No `source` column.
+
+## Amended
+
+Superseded by [Legacy read mapping](17-legacy-read-mapping.md) and [v1 import into events](21-v1-import-into-events.md): one-shot Scan converts rows into `events` (not a separate table). Mini App queries `events` only. No live DynamoDB from Vercel. See `scripts/import-v1.ts`.

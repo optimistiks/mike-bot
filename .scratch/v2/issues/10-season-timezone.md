@@ -9,4 +9,4 @@ A Season is a calendar month. Whose clock? Recommendation: a single named timezo
 
 ## Answer
 
-`Europe/Moscow` for Season boundaries and Current Season. v1 `legacy_marks.createdAt` bucketed in the same timezone.
+`Europe/Moscow` for Season boundaries and Current Season. v1-imported events use preserved `created_at` bucketed in the same timezone.
