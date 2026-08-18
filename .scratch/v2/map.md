@@ -44,6 +44,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 ## Not yet specified
 
 - Reconcile storage docs (tickets 07–08, ADR-0003/0004, `CONTEXT.md`) with single-table import — drop `legacy_marks`.
+- Reconcile [Mini App auth](issues/02-mini-app-auth-next.md) with Repo layout — skip initData validation for toy scope?
 
 ## Open tickets
 
