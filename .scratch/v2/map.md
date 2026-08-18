@@ -6,7 +6,7 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 
 ## Notes
 
-- Domain: `CONTEXT.md`. Decisions: `docs/adr/0001-vercel-grammy-next.md` through `docs/adr/0004-event-storage.md`.
+- Domain: `CONTEXT.md`. Decisions: `docs/adr/0001` through `docs/adr/0005`.
 - Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
 - Stack: Grammy + Next.js on Vercel. [redesigned-giggle](https://github.com/optimistiks/redesigned-giggle) is a kitchen sink for webhook / `message_reaction` / Mini App initData patterns — not the deploy stack (it is TanStack Start + Kamal).
 - Telegram: the bot must be a group **admin** and webhook `allowed_updates` must include `message_reaction`. Use full old-vs-new reaction lists so remove can undo; Grammy `bot.reaction()` does not fire on remove.

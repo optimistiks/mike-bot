@@ -9,11 +9,11 @@ A member's net score from Karma plus minus Karma minus. An integer, no decay. De
 _Avoid_: carma, score, уважение
 
 **Karma plus**:
-The scoring reaction that adds 1 Karma to the message author. Persisted as event type `karma.add`.
+The scoring reaction that adds 1 Karma to the message author. Persisted as event type `karma.plus`.
 _Avoid_: plus, +, ➕ as the concept name (those are v1 triggers)
 
 **Karma minus**:
-The scoring reaction that subtracts 1 Karma from the message author. Persisted as event type `karma.remove`.
+The scoring reaction that subtracts 1 Karma from the message author. Persisted as event type `karma.minus`.
 _Avoid_: minus, −, ➖ as the concept name
 
 **Humor**:
@@ -21,12 +21,20 @@ Points a member receives when someone puts the Humor scoring reaction on their m
 _Avoid_: lol, лол, humor points as a separate type from Humor
 
 **Event**:
-An append-only row in `events` with a `type` string (e.g. `karma.add`, `karma.undo.remove`, `humor.add`). No numeric value column — how each type affects scores is defined in application code, not the schema. Events are never updated or deleted.
+An append-only row in `events` with a `type` string (e.g. `karma.plus`, `karma.undo.minus`, `humor.add`). No numeric value column — how each type affects scores is defined in application code, not the schema. Events are never updated or deleted.
 _Avoid_: mark row, lol record, hardcoded score deltas in the database
 
 **Event type**:
-The `type` field on an Event. Closed vocabulary for v2 reactions: `karma.add`, `karma.remove`, `karma.undo.add`, `karma.undo.remove`, `humor.add`, `humor.undo.add`.
-_Avoid_: encoding scores as numbers in the type name
+The `type` field on an Event. Closed vocabulary for v2 reactions: `karma.plus`, `karma.minus`, `karma.undo.plus`, `karma.undo.minus`, `humor.add`, `humor.undo.add`.
+_Avoid_: encoding scores as numbers in the type name; `karma.add` / `karma.remove` (superseded naming)
+
+**Actor**:
+The Member who applied or removed a Scoring reaction. Maps to Telegram `MessageReactionUpdated.user` → `actor_id` on the Event.
+_Avoid_: confusing actor with subject
+
+**Subject**:
+The Member who wrote the message being reacted to — who receives the score. Maps to `subject_id` on the Event. **Not** present on the reaction update; resolved via `message_authors` cache.
+_Avoid_: assuming `reaction.user` is the subject
 
 **Mark**:
 The user-facing act of applying or removing a Scoring reaction. Each change appends one Event with the matching event type.
@@ -40,13 +48,21 @@ _Avoid_: vote, emoji (too vague), лол
 A conversation scoped by `chat_id`. The bot may serve many Chats; leaderboards are scoped per Chat.
 _Avoid_: assuming a single group
 
+**Chat membership**:
+A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Member is in a Chat where the bot is present. Synced on bot join and `chat_member` updates. Used by the Mini App to list Chats the opener belongs to.
+_Avoid_: conflating with `chat_members` (display names)
+
 **Member**:
 A non-bot user in a Chat, identified by `user_id`. Members cannot Mark themselves or bots. Display name comes from `chat_members`, not from Event rows.
 _Avoid_: user, account (prefer Member in this domain)
 
 **Chat member**:
 A row in `chat_members` keyed by (`chat_id`, `user_id`) holding the latest known `@username` (or first name). Updated when a Member appears in a v2 Event. Seeded from `legacy_marks` on import for v1-only Members.
-_Avoid_: storing display names only on Event rows
+_Avoid_: storing display names only on Event rows; conflating with chat membership roster
+
+**Message author**:
+A row in `message_authors` keyed by (`chat_id`, `message_id`) → `author_id`. Populated when the bot receives `message` updates. Used to resolve `subject_id` on reaction events.
+_Avoid_: reading subject from `MessageReactionUpdated.user`
 
 **Season**:
 A calendar month inside a calendar year (e.g. 2026-08). Events belong to the Season in which they were created.
@@ -57,7 +73,7 @@ The Season for today's year and month in `Europe/Moscow`. The Mini App must show
 _Avoid_: treating "ongoing" as a different kind of Season
 
 **Mini App**:
-The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, including v1 history.
+The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, including v1 history. Opener picks a Chat from their memberships, then sees that Chat's boards.
 _Avoid_: stats command, /stats
 
 **v1**:
