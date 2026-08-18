@@ -40,10 +40,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 
 ## Not yet specified
 
-- **Legacy read mapping** — how `legacy_marks.lolType` (`plus`/`minus`/`lol`) joins v2 event types in the five RU leaderboard sections
-- **Scoring module** — shared application map of event type → leaderboard bucket (received karma, humor given, etc.)
-- **Repo layout** — one Next.js app (webhook + Mini App) vs split packages
-- **Empty / edge states** — Mini App with no shared chats; reaction on uncached message (skip silently vs log)
+_(empty — soft fog graduated to tickets 17–20)_
 
 ## Open tickets
 
@@ -52,6 +49,10 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 | 12 | [Mini App look](issues/12-mini-app-look.md) | prototype | agent |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
+| 17 | [Legacy read mapping](issues/17-legacy-read-mapping.md) | grilling | human |
+| 18 | [Scoring module](issues/18-scoring-module.md) | grilling | human |
+| 19 | [Repo layout](issues/19-repo-layout.md) | grilling | human |
+| 20 | [Edge states](issues/20-edge-states.md) | grilling | human |
 
 ## Out of scope
 
