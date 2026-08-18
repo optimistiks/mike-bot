@@ -1,0 +1,33 @@
+# Wayfinder: v2 operational on Vercel
+
+## Destination
+
+v2 is live on Vercel: a new Grammy bot in the same group scores messages via three Scoring reactions (Karma plus, Karma minus, Humor) with undo-on-remove; a Next.js Mini App shows honest Seasonal leaderboards with Current Season marked, including v1 DynamoDB history. Polly, Dialogflow, and `/stats` are gone. `master` stays v1 until cutover.
+
+## Notes
+
+- Domain: `CONTEXT.md`. Decisions: `docs/adr/0001-vercel-grammy-next.md`, `docs/adr/0002-reaction-scoring.md`, `docs/adr/0003-honest-seasonal-stats.md`.
+- Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
+- Stack: Grammy + Next.js on Vercel. [redesigned-giggle](https://github.com/optimistiks/redesigned-giggle) is a kitchen sink for webhook / `message_reaction` / Mini App initData patterns — not the deploy stack (it is TanStack Start + Kamal).
+- Telegram: the bot must be a group **admin** and webhook `allowed_updates` must include `message_reaction`. Use full old-vs-new reaction lists so remove can undo; Grammy `bot.reaction()` does not fire on remove.
+- Plan, don't build, until this map has no open tickets.
+- Skills: grilling + domain-modeling on HITL tickets; research on AFK research tickets; prototype only for Mini App look-and-feel.
+
+## Decisions so far
+
+- Destination and scoring rules — grilled 2026-08-18: same group, new bot; silent chat; mutually exclusive Karma plus/minus with switch-by-undo; Humor independent; Season = calendar month; Current Season highlighted in the Mini App.
+
+## Not yet specified
+
+- Mini App visual design beyond "Current Season is obvious" and Seasonal year/month breakdown
+- How usernames that changed between v1 and v2 are displayed
+- Cutover runbook (when v1 is declared dead): webhook teardown, group membership, DNS
+- Custom Telegram emoji vs standard emoji as Scoring reactions (hangs on which-emoji ticket)
+
+## Out of scope
+
+- Dialogflow NLU
+- Amazon Polly / `/s` TTS
+- v1 `/stats` command and Humor decay
+- Staying on AWS Lambda / CodeStar for v2
+- Copying redesigned-giggle's Kamal/TanStack production stack
