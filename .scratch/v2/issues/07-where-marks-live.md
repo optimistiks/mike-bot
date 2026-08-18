@@ -11,8 +11,6 @@ Vercel has no DynamoDB. Where do we persist v2 Marks so the Mini App can query h
 
 Postgres on Neon. Three tables:
 
-- **`events`** — v2 scoring facts: `type` (`karma` | `humor`), `value` (`+1` / `-1` for karma; `+1` for humor), `chat_id`, `actor_id`, `subject_id`, `message_id`, `created_at`. Generic names, decoupled from Telegram shape. See ADR-0004.
+- **`events`** — append-only v2 log: `type` (`karma` | `humor`), `value` (score delta: `+1` / `-1`), `chat_id`, `actor_id`, `subject_id`, `message_id`, `created_at`. Removing a reaction appends the inverse delta — never delete rows. See ADR-0004.
 - **`legacy_marks`** — v1 DynamoDB import as-is (`lolType`, `fromUser`, `toUser`, …). Mapped to leaderboard math on read, not on import.
 - **`chat_members`** — (`chat_id`, `user_id`) → latest display name.
-
-Undo-on-remove deletes the matching event row.

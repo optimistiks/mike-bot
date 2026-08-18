@@ -19,7 +19,7 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 - [How does Grammy receive reaction Marks on Vercel?](issues/01-grammy-vercel-webhook.md) — Next.js `webhookCallback` + `std/http`, explicit `message_reaction` in `allowed_updates`, secret token; see `docs/research/01-grammy-vercel-webhook.md`.
 - [How does a Next.js Mini App authenticate on Vercel?](issues/02-mini-app-auth-next.md) — `Authorization: tma` + `@tma.js/init-data-node` on Route Handlers; see `docs/research/02-mini-app-auth-next.md`.
 - [How do we read v1 DynamoDB Marks?](issues/03-read-v1-dynamodb.md) — one-shot Scan import to Postgres, not live Vercel reads; see `docs/research/03-read-v1-dynamodb.md`.
-- [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')` for undo; see `docs/research/04-reaction-add-remove.md`.
+- [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')`; append compensating event on remove (ADR-0004), never delete.
 - [Which three emojis are the Scoring reactions?](issues/05-which-emojis.md) — 👍 Karma plus, 👎 Karma minus, 🤣 Humor; standard emoji only.
 - [How does the Mini App open?](issues/06-how-mini-app-opens.md) — Bot Menu Button only; no `/app` command.
 - [Where do v2 Marks live?](issues/07-where-marks-live.md) — Neon Postgres: `events` (type + value), `legacy_marks` (v1 as-is), `chat_members`; see ADR-0004.

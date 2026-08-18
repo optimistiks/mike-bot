@@ -21,12 +21,12 @@ Points a member receives when someone puts the Humor scoring reaction on their m
 _Avoid_: lol, лол, humor points as a separate type from Humor
 
 **Event**:
-A persisted scoring fact in Postgres: `type` + `value`, scoped to a `chat_id`, with `actor_id` (who scored) and `subject_id` (who received). Not tied to Telegram field names — the bot adapter writes events; the Mini App reads them.
-_Avoid_: mark row, lol record
+An append-only scoring fact in Postgres: `type` + `value` (score delta), scoped to a `chat_id`, with `actor_id` (who reacted) and `subject_id` (who received). Events are never updated or deleted — adding a reaction appends one row; removing appends the inverse `value`. Not tied to Telegram field names.
+_Avoid_: mark row, lol record, deleting events
 
 **Mark**:
-The user-facing act of applying or removing a Scoring reaction. Applying a reaction creates an Event; removing it undoes that Event.
-_Avoid_: conflating Mark with the DB row name
+The user-facing act of applying or removing a Scoring reaction. Each change appends an Event with the appropriate delta. Net score is `SUM(value)` over Events.
+_Avoid_: conflating Mark with a single DB row; deleting on undo
 
 **Scoring reaction**:
 One of the three configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), 🤣 (Humor). Standard emoji only. The v2 adapter maps these to Events.
