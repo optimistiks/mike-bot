@@ -38,6 +38,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - **Chat picker** (ADR-0005) — `chat_memberships` synced on join/leave; Mini App lists user's chats with bot.
 - **Webhook dedup** (ADR-0005) — ignore duplicate `update_id` before appending events.
 - [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; Q2 bucket matrix; keep v1 RU “given” labels. Supersedes dual-table plan in 07/08/ADR-0004.
+- [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
 
 ## Not yet specified
 
@@ -49,7 +50,6 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 | --- | --- | --- | --- |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
-| 18 | [Scoring module](issues/18-scoring-module.md) | grilling | human |
 | 19 | [Repo layout](issues/19-repo-layout.md) | grilling | human |
 | 20 | [Edge states](issues/20-edge-states.md) | grilling | human |
 | 21 | [v1 import into events](issues/21-v1-import-into-events.md) | grilling | human |
