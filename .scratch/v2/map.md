@@ -6,7 +6,7 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 
 ## Notes
 
-- Domain: `CONTEXT.md`. Decisions: `docs/adr/0001-vercel-grammy-next.md`, `docs/adr/0002-reaction-scoring.md`, `docs/adr/0003-honest-seasonal-stats.md`.
+- Domain: `CONTEXT.md`. Decisions: `docs/adr/0001-vercel-grammy-next.md` through `docs/adr/0004-event-storage.md`.
 - Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
 - Stack: Grammy + Next.js on Vercel. [redesigned-giggle](https://github.com/optimistiks/redesigned-giggle) is a kitchen sink for webhook / `message_reaction` / Mini App initData patterns — not the deploy stack (it is TanStack Start + Kamal).
 - Telegram: the bot must be a group **admin** and webhook `allowed_updates` must include `message_reaction`. Use full old-vs-new reaction lists so remove can undo; Grammy `bot.reaction()` does not fire on remove.
@@ -22,7 +22,7 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 - [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')` for undo; see `docs/research/04-reaction-add-remove.md`.
 - [Which three emojis are the Scoring reactions?](issues/05-which-emojis.md) — 👍 Karma plus, 👎 Karma minus, 🤣 Humor; standard emoji only.
 - [How does the Mini App open?](issues/06-how-mini-app-opens.md) — Bot Menu Button only; no `/app` command.
-- [Where do v2 Marks live?](issues/07-where-marks-live.md) — Neon Postgres `marks` table for v2; separate `legacy_marks` for v1 import; no `source` column.
+- [Where do v2 Marks live?](issues/07-where-marks-live.md) — Neon Postgres: `events` (type + value), `legacy_marks` (v1 as-is), `chat_members`; see ADR-0004.
 - [How does v1 history get into the Mini App?](issues/08-v1-history-path.md) — one-shot DynamoDB import as-is into `legacy_marks`; Mini App merges both tables per `chatId`.
 - [Which chats and which language?](issues/09-chats-and-language.md) — multi-chat via `chatId`; Russian UI labels.
 - [What timezone closes a Season?](issues/10-season-timezone.md) — `Europe/Moscow`.
