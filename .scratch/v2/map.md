@@ -9,14 +9,27 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Domain: `CONTEXT.md`. ADRs: `docs/adr/0001` through `docs/adr/0005`.
 - Research: `docs/research/01`–`04`.
 - Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
-- Human ops tasks (bot admin, Vercel secrets) **do not block development** — build and test with [PGlite](https://pglite.dev/) locally; record ops in spec, track as non-blocking tickets at handoff (`/to-spec`, `/to-tickets`).
+- Local dev: [PGlite](https://pglite.dev/) — no bot admin, AWS keys, or Vercel secrets required to build and test.
 - Stack: **Turborepo monorepo** → `apps/web` Next.js on Vercel. redesigned-giggle = not copied.
 - Telegram bot: group **admin** required; **privacy mode off**; `allowed_updates` must include at least `message`, `message_reaction`, `my_chat_member`, `chat_member`.
 - Reactions: use `bot.on('message_reaction')` + old/new diff — not `bot.reaction()` alone (no remove). `MessageReactionUpdated.user` = actor; message author = `subject_id` from `message_authors` cache. Bot API has no `getMessage`.
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from `chat_memberships` → leaderboard for chosen `chat_id`. Russian UI; `Europe/Moscow` seasons.
-- **Route clear** — all decision tickets resolved. Remaining open tickets are non-blocking human ops. Ready for `/to-spec` or build.
+- **Route clear** — all tickets resolved. Ready for `/to-spec` or build.
+
+## Deploy ops
+
+Human steps before production works in a real group. Non-blocking for development.
+
+1. **Bot in group** — Add the new BotFather bot to the group; promote to **administrator** (required for `message_reaction` updates). Privacy mode **off**. Record bot `@username`.
+2. **Vercel project** — Deploy `apps/web` from the `v2` branch. Set env vars (server-side only, never `NEXT_PUBLIC_*`):
+   - `BOT_TOKEN`
+   - `BOT_WEBHOOK_SECRET` (same value for `setWebhook.secret_token` and `webhookCallback`)
+   - `DATABASE_URL` (Neon Postgres)
+   - Mini App URL is the Vercel deployment HTTPS origin
+3. **BotFather** — Menu Button → production Vercel HTTPS URL. Run `scripts/set-webhook.ts` to register webhook with `message_reaction` in `allowed_updates`.
+4. **v1 import** — Run `scripts/import-v1.ts` locally with temporary AWS creds (one-shot; not on Vercel runtime).
 
 ## Decisions so far
 
@@ -47,13 +60,6 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 ## Not yet specified
 
 _(empty)_
-
-## Open tickets
-
-| # | Ticket | Type | Owner |
-| --- | --- | --- | --- |
-| 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task (non-blocking) | human |
-| 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task (non-blocking) | human |
 
 ## Out of scope
 
