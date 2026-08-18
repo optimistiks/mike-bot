@@ -16,7 +16,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from `chat_memberships` → leaderboard for chosen `chat_id`. Russian UI; `Europe/Moscow` seasons.
-- **Route clear** — all tickets resolved. Ready for `/to-spec` or build.
+- **Route clear** — wayfinder tickets resolved; [spec](../spec.md) published; build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) `ready-for-agent`.
 
 ## Deploy ops
 
