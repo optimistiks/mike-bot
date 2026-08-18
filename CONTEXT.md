@@ -33,8 +33,12 @@ A Telegram group keyed by `chatId`. The bot may serve many Chats; leaderboards a
 _Avoid_: assuming a single group
 
 **Member**:
-A non-bot Telegram user. Members cannot Mark themselves or bots.
+A non-bot Telegram user. Members cannot Mark themselves or bots. Identified by Telegram `userId` within a Chat. Display name comes from `chat_members` (latest known username), not from individual Mark rows.
 _Avoid_: user, account (prefer Member in this domain)
+
+**Chat member**:
+A row in `chat_members` keyed by (`chatId`, `userId`) holding the latest known `@username` (or first name). Updated on each v2 Mark. Seeded from `legacy_marks` on import for v1-only Members.
+_Avoid_: storing display names only on Mark rows
 
 **Season**:
 A calendar month inside a calendar year (e.g. 2026-08). Marks belong to the Season in which they were made.

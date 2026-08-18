@@ -27,10 +27,12 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 - [Which chats and which language?](issues/09-chats-and-language.md) — multi-chat via `chatId`; Russian UI labels.
 - [What timezone closes a Season?](issues/10-season-timezone.md) — `Europe/Moscow`.
 - [Which leaderboards does the Mini App show?](issues/11-which-leaderboards.md) — all five v1 sections, Current Season default, crown/chicken flair, no decay.
+- [How do we display usernames that changed?](issues/15-username-display.md) — `chat_members` table per (`chatId`, `userId`), updated on v2 Marks, seeded from legacy import.
+- [What is the v1 → v2 cutover runbook?](issues/16-cutover-runbook.md) — out of scope; decide at cutover.
 
 ## Not yet specified
 
-_(empty — remaining unknowns are open tickets 12, 13, 14, 15, 16)_
+_(empty — open work is tickets 12, 13, 14 only)_
 
 ## Out of scope
 
@@ -39,3 +41,4 @@ _(empty — remaining unknowns are open tickets 12, 13, 14, 15, 16)_
 - v1 `/stats` command and Humor decay
 - Staying on AWS Lambda / CodeStar for v2
 - Copying redesigned-giggle's Kamal/TanStack production stack
+- v1 → v2 cutover runbook (webhook teardown, bot swap, `master` merge) — decide when v2 is live, not during planning

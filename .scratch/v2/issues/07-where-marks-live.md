@@ -9,4 +9,4 @@ Vercel has no DynamoDB. Where do we persist v2 Marks so the Mini App can query h
 
 ## Answer
 
-Postgres on Neon (Vercel-friendly). One `marks` table for v2: one row per Mark (reactor, author, type, `chatId`, `createdAt`, message reference as needed). v1 history goes in a **separate** `legacy_marks` table — no `source` field on either table.
+Postgres on Neon (Vercel-friendly). Three tables: `marks` (v2 Marks), `legacy_marks` (v1 import as-is), `chat_members` (`chatId` + `userId` → latest display name). No `source` column on any table.
