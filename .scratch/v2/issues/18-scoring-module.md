@@ -1,7 +1,7 @@
 # Where does scoring logic live?
 
 Type: grilling
-Status: open
+Status: claimed
 
 ## Question
 

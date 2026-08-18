@@ -47,7 +47,6 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 
 | # | Ticket | Type | Owner |
 | --- | --- | --- | --- |
-| 12 | [Mini App look](issues/12-mini-app-look.md) | prototype | agent |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
 | 18 | [Scoring module](issues/18-scoring-module.md) | grilling | human |
@@ -57,6 +56,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 
 ## Out of scope
 
+- [Mini App look](issues/12-mini-app-look.md) — UI prototype skipped; test in production instead
 - Dialogflow, Polly, `/stats`, Humor decay
 - AWS Lambda / CodeStar for v2
 - redesigned-giggle Kamal/TanStack stack

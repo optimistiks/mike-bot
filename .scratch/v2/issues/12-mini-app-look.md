@@ -1,7 +1,7 @@
 # What does the Mini App look like?
 
 Type: prototype
-Status: open
+Status: resolved
 
 ## Question
 
@@ -14,3 +14,7 @@ Raise fidelity on Mini App layout:
 5. Honest v1 + v2 counts merged
 
 Produce a cheap UI prototype to react to — not production code.
+
+## Answer
+
+Skipped — toy project; ship UI straight to production and iterate there. No throwaway prototype.
