@@ -2,7 +2,8 @@
 
 Type: task
 Status: open
-Blocked by: 06, 07
+
+Non-blocking for development — use PGlite locally; required before production deploy.
 
 ## Question
 

@@ -52,8 +52,8 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 
 | # | Ticket | Type | Owner |
 | --- | --- | --- | --- |
-| 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
-| 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
+| 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task (non-blocking) | human |
+| 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task (non-blocking) | human |
 | 21 | [v1 import into events](issues/21-v1-import-into-events.md) | grilling | human |
 
 ## Out of scope
