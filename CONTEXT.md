@@ -5,31 +5,35 @@ A Telegram group scoring bot: members mark each other's messages, and a Mini App
 ## Language
 
 **Karma**:
-A member's net score from Karma plus minus Karma minus. An integer, no decay. Computed as the sum of `karma` events where the member is `subject_id`.
+A member's net score from Karma plus minus Karma minus. An integer, no decay. Derived in application code from karma-related event types where the member is `subject_id`.
 _Avoid_: carma, score, уважение
 
 **Karma plus**:
-The scoring reaction that adds 1 Karma to the message author. Persisted as an event: `type: karma`, `value: +1`.
+The scoring reaction that adds 1 Karma to the message author. Persisted as event type `karma.add`.
 _Avoid_: plus, +, ➕ as the concept name (those are v1 triggers)
 
 **Karma minus**:
-The scoring reaction that subtracts 1 Karma from the message author. Persisted as an event: `type: karma`, `value: -1`.
+The scoring reaction that subtracts 1 Karma from the message author. Persisted as event type `karma.remove`.
 _Avoid_: minus, −, ➖ as the concept name
 
 **Humor**:
-Points a member receives when someone puts the Humor scoring reaction on their message. An integer, no decay. Persisted as an event: `type: humor`, `value: +1`.
+Points a member receives when someone puts the Humor scoring reaction on their message. An integer, no decay. Derived from humor-related event types.
 _Avoid_: lol, лол, humor points as a separate type from Humor
 
 **Event**:
-An append-only scoring fact in Postgres: `type` + `value` (score delta), scoped to a `chat_id`, with `actor_id` (who reacted) and `subject_id` (who received). Events are never updated or deleted — adding a reaction appends one row; removing appends the inverse `value`. Not tied to Telegram field names.
-_Avoid_: mark row, lol record, deleting events
+An append-only row in `events` with a `type` string (e.g. `karma.add`, `karma.undo.remove`, `humor.add`). No numeric value column — how each type affects scores is defined in application code, not the schema. Events are never updated or deleted.
+_Avoid_: mark row, lol record, hardcoded score deltas in the database
+
+**Event type**:
+The `type` field on an Event. Closed vocabulary for v2 reactions: `karma.add`, `karma.remove`, `karma.undo.add`, `karma.undo.remove`, `humor.add`, `humor.undo.add`.
+_Avoid_: encoding scores as numbers in the type name
 
 **Mark**:
-The user-facing act of applying or removing a Scoring reaction. Each change appends an Event with the appropriate delta. Net score is `SUM(value)` over Events.
+The user-facing act of applying or removing a Scoring reaction. Each change appends one Event with the matching event type.
 _Avoid_: conflating Mark with a single DB row; deleting on undo
 
 **Scoring reaction**:
-One of the three configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), 🤣 (Humor). Standard emoji only. The v2 adapter maps these to Events.
+One of the three configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), 🤣 (Humor). Standard emoji only. The v2 adapter maps these to event types.
 _Avoid_: vote, emoji (too vague), лол
 
 **Chat**:
