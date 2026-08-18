@@ -19,10 +19,10 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 - [How does Grammy receive reaction Marks on Vercel?](issues/01-grammy-vercel-webhook.md) — Next.js `webhookCallback` + `std/http`, explicit `message_reaction` in `allowed_updates`, secret token; see `docs/research/01-grammy-vercel-webhook.md`.
 - [How does a Next.js Mini App authenticate on Vercel?](issues/02-mini-app-auth-next.md) — `Authorization: tma` + `@tma.js/init-data-node` on Route Handlers; see `docs/research/02-mini-app-auth-next.md`.
 - [How do we read v1 DynamoDB Marks?](issues/03-read-v1-dynamodb.md) — one-shot Scan import to Postgres, not live Vercel reads; see `docs/research/03-read-v1-dynamodb.md`.
-- [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')`; append compensating event on remove (ADR-0004), never delete.
+- [What does a reaction add vs remove look like?](issues/04-reaction-add-remove.md) — old/new diff, message author cache, `bot.on('message_reaction')`; append undo event types (ADR-0004), never delete.
 - [Which three emojis are the Scoring reactions?](issues/05-which-emojis.md) — 👍 Karma plus, 👎 Karma minus, 🤣 Humor; standard emoji only.
 - [How does the Mini App open?](issues/06-how-mini-app-opens.md) — Bot Menu Button only; no `/app` command.
-- [Where do v2 Marks live?](issues/07-where-marks-live.md) — Neon Postgres: `events` (type + value), `legacy_marks` (v1 as-is), `chat_members`; see ADR-0004.
+- [Where do v2 Marks live?](issues/07-where-marks-live.md) — Neon Postgres: `events` (typed strings, no value column), `legacy_marks`, `chat_members`; see ADR-0004.
 - [How does v1 history get into the Mini App?](issues/08-v1-history-path.md) — one-shot DynamoDB import as-is into `legacy_marks`; Mini App merges both tables per `chatId`.
 - [Which chats and which language?](issues/09-chats-and-language.md) — multi-chat via `chatId`; Russian UI labels.
 - [What timezone closes a Season?](issues/10-season-timezone.md) — `Europe/Moscow`.
