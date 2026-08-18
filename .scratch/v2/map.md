@@ -14,9 +14,9 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Telegram bot: group **admin** required; **privacy mode off**; `allowed_updates` must include at least `message`, `message_reaction`, `my_chat_member`, `chat_member`.
 - Reactions: use `bot.on('message_reaction')` + old/new diff — not `bot.reaction()` alone (no remove). `MessageReactionUpdated.user` = actor; message author = `subject_id` from `message_authors` cache. Bot API has no `getMessage`.
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring weights in application code (ADR-0004).
-- Postgres (Neon): `events`, `legacy_marks`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates` (ADR-0004, ADR-0005).
+- Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button only → initData auth → chat picker from `chat_memberships` → leaderboard for chosen `chat_id`. Russian UI labels; `Europe/Moscow` seasons.
-- Plan, don't build, until open tickets are resolved.
+- Plan, don't build, until open decision tickets are resolved. **Grilling complete** — remaining open tickets are non-blocking human ops; route is clear for `/to-spec` or build.
 
 ## Decisions so far
 
@@ -42,11 +42,12 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
 - [Repo layout](issues/19-repo-layout.md) — Turborepo monorepo; `apps/web` Next.js App Router; no giggle copy; skip initData validation / production hardening.
 - [Edge states](issues/20-edge-states.md) — empty picker RU message; uncached message skip + console.log; silent in group; no backfill.
+- [v1 import into events](issues/21-v1-import-into-events.md) — `legacy_id` idempotency; seed `chat_members` in same script; local one-shot; no `legacy_marks`.
 
 ## Not yet specified
 
-- Reconcile storage docs (tickets 07–08, ADR-0003/0004, `CONTEXT.md`) with single-table import — drop `legacy_marks`.
-- Reconcile [Mini App auth](issues/02-mini-app-auth-next.md) with Repo layout — skip initData validation for toy scope?
+- Reconcile stale docs (tickets 07–08, ADR-0003/0004, `CONTEXT.md`) with single-table import decisions.
+- Reconcile [Mini App auth](issues/02-mini-app-auth-next.md) with [Repo layout](issues/19-repo-layout.md) — skip initData validation for toy scope?
 
 ## Open tickets
 
@@ -54,7 +55,6 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 | --- | --- | --- | --- |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task (non-blocking) | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task (non-blocking) | human |
-| 21 | [v1 import into events](issues/21-v1-import-into-events.md) | grilling | human |
 
 ## Out of scope
 
