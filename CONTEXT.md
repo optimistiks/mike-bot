@@ -21,12 +21,16 @@ Points a member receives when someone puts the Humor scoring reaction on their m
 _Avoid_: lol, лол, humor points as a separate type from Humor
 
 **Scoring reaction**:
-One of the three configured Telegram reactions: Karma plus, Karma minus, or Humor.
+One of the three configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), 🤣 (Humor). Standard emoji only.
 _Avoid_: vote, emoji (too vague), лол
 
 **Mark**:
-One member applying a scoring reaction to another member's message. Removing the reaction undoes the Mark.
+One member applying a scoring reaction to another member's message. Removing the reaction undoes the Mark. v2 Marks are stored in Postgres; v1 Marks live in a separate legacy table (same shape as DynamoDB, imported as-is).
 _Avoid_: lol record, vote, lol
+
+**Chat**:
+A Telegram group keyed by `chatId`. The bot may serve many Chats; leaderboards are scoped per Chat.
+_Avoid_: assuming a single group
 
 **Member**:
 A non-bot Telegram user. Members cannot Mark themselves or bots.
@@ -45,5 +49,13 @@ The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, 
 _Avoid_: stats command, /stats
 
 **v1**:
-The AWS Lambda Telegraf bot on `master`. It scored via reply text (`+`, `-`, `лол`) and stored Marks in DynamoDB.
+The AWS Lambda Telegraf bot on `master`. It scored via reply text (`+`, `-`, `лол`) and stored Marks in DynamoDB table `lolTable`. v1 history is imported into a separate Postgres legacy table, as-is — not merged into the v2 Marks table.
 _Avoid_: old bot, legacy bot as glossary terms (say v1)
+
+**Crown**:
+Flair on the #1 entry in a leaderboard section (👑).
+_Avoid_: winner badge as a separate concept
+
+**Chicken**:
+Flair on the last-place entry in a leaderboard section (🐔), matching v1 `/stats` tone.
+_Avoid_: loser badge as a separate concept
