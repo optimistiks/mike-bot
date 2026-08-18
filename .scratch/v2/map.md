@@ -37,10 +37,11 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - **Message cache** (ADR-0005) — `message_authors`: `author_id`, `author_is_bot`, `message_date` only; no text/media; skip score if uncached.
 - **Chat picker** (ADR-0005) — `chat_memberships` synced on join/leave; Mini App lists user's chats with bot.
 - **Webhook dedup** (ADR-0005) — ignore duplicate `update_id` before appending events.
+- [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; Q2 bucket matrix; keep v1 RU “given” labels. Supersedes dual-table plan in 07/08/ADR-0004.
 
 ## Not yet specified
 
-_(empty — soft fog graduated to tickets 17–20)_
+- Reconcile storage docs (tickets 07–08, ADR-0003/0004, `CONTEXT.md`) with single-table import — drop `legacy_marks`.
 
 ## Open tickets
 
@@ -49,10 +50,10 @@ _(empty — soft fog graduated to tickets 17–20)_
 | 12 | [Mini App look](issues/12-mini-app-look.md) | prototype | agent |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
-| 17 | [Legacy read mapping](issues/17-legacy-read-mapping.md) | grilling | human |
 | 18 | [Scoring module](issues/18-scoring-module.md) | grilling | human |
 | 19 | [Repo layout](issues/19-repo-layout.md) | grilling | human |
 | 20 | [Edge states](issues/20-edge-states.md) | grilling | human |
+| 21 | [v1 import into events](issues/21-v1-import-into-events.md) | grilling | human |
 
 ## Out of scope
 
