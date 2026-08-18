@@ -1,3 +1,9 @@
+## Branch policy
+
+- **`master` is off limits.** It is live v1 (the AWS-hosted Telegram bot). Do not commit to it, open PRs into it, or merge into it.
+- **All work happens on `v2`.** Commit directly to `v2`. No change-PR-merge loop.
+- When v2 is operational, v1 will be declared dead and `master` will be updated in a single cutover.
+
 ## Agent skills
 
 ### Issue tracker
