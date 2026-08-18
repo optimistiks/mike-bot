@@ -9,7 +9,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Domain: `CONTEXT.md`. ADRs: `docs/adr/0001` through `docs/adr/0005`.
 - Research: `docs/research/01`–`04`.
 - Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
-- Stack: Grammy + Next.js on Vercel. [redesigned-giggle](https://github.com/optimistiks/redesigned-giggle) = pattern reference only (webhook, reactions, initData) — not deploy stack.
+- Stack: **Turborepo monorepo** → `apps/web` Next.js on Vercel. redesigned-giggle = not copied.
 - Telegram bot: group **admin** required; **privacy mode off**; `allowed_updates` must include at least `message`, `message_reaction`, `my_chat_member`, `chat_member`.
 - Reactions: use `bot.on('message_reaction')` + old/new diff — not `bot.reaction()` alone (no remove). `MessageReactionUpdated.user` = actor; message author = `subject_id` from `message_authors` cache. Bot API has no `getMessage`.
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring weights in application code (ADR-0004).
@@ -39,6 +39,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - **Webhook dedup** (ADR-0005) — ignore duplicate `update_id` before appending events.
 - [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; Q2 bucket matrix; keep v1 RU “given” labels. Supersedes dual-table plan in 07/08/ADR-0004.
 - [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
+- [Repo layout](issues/19-repo-layout.md) — Turborepo monorepo; `apps/web` Next.js App Router; no giggle copy; skip initData validation / production hardening.
 
 ## Not yet specified
 
@@ -50,7 +51,6 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 | --- | --- | --- | --- |
 | 13 | [Bot admin in group](issues/13-bot-admin-in-group.md) | task | human |
 | 14 | [Vercel + BotFather secrets](issues/14-vercel-botfather-secrets.md) | task | human (after build) |
-| 19 | [Repo layout](issues/19-repo-layout.md) | grilling | human |
 | 20 | [Edge states](issues/20-edge-states.md) | grilling | human |
 | 21 | [v1 import into events](issues/21-v1-import-into-events.md) | grilling | human |
 
