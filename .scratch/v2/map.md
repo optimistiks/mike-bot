@@ -30,9 +30,7 @@ v2 is live on Vercel: a new Grammy bot in the same group scores messages via thr
 
 ## Not yet specified
 
-- Mini App visual design beyond decisions above (ticket 12 — prototype)
-- How usernames that changed between v1 and v2 are displayed
-- Cutover runbook (when v1 is declared dead): webhook teardown, group membership, DNS
+_(empty — remaining unknowns are open tickets 12, 13, 14, 15, 16)_
 
 ## Out of scope
 
