@@ -1,7 +1,7 @@
 # How does v1 DynamoDB import into events?
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 17
 
 ## Question
