@@ -61,8 +61,8 @@ A row in `chat_members` keyed by (`chat_id`, `user_id`) holding the latest known
 _Avoid_: storing display names only on Event rows; conflating with chat membership roster
 
 **Message author**:
-A row in `message_authors` keyed by (`chat_id`, `message_id`) → `author_id`. Populated when the bot receives `message` updates. Used to resolve `subject_id` on reaction events.
-_Avoid_: reading subject from `MessageReactionUpdated.user`
+A row in `message_authors` keyed by (`chat_id`, `message_id`) → `author_id`, plus `author_is_bot` and `message_date`. Populated when the bot receives `message` updates. Used to resolve `subject_id` on reaction events. Do not store message text or media.
+_Avoid_: reading subject from `MessageReactionUpdated.user`; caching full message bodies
 
 **Season**:
 A calendar month inside a calendar year (e.g. 2026-08). Events belong to the Season in which they were created.
