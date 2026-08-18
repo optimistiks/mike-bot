@@ -1,7 +1,7 @@
 # How is the repo laid out?
 
 Type: grilling
-Status: open
+Status: claimed
 
 ## Question
 
