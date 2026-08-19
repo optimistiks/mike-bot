@@ -6,9 +6,11 @@ Telegram scoring bot and Mini App on Vercel (Next.js + Neon Postgres).
 
 ```bash
 pnpm install
-pnpm dev      # turbo → apps/web
+pnpm dev
 pnpm test
 pnpm build
+pnpm lint
+pnpm fmt
 ```
 
 Local database tests use PGlite — no Neon or AWS credentials required.

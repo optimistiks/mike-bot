@@ -10,6 +10,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "fmt": "prettier --write ../.. --ignore-path ../../.prettierignore",
+    "fmt:check": "prettier --check ../.. --ignore-path ../../.prettierignore",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

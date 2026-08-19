@@ -6,6 +6,10 @@
   "exports": {
     "./base": "./base.js"
   },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
   "peerDependencies": {
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
