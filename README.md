@@ -64,7 +64,6 @@ On success the script prints counts for rows processed, events inserted/skipped,
 | `IMPORT_CHAT_ID`        | no       | Numeric Telegram chat id; import only rows for that chat                   |
 | `IMPORT_TARGET`         | no       | Set to `pglite` to import into local PGlite instead of Neon                |
 | `PGLITE_DATA_DIR`       | no       | Directory for file-backed PGlite (default: in-memory)                      |
-| `IMPORT_V1_JSON`        | no       | Path to JSON file of v1 rows; skips DynamoDB Scan                          |
 | `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `chat_members.json`, `leaderboards.json` after import |
 
 \* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`.
@@ -106,37 +105,7 @@ AWS Console → top-right account menu → **Account** — or IAM → **Dashboar
 
 ### Dry run with PGlite (no Neon)
 
-Use PGlite to import into a local database and dump JSON you can inspect. No `DATABASE_URL` required.
-
-**1. Get v1 rows as JSON** (pick one):
-
-- **From DynamoDB** (needs AWS creds): export with the AWS CLI, then convert to plain objects (the script expects unmarshalled rows, not raw `{ "S": "..." }` DynamoDB JSON). Easiest path: scan with the import script itself (next section).
-- **Fixture file** for a smoke test — save as `tmp/v1-rows.json`:
-
-```json
-[
-  {
-    "id": "11111111-1111-4111-8111-111111111111",
-    "createdAt": 1722470400123,
-    "lolType": "plus",
-    "fromUser": { "id": 501, "username": "giver" },
-    "toUser": { "id": 502, "username": "receiver" },
-    "chatId": -100999888,
-    "toMessageId": 77
-  }
-]
-```
-
-**2. Import into PGlite and dump results**
-
-```bash
-IMPORT_TARGET=pglite \
-IMPORT_V1_JSON=./tmp/v1-rows.json \
-IMPORT_DUMP_DIR=./tmp/import-dump \
-pnpm --filter @mike-bot/web import:v1
-```
-
-Or scan DynamoDB straight into PGlite (still no Neon):
+Scan real v1 DynamoDB into local PGlite and dump JSON you can inspect. AWS credentials are still required; only `DATABASE_URL` is skipped.
 
 ```bash
 IMPORT_TARGET=pglite \
@@ -153,7 +122,7 @@ Optional: persist PGlite on disk between runs:
 PGLITE_DATA_DIR=./tmp/pglite-data IMPORT_TARGET=pglite ...
 ```
 
-**3. Verify the dump**
+**Verify the dump**
 
 The script writes three files under `IMPORT_DUMP_DIR`:
 

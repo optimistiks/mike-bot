@@ -6,8 +6,6 @@ import { chatMembers, events } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 import { seasonForDate } from "@/lib/scoring/season";
 
-import { parseV1LolRow, v1LolRowSchema, type V1LolRow } from "./v1-row";
-
 export interface DumpImportResultsOptions {
   outDir: string;
   chatIds?: number[];
@@ -78,48 +76,4 @@ export async function dumpImportResults(
     path.join(options.outDir, "chat_members.json"),
     path.join(options.outDir, "leaderboards.json"),
   ];
-}
-
-function parseV1RowList(raw: unknown): V1LolRow[] {
-  if (Array.isArray(raw)) {
-    return raw.map((item) => parseV1LolRow(item));
-  }
-
-  if (
-    typeof raw === "object" &&
-    raw !== null &&
-    "Items" in raw &&
-    Array.isArray(raw.Items)
-  ) {
-    return raw.Items.map((item) => parseV1LolRow(item));
-  }
-
-  throw new Error(
-    "IMPORT_V1_JSON must be a JSON array of v1 rows or { Items: [...] }",
-  );
-}
-
-export async function loadV1RowsFromJson(
-  filePath: string,
-): Promise<V1LolRow[]> {
-  const { readFile } = await import("node:fs/promises");
-  const raw = JSON.parse(await readFile(filePath, "utf8")) as unknown;
-  const rows = parseV1RowList(raw);
-
-  for (const row of rows) {
-    v1LolRowSchema.parse(row);
-  }
-
-  return rows;
-}
-
-export function filterV1RowsByChatId(
-  rows: V1LolRow[],
-  chatId: number | undefined,
-): V1LolRow[] {
-  if (chatId === undefined) {
-    return rows;
-  }
-
-  return rows.filter((row) => row.chatId === chatId);
 }

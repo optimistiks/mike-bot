@@ -2,21 +2,19 @@
 /**
  * One-shot v1 DynamoDB import (ticket 26).
  *
- * Local-only: requires temporary AWS credentials and DATABASE_URL,
- * unless IMPORT_TARGET=pglite or IMPORT_V1_JSON is set.
+ * Local-only: scans v1 DynamoDB and writes to Neon or PGlite.
  * Not invoked on Vercel runtime.
  *
- * Usage:
+ * Usage (Neon):
  *   DATABASE_URL=... AWS_REGION=eu-west-1 pnpm --filter @mike-bot/web import:v1
  *
- * PGlite dry run (no Neon, dump results to ./tmp/import-dump):
- *   IMPORT_TARGET=pglite IMPORT_V1_JSON=./rows.json IMPORT_DUMP_DIR=./tmp/import-dump \
+ * Usage (PGlite dry run + dump):
+ *   IMPORT_TARGET=pglite AWS_REGION=eu-west-1 IMPORT_DUMP_DIR=./tmp/import-dump \
  *     pnpm --filter @mike-bot/web import:v1
  *
  * Optional env:
  *   IMPORT_TARGET=pglite — use PGlite instead of DATABASE_URL
  *   PGLITE_DATA_DIR — persist PGlite files (default: in-memory)
- *   IMPORT_V1_JSON — read rows from JSON instead of DynamoDB Scan
  *   IMPORT_DUMP_DIR — write events/chat_members/leaderboards JSON after import
  *   LOL_TABLE_NAME (default: lolTable)
  *   IMPORT_CHAT_ID (numeric Telegram chat id filter)
@@ -24,11 +22,7 @@
 
 import { closePgliteDb, createPgliteDb } from "../lib/db/pglite";
 import { createScriptDb } from "../lib/db/production";
-import {
-  dumpImportResults,
-  filterV1RowsByChatId,
-  loadV1RowsFromJson,
-} from "../lib/import/dump-results";
+import { dumpImportResults } from "../lib/import/dump-results";
 import { importV1Rows } from "../lib/import/import-events";
 import { scanV1LolTable } from "../lib/import/scan-v1";
 import type { AppDatabase } from "../lib/db/runtime";
@@ -56,29 +50,18 @@ function readOptionalChatId(): number | undefined {
   return chatId;
 }
 
-async function loadRows(chatId: number | undefined) {
-  const jsonPath = process.env.IMPORT_V1_JSON?.trim();
-  if (jsonPath) {
-    console.log(`Loading v1 rows from ${jsonPath}...`);
-    return filterV1RowsByChatId(await loadV1RowsFromJson(jsonPath), chatId);
-  }
-
+async function scanRows(chatId: number | undefined) {
   const region =
     process.env.AWS_REGION?.trim() ??
     process.env.AWS_DEFAULT_REGION?.trim() ??
     "";
   if (!region) {
-    throw new Error(
-      "AWS_REGION or AWS_DEFAULT_REGION is required when IMPORT_V1_JSON is not set",
-    );
+    throw new Error("AWS_REGION or AWS_DEFAULT_REGION is required");
   }
 
   const tableName = process.env.LOL_TABLE_NAME?.trim() ?? "lolTable";
   console.log(`Scanning DynamoDB table ${tableName} in ${region}...`);
-  return filterV1RowsByChatId(
-    await scanV1LolTable({ tableName, region, chatId }),
-    chatId,
-  );
+  return scanV1LolTable({ tableName, region, chatId });
 }
 
 async function openDatabase(): Promise<{
@@ -110,7 +93,7 @@ async function openDatabase(): Promise<{
 
 async function main(): Promise<void> {
   const chatId = readOptionalChatId();
-  const rows = await loadRows(chatId);
+  const rows = await scanRows(chatId);
   console.log(`Fetched ${String(rows.length)} v1 rows.`);
 
   const { db, close } = await openDatabase();

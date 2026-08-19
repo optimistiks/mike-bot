@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 
-import { dumpImportResults, loadV1RowsFromJson } from "./dump-results";
+import { dumpImportResults } from "./dump-results";
 import { importV1Rows } from "./import-events";
 
 const SAMPLE_ROW = {
@@ -48,25 +48,6 @@ describe("dumpImportResults", () => {
       expect(leaderboardsJson[0]?.leaderboard.sections).toHaveLength(5);
     } finally {
       await closePgliteDb(pglite);
-    }
-  });
-});
-
-describe("loadV1RowsFromJson", () => {
-  it("loads a JSON array of v1 rows", async () => {
-    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
-    const { tmpdir } = await import("node:os");
-    const { join } = await import("node:path");
-    const dir = await mkdtemp(join(tmpdir(), "mike-bot-import-"));
-    const filePath = join(dir, "rows.json");
-
-    try {
-      await writeFile(filePath, JSON.stringify([SAMPLE_ROW]));
-      const rows = await loadV1RowsFromJson(filePath);
-      expect(rows).toHaveLength(1);
-      expect(rows[0]?.lolType).toBe("plus");
-    } finally {
-      await rm(dir, { recursive: true, force: true });
     }
   });
 });
