@@ -42,11 +42,11 @@ export async function dumpImportResults(
     options.chatIds ??
     [...new Set(eventRows.map((row) => row.chatId))].toSorted((a, b) => a - b);
 
-  const leaderboards: Array<{
+  const leaderboards: {
     chatId: number;
     season: { year: number; month: number };
     leaderboard: Awaited<ReturnType<typeof queryLeaderboard>>;
-  }> = [];
+  }[] = [];
 
   for (const chatId of chatIds) {
     const seasons = new Map<string, { year: number; month: number }>();

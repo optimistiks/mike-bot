@@ -87,7 +87,7 @@ async function openDatabase(): Promise<{
   const databaseUrl = requireEnv("DATABASE_URL");
   return {
     db: createScriptDb(databaseUrl),
-    close: async () => {},
+    close: async () => Promise.resolve(),
   };
 }
 

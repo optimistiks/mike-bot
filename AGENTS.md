@@ -27,3 +27,7 @@ The five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `read
 ### Domain docs
 
 Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Verification
+
+Before you commit your changes, you must verify your work using the following scripts: `pnpm fmt:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`. You must fix all errors and warnings that occur during those runs, before committing.

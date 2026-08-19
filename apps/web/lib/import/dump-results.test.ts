@@ -33,14 +33,14 @@ describe("dumpImportResults", () => {
       const { readFile } = await import("node:fs/promises");
       const eventsJson = JSON.parse(
         await readFile(`${outDir}/events.json`, "utf8"),
-      ) as Array<{ type: string; legacyId: string | null }>;
+      ) as { type: string; legacyId: string | null }[];
       const leaderboardsJson = JSON.parse(
         await readFile(`${outDir}/leaderboards.json`, "utf8"),
-      ) as Array<{
+      ) as {
         chatId: number;
         season: { year: number; month: number };
-        leaderboard: { sections: Array<{ title: string }> };
-      }>;
+        leaderboard: { sections: { title: string }[] };
+      }[];
 
       expect(eventsJson).toHaveLength(1);
       expect(eventsJson[0]?.type).toBe("karma.plus");
