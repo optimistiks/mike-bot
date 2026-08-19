@@ -6,7 +6,9 @@
   "exports": {
     "./base": "./base.js"
   },
-  "devDependencies": {
-    "eslint": "10.8.1"
+  "peerDependencies": {
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript-eslint": "^8.46.0"
   }
 }

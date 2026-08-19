@@ -5,10 +5,10 @@ Telegram scoring bot and Mini App on Vercel (Next.js + Neon Postgres).
 ## Development
 
 ```bash
-npm install
-npm run dev      # turbo → apps/web
-npm run test
-npm run build
+pnpm install
+pnpm dev      # turbo → apps/web
+pnpm test
+pnpm build
 ```
 
 Local database tests use PGlite — no Neon or AWS credentials required.
@@ -16,6 +16,7 @@ Local database tests use PGlite — no Neon or AWS credentials required.
 ## Layout
 
 - `apps/web` — Next.js App Router app (webhook, Mini App, API)
+- `packages/eslint-config` — shared framework-agnostic ESLint config
 - `docs/` — ADRs and research
 - `.scratch/v2/` — spec and implementation tickets
 

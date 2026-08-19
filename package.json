@@ -1,10 +1,6 @@
 {
   "name": "mike-bot",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -19,10 +15,13 @@
     "*": "prettier --ignore-unknown --write"
   },
   "devDependencies": {
+    "eslint": "10.8.1",
+    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
     "prettier": "^3.6.2",
-    "turbo": "^2.5.4"
+    "turbo": "^2.5.4",
+    "typescript-eslint": "^8.46.0"
   },
-  "packageManager": "npm@10.9.7"
+  "packageManager": "pnpm@9.15.9"
 }
