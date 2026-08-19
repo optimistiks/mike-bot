@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { chatMembers, events } from "@/lib/db/schema";
+import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
 
 /** Hardcoded fixture chat for local Mini App and API smoke tests. */
 export const FIXTURE_CHAT_ID = -100_456_789;
@@ -11,6 +11,9 @@ const FIXTURE_MEMBERS = [
   { userId: 102, displayName: "@bob" },
   { userId: 103, displayName: "@carol" },
 ] as const;
+
+/** Default opener for local Mini App dev (`?devUserId=` overrides). */
+export const FIXTURE_USER_ID = FIXTURE_MEMBERS[0].userId;
 
 const FIXTURE_EVENTS = [
   {
@@ -66,6 +69,13 @@ export async function seedLeaderboardFixture(db: AppDatabase): Promise<void> {
       chatId: FIXTURE_CHAT_ID,
       userId: member.userId,
       displayName: member.displayName,
+    })),
+  );
+
+  await db.insert(chatMemberships).values(
+    FIXTURE_MEMBERS.map((member) => ({
+      chatId: FIXTURE_CHAT_ID,
+      userId: member.userId,
     })),
   );
 

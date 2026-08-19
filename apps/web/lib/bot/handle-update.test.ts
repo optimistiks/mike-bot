@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ReactionType, Update } from "grammy/types";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
-import { events } from "@/lib/db/schema";
+import { chatMemberships, events } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
 import { getMessageAuthor, handleTelegramUpdate } from "./handle-update";
@@ -49,6 +49,76 @@ function reactionUpdate(
       new_reaction: newReaction,
     },
   };
+}
+
+function chatMemberUpdate(
+  updateId: number,
+  user: { id: number; first_name: string; username?: string },
+  status: "member" | "left",
+): Update {
+  return {
+    update_id: updateId,
+    chat_member: {
+      chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+      from: { id: 999, is_bot: false, first_name: "Admin" },
+      date: Math.floor(Date.now() / 1000),
+      old_chat_member:
+        status === "member"
+          ? {
+              status: "left",
+              user: { id: user.id, is_bot: false, first_name: user.first_name },
+            }
+          : {
+              status: "member",
+              user: { id: user.id, is_bot: false, first_name: user.first_name },
+            },
+      new_chat_member:
+        status === "member"
+          ? {
+              status: "member",
+              user: { id: user.id, is_bot: false, first_name: user.first_name },
+            }
+          : {
+              status: "left",
+              user: { id: user.id, is_bot: false, first_name: user.first_name },
+            },
+    },
+  } satisfies Update;
+}
+
+function myChatMemberUpdate(
+  updateId: number,
+  botStatus: "administrator" | "left",
+  fromUserId: number,
+): Update {
+  return {
+    update_id: updateId,
+    my_chat_member: {
+      chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+      from: { id: fromUserId, is_bot: false, first_name: "Admin" },
+      date: Math.floor(Date.now() / 1000),
+      old_chat_member:
+        botStatus === "administrator"
+          ? {
+              status: "left",
+              user: { id: 777, is_bot: true, first_name: "Mike" },
+            }
+          : {
+              status: "administrator",
+              user: { id: 777, is_bot: true, first_name: "Mike" },
+            },
+      new_chat_member:
+        botStatus === "administrator"
+          ? {
+              status: "administrator",
+              user: { id: 777, is_bot: true, first_name: "Mike" },
+            }
+          : {
+              status: "left",
+              user: { id: 777, is_bot: true, first_name: "Mike" },
+            },
+    },
+  } satisfies Update;
 }
 
 describe("telegram webhook integration", () => {
@@ -141,6 +211,80 @@ describe("telegram webhook integration", () => {
       );
 
       const rows = await pglite.db.select().from(events);
+      expect(rows).toHaveLength(0);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("adds chat_memberships when a member joins", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        chatMemberUpdate(10, { id: 501, first_name: "Dave" }, "member"),
+      );
+
+      const rows = await pglite.db.select().from(chatMemberships);
+      expect(rows).toEqual([{ chatId: TEST_CHAT_ID, userId: 501 }]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("removes chat_memberships when a member leaves", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await pglite.db.insert(chatMemberships).values({
+        chatId: TEST_CHAT_ID,
+        userId: 501,
+      });
+
+      await handleTelegramUpdate(
+        pglite.db,
+        chatMemberUpdate(11, { id: 501, first_name: "Dave" }, "left"),
+      );
+
+      const rows = await pglite.db.select().from(chatMemberships);
+      expect(rows).toHaveLength(0);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("seeds membership for the admin who added the bot", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        myChatMemberUpdate(12, "administrator", 900),
+      );
+
+      const rows = await pglite.db.select().from(chatMemberships);
+      expect(rows).toEqual([{ chatId: TEST_CHAT_ID, userId: 900 }]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("clears chat_memberships when the bot leaves a chat", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await pglite.db.insert(chatMemberships).values([
+        { chatId: TEST_CHAT_ID, userId: 501 },
+        { chatId: TEST_CHAT_ID, userId: 502 },
+      ]);
+
+      await handleTelegramUpdate(
+        pglite.db,
+        myChatMemberUpdate(13, "left", 900),
+      );
+
+      const rows = await pglite.db.select().from(chatMemberships);
       expect(rows).toHaveLength(0);
     } finally {
       await closePgliteDb(pglite);

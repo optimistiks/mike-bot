@@ -6,11 +6,15 @@
 
 **Blocked by:** [23 — Leaderboard read path](23-leaderboard-read-path.md)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `chat_memberships` rows created/removed on bot join and member join/leave
-- [ ] Chats list API returns memberships for opener's `user_id` from naive initData parse
-- [ ] Empty picker shows Russian empty state without throwing
-- [ ] Season selector defaults to Current Season (`Europe/Moscow`) with year/month drill-down
-- [ ] Selecting a chat loads five leaderboard sections scoped to that `chat_id`
-- [ ] All user-visible Mini App copy is Russian
+- [x] `chat_memberships` rows created/removed on bot join and member join/leave
+- [x] Chats list API returns memberships for opener's `user_id` from naive initData parse
+- [x] Empty picker shows Russian empty state without throwing
+- [x] Season selector defaults to Current Season (`Europe/Moscow`) with year/month drill-down
+- [x] Selecting a chat loads five leaderboard sections scoped to that `chat_id`
+- [x] All user-visible Mini App copy is Russian
+
+## Answer
+
+Implemented `chat_memberships` sync on `my_chat_member` and `chat_member` in `lib/bot/handle-update.ts`, naive initData parsing in `lib/mini-app/init-data.ts`, `/api/chats` with Zod validation, and a Russian Mini App client flow (chat picker → season drill-down → five leaderboard sections with crown/chicken). Local dev uses `?devUserId=101` when Telegram initData is unavailable.

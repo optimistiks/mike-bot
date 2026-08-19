@@ -54,6 +54,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 - [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; bucket matrix; keep v1 RU “given” labels.
 - [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
 - [24 Reaction marking via webhook](issues/24-reaction-marking-via-webhook.md) — Grammy `webhookCallback` at `/api/telegram`; reaction diff → six Event types; message author cache, dedup, silent skips; PGlite integration test to leaderboard.
+- [25 Mini App navigation](issues/25-mini-app-navigation.md) — `chat_memberships` sync on join/leave; `/api/chats` with naive initData; Russian picker, empty state, season drill-down, five leaderboard sections.
 - [Repo layout](issues/19-repo-layout.md) — Turborepo monorepo; `apps/web` Next.js App Router; no giggle copy; skip production hardening.
 - [Edge states](issues/20-edge-states.md) — empty picker RU message; uncached message skip + console.log; silent in group; no backfill.
 - [v1 import into events](issues/21-v1-import-into-events.md) — `legacy_id` idempotency; seed `chat_members` in same script; local one-shot; no `legacy_marks`.
