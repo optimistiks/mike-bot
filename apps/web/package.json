@@ -14,6 +14,7 @@
     "fmt:check": "prettier --check ../.. --ignore-path ../../.prettierignore",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed-db.ts",
     "import:v1": "tsx scripts/import-v1.ts",
     "set-webhook": "tsx scripts/set-webhook.ts"
   },
@@ -39,6 +40,7 @@
     "@types/react-dom": "19.2.4",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.4",
+    "drizzle-seed": "^0.3.1",
     "eslint-config-next": "16.3.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",

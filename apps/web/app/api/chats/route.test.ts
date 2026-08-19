@@ -4,6 +4,7 @@ import type { ReactionType, Update } from "grammy/types";
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
 import { recordRegistrationPin } from "@/lib/bot/register";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
+import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
 
 import { GET } from "./route";
 
@@ -46,6 +47,7 @@ describe("GET /api/chats", () => {
   });
 
   it("returns empty chats for an unregistered opener", async () => {
+    const db = await getRuntimeDb();
     const response = await GET(
       new Request("http://localhost/api/chats", {
         headers: { authorization: tmaAuthorization(OPENER_ID) },
@@ -54,6 +56,9 @@ describe("GET /api/chats", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ chats: [] });
+    await expect(db.select().from(events)).resolves.toEqual([]);
+    await expect(db.select().from(chatMembers)).resolves.toEqual([]);
+    await expect(db.select().from(chatMemberships)).resolves.toEqual([]);
   });
 
   it("returns registered chat after pin reaction", async () => {

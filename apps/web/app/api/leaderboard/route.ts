@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { getRuntimeDb } from "@/lib/db/runtime";
 import { queryLeaderboard, resolveSeason } from "@/lib/leaderboard/query";
-import { seedLeaderboardFixture } from "@/lib/leaderboard/seed";
 import {
   leaderboardQuerySchema,
   leaderboardResponseSchema,
@@ -25,7 +24,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   const db = await getRuntimeDb();
-  await seedLeaderboardFixture(db);
 
   const season = resolveSeason(parsed.data);
   const leaderboard = await queryLeaderboard(db, parsed.data.chatId, season);

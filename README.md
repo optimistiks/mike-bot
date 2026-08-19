@@ -14,6 +14,8 @@ pnpm fmt
 ```
 
 Local database tests use PGlite — no Neon or AWS credentials required.
+For persistent local Mini App data, run `cd apps/web && pnpm db:seed`; this
+resets and populates the same `.data/pglite` database used by local development.
 
 ## Layout
 

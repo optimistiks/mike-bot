@@ -32,9 +32,23 @@ See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel
 
 Local one-shot scripts (`scripts/import-v1.ts`) use `createScriptDb()` — same Drizzle schema, plain `Pool`, no Vercel lifecycle hooks.
 
-## Local dev and tests
+## Local development and seed data
 
-`createPgliteDb()` spins up in-memory PGlite, runs Drizzle migrations, and returns a client with the same schema as production.
+From `apps/web`, `pnpm db:seed` migrates, resets, and populates the same
+file-backed PGlite database used by `pnpm dev`. Its default directory is
+`.data/pglite`; set `PGLITE_DATA_DIR` to choose another location. The fixture is
+deterministic and covers registered, unregistered, and forbidden personas plus
+the Current and previous Moscow Seasons.
+
+Remote reset is deliberately awkward and destructive:
+
+```bash
+ALLOW_REMOTE_DATABASE_SEED=1 pnpm db:seed -- --remote
+```
+
+The remote path prefers `DATABASE_URL_UNPOOLED`, falls back to `DATABASE_URL`,
+and prints a warning before connecting. Without the opt-in flag it refuses to
+run. Tests continue to use isolated in-memory PGlite through `createPgliteDb()`.
 
 ## Tables
 

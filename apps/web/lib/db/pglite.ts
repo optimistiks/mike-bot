@@ -1,3 +1,4 @@
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,6 +31,10 @@ export async function createPgliteDb(
   const resolved =
     typeof options === "string" ? { migrationsDir: options } : options;
   const migrationsDir = resolved.migrationsDir ?? migrationsFolder;
+
+  if (resolved.dataDir) {
+    await mkdir(path.dirname(resolved.dataDir), { recursive: true });
+  }
 
   const client = resolved.dataDir ? new PGlite(resolved.dataDir) : new PGlite();
   const db = drizzlePglite({ client, schema });
