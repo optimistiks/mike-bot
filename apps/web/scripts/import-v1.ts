@@ -6,11 +6,11 @@
  * Not invoked on Vercel runtime.
  *
  * Usage (Neon):
- *   DATABASE_URL=... AWS_REGION=eu-west-1 pnpm --filter @mike-bot/web import:v1
+ *   DATABASE_URL=... AWS_REGION=eu-west-1 pnpm import:v1
  *
  * Usage (PGlite dry run + dump):
  *   IMPORT_TARGET=pglite AWS_REGION=eu-west-1 IMPORT_DUMP_DIR=./tmp/import-dump \
- *     pnpm --filter @mike-bot/web import:v1
+ *     pnpm import:v1
  *
  * Optional env:
  *   IMPORT_TARGET=pglite — use PGlite instead of DATABASE_URL
@@ -25,11 +25,11 @@ import { createScriptDb } from "../lib/db/production";
 import { dumpImportResults } from "../lib/import/dump-results";
 import { importV1Rows } from "../lib/import/import-events";
 import { scanV1LolTable } from "../lib/import/scan-v1";
-import { loadEnvFiles, resolveDatabaseUrl } from "../lib/load-env-files";
 import type { AppDatabase } from "../lib/db/runtime";
 import type { PgliteDatabase } from "../lib/db/pglite";
+import { config as loadDotenv } from "dotenv";
 
-loadEnvFiles();
+loadDotenv({ path: [".env.local", ".env"] });
 
 function readOptionalChatId(): number | undefined {
   const raw = process.env.IMPORT_CHAT_ID?.trim();
@@ -79,7 +79,8 @@ async function openDatabase(): Promise<{
     };
   }
 
-  const databaseUrl = resolveDatabaseUrl();
+  const databaseUrl =
+    process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "";
   if (!databaseUrl) {
     throw new Error(
       "DATABASE_URL is required (set DATABASE_URL or DATABASE_URL_UNPOOLED in .env.local or the shell)",

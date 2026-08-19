@@ -36,6 +36,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 
 ## Decisions so far
 
+- [31 Script environment and warning-free lint](issues/31-simple-script-env-and-warning-free-lint.md) — operational entry points load workspace-local `.env.local` then `.env` directly; direct database URLs are selected inline; ESLint warnings fail both lint commands.
 - **Destination & scoring** — grilled 2026-08-18: silent chat; Karma ± mutually exclusive with switch-by-undo; Humor independent; no self/bots; Seasons = calendar month; Current Season in UI.
 - [01 Grammy on Vercel](issues/01-grammy-vercel-webhook.md) — `webhookCallback` + `std/http`, `message_reaction` in `allowed_updates`, secret token → `docs/research/01-grammy-vercel-webhook.md`.
 - [02 Mini App auth](issues/02-mini-app-auth-next.md) — parse initData naively (no HMAC); amended from research → `docs/research/02-mini-app-auth-next.md`.

@@ -6,10 +6,14 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Drizzle configuration and operational scripts call dotenv directly with `.env.local` before `.env`; the custom environment-file loader is deleted.
-- [ ] Database migration and import commands prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL` without a shared resolver abstraction.
-- [ ] Documentation establishes the web workspace as the working directory for script environment files and commands.
-- [ ] Both lint and lint-fix fail when ESLint reports any warning.
-- [ ] The repository has no lint warnings, and every required verification command passes.
+- [x] Drizzle configuration and operational scripts call dotenv directly with `.env.local` before `.env`; the custom environment-file loader is deleted.
+- [x] Database migration and import commands prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL` without a shared resolver abstraction.
+- [x] Documentation establishes the web workspace as the working directory for script environment files and commands.
+- [x] Both lint and lint-fix fail when ESLint reports any warning.
+- [x] The repository has no lint warnings, and every required verification command passes.
+
+## Answer
+
+Drizzle configuration, v1 import, and webhook setup now call dotenv directly with `.env.local` before `.env` from the `apps/web` working directory. Migration and import select `DATABASE_URL_UNPOOLED` before `DATABASE_URL` inline, the custom loader has been deleted, and the README/database guide consistently document workspace-local commands and environment files. Both web lint scripts enforce `--max-warnings=0`; all repository verification gates pass without warnings.

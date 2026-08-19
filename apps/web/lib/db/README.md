@@ -6,10 +6,10 @@ Provision production Postgres via **Vercel Marketplace → Neon Postgres** (Verc
 
 ## Migrations (Drizzle)
 
-| Environment       | Pattern                                                                                   | How                                                                                                            |
-| ----------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Neon / production | [Option 3](https://orm.drizzle.team/docs/migrations) — `generate` + `drizzle-kit migrate` | `vercel env pull .env.local` then `pnpm db:migrate` (reads `.env` via dotenv; prefers `DATABASE_URL_UNPOOLED`) |
-| PGlite tests      | Option 4 — runtime migrator on same SQL files                                             | `createPgliteDb()` in `pglite.ts`                                                                              |
+| Environment       | Pattern                                                                                   | How                                                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Neon / production | [Option 3](https://orm.drizzle.team/docs/migrations) — `generate` + `drizzle-kit migrate` | From `apps/web`, run `vercel env pull .env.local` then `pnpm db:migrate` (reads `.env.local`, then `.env`; prefers `DATABASE_URL_UNPOOLED`) |
+| PGlite tests      | Option 4 — runtime migrator on same SQL files                                             | `createPgliteDb()` in `pglite.ts`                                                                                                           |
 
 Schema changes: edit `lib/db/schema.ts` → `pnpm db:generate` → commit `drizzle/` → `pnpm db:migrate` on each database.
 

@@ -8,20 +8,20 @@
  *   BOT_TOKEN=... \
  *   BOT_WEBHOOK_SECRET=... \
  *   WEBHOOK_URL=https://your-app.vercel.app/api/telegram \
- *   pnpm --filter @mike-bot/web set-webhook
+ *   pnpm set-webhook
  *
  * `BOT_WEBHOOK_SECRET` must match Vercel env and `webhookCallback({ secretToken })`.
  */
 
 import { Bot } from "grammy";
+import { config as loadDotenv } from "dotenv";
 
 import {
   assertWebhookRegistered,
   TELEGRAM_WEBHOOK_ALLOWED_UPDATES,
 } from "../lib/bot/webhook-setup";
-import { loadEnvFiles } from "../lib/load-env-files";
 
-loadEnvFiles();
+loadDotenv({ path: [".env.local", ".env"] });
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();

@@ -7,8 +7,8 @@
     "./base": "./base.js"
   },
   "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0"
   },
   "peerDependencies": {
     "eslint": "^10.8.1",

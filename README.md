@@ -64,8 +64,12 @@ Choose **Create New Neon Account** when prompted. Then connect the storage resou
 Pull env vars locally for migrations and import:
 
 ```bash
+cd apps/web
 vercel env pull .env.local
 ```
+
+Run migration, import, and webhook scripts from `apps/web`. Their direct dotenv
+configuration reads `.env.local` first and `.env` second from that workspace.
 
 ### 2. Apply database migrations
 
@@ -76,13 +80,14 @@ This repo uses Drizzle [**Option 3**](https://orm.drizzle.team/docs/migrations):
 | **Production / Neon**    | Option 3 — `generate` + `drizzle-kit migrate` | `pnpm db:migrate` (below)       |
 | **Local tests (PGlite)** | Option 4 — same SQL files, runtime migrator   | automatic in `createPgliteDb()` |
 
-After schema changes: `pnpm --filter @mike-bot/web db:generate` → commit new files under `apps/web/drizzle/` → run `db:migrate` against each environment.
+After schema changes, work from `apps/web`: `pnpm db:generate` → commit new files under `apps/web/drizzle/` → run `pnpm db:migrate` against each environment.
 
-Apply to **production** once after `vercel env pull .env.local` (repo root or `apps/web` — both are read). `drizzle.config.ts` loads `.env` files via dotenv and uses `DATABASE_URL_UNPOOLED` when present (direct connection; preferred for migrations):
+Apply to **production** once from `apps/web` after `vercel env pull .env.local`. `drizzle.config.ts` reads `.env.local` before `.env` via dotenv and uses `DATABASE_URL_UNPOOLED` when present (direct connection; preferred for migrations):
 
 ```bash
+cd apps/web
 vercel env pull .env.local
-pnpm --filter @mike-bot/web db:migrate
+pnpm db:migrate
 ```
 
 Tables: `events`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`, `registration_messages`.
@@ -119,10 +124,11 @@ Skip if you do not need DynamoDB history in leaderboards. Run **locally** — no
 Use the direct connection from `.env.local` (`DATABASE_URL_UNPOOLED` is picked up automatically after `vercel env pull`):
 
 ```bash
+cd apps/web
 AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
-pnpm --filter @mike-bot/web import:v1
+pnpm import:v1
 ```
 
 | Variable                | Required | Purpose                                                       |
@@ -155,7 +161,7 @@ AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
 IMPORT_DUMP_DIR=./tmp/import-dump \
-pnpm --filter @mike-bot/web import:v1
+pnpm import:v1
 ```
 
 Verify dump:
@@ -168,19 +174,19 @@ jq '.[0].leaderboard.sections[].title' tmp/import-dump/leaderboards.json
 Optional filters:
 
 ```bash
-LOL_TABLE_NAME="lolTable-Prod" pnpm --filter @mike-bot/web import:v1
-IMPORT_CHAT_ID="-1001234567890" pnpm --filter @mike-bot/web import:v1
+LOL_TABLE_NAME="lolTable-Prod" pnpm import:v1
+IMPORT_CHAT_ID="-1001234567890" pnpm import:v1
 ```
 
 ### 6. Register the Telegram webhook
 
-After Vercel deployment is live, from repo root:
+After Vercel deployment is live, from `apps/web`:
 
 ```bash
 BOT_TOKEN="..." \
 BOT_WEBHOOK_SECRET="..." \
 WEBHOOK_URL="https://your-project.vercel.app/api/telegram" \
-pnpm --filter @mike-bot/web set-webhook
+pnpm set-webhook
 ```
 
 The script sets `secret_token` and `allowed_updates`: `message`, `message_reaction`, `chat_member` (not `my_chat_member`), then verifies via `getWebhookInfo`. Re-run safely after URL or secret changes.

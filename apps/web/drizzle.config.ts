@@ -1,14 +1,13 @@
 import type { Config } from "drizzle-kit";
+import { config as loadDotenv } from "dotenv";
 
-import { loadEnvFiles, resolveDatabaseUrl } from "./lib/load-env-files";
-
-loadEnvFiles();
+loadDotenv({ path: [".env.local", ".env"] });
 
 export default {
   schema: "./lib/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: resolveDatabaseUrl(),
+    url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "",
   },
 } satisfies Config;
