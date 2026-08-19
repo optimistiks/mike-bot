@@ -6,6 +6,12 @@ import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
 /** Hardcoded fixture chat for local Mini App and API smoke tests. */
 export const FIXTURE_CHAT_ID = -100_456_789;
 
+/**
+ * Local fixture data. `chat_memberships` mirrors explicit registration only —
+ * the default dev opener is registered; other fixture members appear in events
+ * but are not auto-registered.
+ */
+
 const FIXTURE_MEMBERS = [
   { userId: 101, displayName: "@alice" },
   { userId: 102, displayName: "@bob" },
@@ -72,12 +78,10 @@ export async function seedLeaderboardFixture(db: AppDatabase): Promise<void> {
     })),
   );
 
-  await db.insert(chatMemberships).values(
-    FIXTURE_MEMBERS.map((member) => ({
-      chatId: FIXTURE_CHAT_ID,
-      userId: member.userId,
-    })),
-  );
+  await db.insert(chatMemberships).values({
+    chatId: FIXTURE_CHAT_ID,
+    userId: FIXTURE_USER_ID,
+  });
 
   await db.insert(events).values(
     FIXTURE_EVENTS.map((event) => ({

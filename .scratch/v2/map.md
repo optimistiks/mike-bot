@@ -16,7 +16,8 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `registration_messages`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from **registered** `chat_memberships` → leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
-- **Build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) largely done;** frontier [30](issues/30-mini-app-go-register-empty-state.md) → [27](issues/27-production-webhook-and-vercel-deploy.md) (updated).
+- **Build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) largely done;** frontier [27](issues/27-production-webhook-and-vercel-deploy.md) (updated).
+- [30 Mini App go-register empty state](issues/30-mini-app-go-register-empty-state.md) — Russian «go register» prompt for unregistered openers; fixture seed registers default dev opener only.
 
 ## Deploy ops
 
@@ -60,6 +61,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 - [Edge states](issues/20-edge-states.md) — uncached message skip + console.log; silent in group for Marks; «go register» empty state (amended).
 - [v1 import into events](issues/21-v1-import-into-events.md) — `legacy_id` idempotency; seed `chat_members` in same script; local one-shot; no `legacy_marks`.
 - [29 Explicit registration flow](issues/29-explicit-registration-flow.md) — `/register` pin + `registration_messages`; reaction on pin upserts `chat_memberships`; no `my_chat_member`; leave/kick cleanup only.
+- [30 Mini App go-register empty state](issues/30-mini-app-go-register-empty-state.md) — unregistered openers see Russian registration prompt; fixture seed registers default dev opener only.
 
 ## Not yet specified
 

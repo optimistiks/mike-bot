@@ -6,8 +6,8 @@
 
 **Blocked by:** [29 — Explicit registration](29-explicit-registration-flow.md)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Unregistered opener sees «go register» Russian empty state without throwing
-- [ ] Registered opener sees chat picker and leaderboards as today
-- [ ] Fixture/dev seeding updated to reflect explicit registration (not join-sync assumptions)
+## Answer
+
+Replaced the join-sync empty state («Нет общих чатов с ботом») with Russian registration copy in `lib/mini-app/copy.ts` and `mini-app-client.tsx`. Fixture seed registers only the default dev opener (`FIXTURE_USER_ID`) in `chat_memberships`. Added API test for unregistered opener returning `{ chats: [] }` and copy unit tests.

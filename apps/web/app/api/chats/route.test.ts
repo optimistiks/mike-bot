@@ -45,6 +45,17 @@ describe("GET /api/chats", () => {
     await resetRuntimeDbForTests();
   });
 
+  it("returns empty chats for an unregistered opener", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/chats", {
+        headers: { authorization: tmaAuthorization(OPENER_ID) },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ chats: [] });
+  });
+
   it("returns registered chat after pin reaction", async () => {
     const db = await getRuntimeDb();
 

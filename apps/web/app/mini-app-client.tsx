@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 
 import type { LeaderboardResponse } from "@/lib/leaderboard/schema";
 import type { ChatsResponse } from "@/lib/mini-app/schema";
+import {
+  GO_REGISTER_EMPTY_STATE_HINT,
+  GO_REGISTER_EMPTY_STATE_TITLE,
+} from "@/lib/mini-app/copy";
 import { getCurrentSeason, type Season } from "@/lib/scoring";
 
 import { LeaderboardSections } from "./leaderboard-sections";
@@ -122,7 +126,7 @@ export function MiniAppClient() {
         if (!cancelled) {
           setError(
             process.env.NODE_ENV === "development"
-              ? "Не удалось загрузить чаты. В локальной разработке добавьте ?devUserId=101."
+              ? "Не удалось загрузить чаты. В локальной разработке добавьте ?devUserId=101 (зарегистрирован) или любой другой id (пустое состояние)."
               : "Не удалось загрузить чаты.",
           );
         }
@@ -201,10 +205,8 @@ export function MiniAppClient() {
 
         {!loading && !error && chats.length === 0 ? (
           <div className="empty-state">
-            <p>Нет общих чатов с ботом</p>
-            <p className="hint">
-              Добавьте бота в группу и откройте Mini App снова.
-            </p>
+            <p>{GO_REGISTER_EMPTY_STATE_TITLE}</p>
+            <p className="hint">{GO_REGISTER_EMPTY_STATE_HINT}</p>
           </div>
         ) : null}
 
