@@ -30,26 +30,62 @@ Everything you need to run v2 in a real Telegram group. Work through the steps i
 
 v1 (`master`, AWS Lambda) stays live until a separate cutover — v2 is a **new BotFather bot** on Vercel. You can run v2 alongside v1 in the same group only if you use the new bot (do not point both bots at the same webhook URL).
 
-**Prerequisites:** Neon account, Vercel account, repo cloned (`pnpm install`), and group admin rights in each target supergroup.
+**Prerequisites:** Vercel account, repo cloned (`pnpm install`), and group admin rights in each target supergroup. You do **not** need a separate Neon account — provision Postgres through Vercel (Vercel-managed integration; billing on your Vercel invoice).
 
-### 1. Neon Postgres
+### 1. Vercel project and Vercel-managed Neon Postgres
 
-1. Create a project in the [Neon console](https://console.neon.tech/).
-2. Open **Connect** → copy the **direct** Postgres connection string (TCP, not the serverless HTTP driver). This becomes `DATABASE_URL` everywhere below.
-3. Apply schema migrations to the empty database (run from repo root):
+Use the **Vercel-Managed** Neon integration (Marketplace → **Neon Postgres** → **Create New Neon Account**). Do **not** use the Neon-Managed path (“connect existing Neon account”) unless you explicitly want Neon billing and a linked Neon project.
+
+**Dashboard**
+
+1. [Vercel](https://vercel.com/) → **Add New Project** → import this repo.
+2. **Production branch:** `v2`.
+3. **Root Directory:** `apps/web` (monorepo; `apps/web/vercel.json` runs install/build from the repo root via pnpm workspaces).
+4. [Neon on Vercel Marketplace](https://vercel.com/marketplace/neon) → **Install** → choose **Create New Neon Account** → pick region/plan → name the database.
+5. **Storage** → your database → **Connect Project** → select this Vercel project → enable **Production** (and **Preview** only if you want isolated preview DB branches).
+6. Vercel injects connection env vars automatically. You only need to add bot secrets in step 3.
+
+| Variable (injected by integration) | Purpose                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                     | **Pooled** TCP string — used by the deployed app (`pg` `Pool` + `attachDatabasePool`) |
+| `DATABASE_URL_UNPOOLED`            | **Direct** TCP string — use for migrations, `psql`, and local `import:v1`             |
+
+Do not paste a Neon console connection string manually unless you are debugging. Do not use `@neondatabase/serverless` HTTP for production.
+
+**CLI (optional)**
 
 ```bash
-export DATABASE_URL="postgresql://..."   # Neon direct URL
+vercel link
+vercel install neon --name mike-bot-db -e production
+```
+
+Choose **Create New Neon Account** when prompted. Then connect the storage resource to the linked project in the dashboard if the CLI did not already.
+
+Pull env vars locally for migrations and import:
+
+```bash
+vercel env pull .env.local
+```
+
+### 2. Apply database migrations
+
+Run once against the **production** database branch using the **direct** connection string (`DATABASE_URL_UNPOOLED` from `.env.local` or the Storage tab connection UI). From repo root:
+
+```bash
+# After vercel env pull — use the unpooled URL for DDL
+export DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)"
 
 psql "$DATABASE_URL" -f apps/web/drizzle/0000_init.sql
 psql "$DATABASE_URL" -f apps/web/drizzle/0001_registration_messages.sql
 ```
 
+Alternatively: Vercel **Storage** → your database → run the same SQL in the built-in SQL editor.
+
 Tables: `events`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`, `registration_messages`.
 
-Production runtime uses `pg` `Pool` + `attachDatabasePool` on Vercel Fluid compute — see `apps/web/lib/db/README.md`. Do not use `@neondatabase/serverless` HTTP for `DATABASE_URL`.
+Production runtime uses `pg` `Pool` + `attachDatabasePool` on Vercel Fluid compute — see `apps/web/lib/db/README.md`.
 
-### 2. BotFather — new bot
+### 3. BotFather — new bot
 
 1. Message `@BotFather` → `/newbot` → create the v2 bot. Save the token as `BOT_TOKEN`.
 2. `/setprivacy` → select the bot → **Disable** (privacy mode off so the bot receives all group messages and can cache authors for reactions).
@@ -57,29 +93,29 @@ Production runtime uses `pg` `Pool` + `attachDatabasePool` on Vercel Fluid compu
 
 Record the bot `@username` for later.
 
-### 3. Vercel project and deploy
+### 4. Bot env vars and deploy
 
-1. [Vercel](https://vercel.com/) → **Add New Project** → import this repo.
-2. **Production branch:** `v2`.
-3. **Root Directory:** `apps/web` (monorepo; `apps/web/vercel.json` runs install/build from the repo root via pnpm workspaces).
-4. **Environment variables** — server-side only. Never use `NEXT_PUBLIC_*` for secrets.
+In the Vercel project → **Settings → Environment Variables**, add (server-side only — never `NEXT_PUBLIC_*`):
 
 | Variable             | Required | Purpose                                                                |
 | -------------------- | -------- | ---------------------------------------------------------------------- |
 | `BOT_TOKEN`          | yes      | From BotFather (`/newbot`)                                             |
 | `BOT_WEBHOOK_SECRET` | yes      | Same value for `setWebhook.secret_token` and the webhook Route Handler |
-| `DATABASE_URL`       | yes      | Neon **direct** TCP connection string from step 1                      |
 
-`WEBHOOK_URL` is **not** a Vercel variable — only for the local `set-webhook` script in step 5.
+`DATABASE_URL` should already exist from step 1. Do not replace it with a hand-copied URL.
 
-5. Deploy. Note the production HTTPS origin, e.g. `https://your-project.vercel.app`. This URL is the Mini App, webhook host, and BotFather Menu Button target.
+`WEBHOOK_URL` is **not** a Vercel variable — only for the local `set-webhook` script in step 6.
 
-### 4. Import v1 history (optional)
+Deploy (or redeploy after adding env vars). Note the production HTTPS origin, e.g. `https://your-project.vercel.app`. This URL is the Mini App, webhook host, and BotFather Menu Button target.
+
+### 5. Import v1 history (optional)
 
 Skip if you do not need DynamoDB history in leaderboards. Run **locally** — not on Vercel. Safe to re-run (`legacy_id` skips duplicates).
 
+Use the **direct** connection string (`DATABASE_URL_UNPOOLED` from `vercel env pull`, passed as `DATABASE_URL` below):
+
 ```bash
-DATABASE_URL="postgresql://..." \
+DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)" \
 AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
@@ -88,7 +124,7 @@ pnpm --filter @mike-bot/web import:v1
 
 | Variable                | Required | Purpose                                                       |
 | ----------------------- | -------- | ------------------------------------------------------------- |
-| `DATABASE_URL`          | yes†     | Same Neon URL as Vercel                                       |
+| `DATABASE_URL`          | yes†     | Direct Neon URL (`DATABASE_URL_UNPOOLED` value)               |
 | `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                    |
 | `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                     |
 | `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                               |
@@ -133,7 +169,7 @@ LOL_TABLE_NAME="lolTable-Prod" pnpm --filter @mike-bot/web import:v1
 IMPORT_CHAT_ID="-1001234567890" pnpm --filter @mike-bot/web import:v1
 ```
 
-### 5. Register the Telegram webhook
+### 6. Register the Telegram webhook
 
 After Vercel deployment is live, from repo root:
 
@@ -146,31 +182,31 @@ pnpm --filter @mike-bot/web set-webhook
 
 The script sets `secret_token` and `allowed_updates`: `message`, `message_reaction`, `chat_member` (not `my_chat_member`), then verifies via `getWebhookInfo`. Re-run safely after URL or secret changes.
 
-### 6. BotFather — Menu Button
+### 7. BotFather — Menu Button
 
 Mini App opens only from the bot Menu Button (no `/stats`, no inline keyboard).
 
 1. `@BotFather` → `/setmenubutton`
 2. Select the v2 bot
 3. Button label (e.g. `Таблицы` or `Leaderboards`)
-4. URL: production Vercel HTTPS origin from step 3, e.g. `https://your-project.vercel.app`
+4. URL: production Vercel HTTPS origin from step 4, e.g. `https://your-project.vercel.app`
 
 Use the **production** URL users will hit long-term — preview deployment URLs need their own BotFather entry or a stable alias.
 
-### 7. Each target Telegram group
+### 8. Each target Telegram group
 
 Repeat for every supergroup that should use v2.
 
 1. **Add the bot** to the group.
 2. **Promote to administrator** — required for `message_reaction` updates. Without admin, reactions work in the client but the bot receives nothing.
-3. Confirm privacy mode is **off** (step 2) — bot must see messages to cache authors.
+3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
 4. A **group admin** sends `/register` in the group. The bot posts a registration pin (Russian text).
 5. **Members** react to the pin with any emoji → `chat_memberships` row → chat appears in the Mini App picker.
 6. **Scoring:** members use 👍 👎 🤣 on others' messages. The bot stays silent. Marks work even for unregistered members; only Mini App access requires the pin reaction.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).
 
-### 8. Verify
+### 9. Verify
 
 | Check         | How                                                                                                                         |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -185,10 +221,10 @@ When a member leaves or is kicked, their registration row is removed automatical
 - Reactions ignored → bot not admin, or webhook missing `message_reaction`, or reaction on a message sent before the bot could cache it.
 - Mini App empty chat list → member has not reacted to the registration pin.
 - Webhook 401 → `BOT_WEBHOOK_SECRET` mismatch between Vercel and `set-webhook`.
-- DB errors on Vercel → wrong `DATABASE_URL` (use Neon direct TCP string).
+- DB errors on Vercel → Neon integration not connected to the project, or `DATABASE_URL` was overwritten manually (should be the pooled URL from the integration).
 
 ### Not covered here
 
 - **v1 → v2 cutover** (retire AWS bot, update `master`) — deferred until v2 is proven in production.
-- **Neon / Vercel account signup** — use each product's console.
-- **Drizzle schema changes** — add new migration SQL under `apps/web/drizzle/` and apply with `psql` like step 1.
+- **Drizzle schema changes** — add new migration SQL under `apps/web/drizzle/` and apply with `psql` using `DATABASE_URL_UNPOOLED` like step 2.
+- **Neon-Managed integration** (link an existing Neon account) — only if you want Neon billing; this guide assumes Vercel-managed.

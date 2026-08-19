@@ -1,6 +1,8 @@
 # Database layer
 
-v2 uses **Neon Postgres** in production and **PGlite** locally (no cloud credentials required).
+v2 uses **Lakebase Postgres** (Neon) in production and **PGlite** locally (no cloud credentials required).
+
+Provision production Postgres via **Vercel Marketplace → Neon Postgres** (Vercel-managed integration). Vercel injects `DATABASE_URL` (pooled) for the app and `DATABASE_URL_UNPOOLED` (direct) for migrations — see root `README.md` go-live steps.
 
 ## Production (Vercel Fluid + Neon)
 
