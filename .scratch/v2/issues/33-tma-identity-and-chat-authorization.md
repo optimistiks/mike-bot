@@ -6,12 +6,16 @@
 
 **Blocked by:** [32 — Move fixtures behind deterministic `db:seed`](32-deterministic-database-seed.md)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] A shared server authentication boundary validates raw init-data signatures with the bot token and extracts the Telegram Member; unsigned parsing is removed from production authorization.
-- [ ] Init data is valid for at most 365 days, with ordinary clock skew handled without weakening signature or age validation.
-- [ ] Missing, malformed, invalidly signed, and expired authorization returns HTTP 401 with one stable JSON error shape on both protected APIs.
-- [ ] The Chat-picker returns only `chat_memberships` belonging to the authenticated Member.
-- [ ] The leaderboard verifies the authenticated Member's registration in the requested Chat and returns HTTP 403 with a stable JSON error shape when it is absent.
-- [ ] Invalid leaderboard query parameters remain HTTP 400 and no protected data is returned before authentication and authorization succeed.
-- [ ] Request-level tests use genuinely signed init data and cover valid access, no registrations, bad signature, expiry, forbidden Chat access, and malformed queries.
+- [x] A shared server authentication boundary validates raw init-data signatures with the bot token and extracts the Telegram Member; unsigned parsing is removed from production authorization.
+- [x] Init data is valid for at most 365 days, with ordinary clock skew handled without weakening signature or age validation.
+- [x] Missing, malformed, invalidly signed, and expired authorization returns HTTP 401 with one stable JSON error shape on both protected APIs.
+- [x] The Chat-picker returns only `chat_memberships` belonging to the authenticated Member.
+- [x] The leaderboard verifies the authenticated Member's registration in the requested Chat and returns HTTP 403 with a stable JSON error shape when it is absent.
+- [x] Invalid leaderboard query parameters remain HTTP 400 and no protected data is returned before authentication and authorization succeed.
+- [x] Request-level tests use genuinely signed init data and cover valid access, no registrations, bad signature, expiry, forbidden Chat access, and malformed queries.
+
+## Answer
+
+Protected Mini App APIs now accept only Telegram-signed `tma` authorization, validated with the bot token for a maximum age of one year and a 60-second future clock-skew allowance. Both routes return the same `{ "error": "Unauthorized" }` 401 response for invalid identity. The leaderboard additionally checks the authenticated Member's `chat_memberships` row before reading Chat data and returns `{ "error": "Forbidden" }` with 403 for cross-Chat access. Request tests generate genuine signatures and cover the complete authentication and authorization matrix.

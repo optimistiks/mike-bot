@@ -9,6 +9,12 @@ export const serverEnvSchema = z.object({
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
+export function parseBotToken(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  return serverEnvSchema.shape.BOT_TOKEN.parse(env.BOT_TOKEN);
+}
+
 export function parseServerEnv(
   env: Record<string, string | undefined> = process.env,
 ): ServerEnv {

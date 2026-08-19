@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ReactionType, Update } from "grammy/types";
 
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
 import { recordRegistrationPin } from "@/lib/bot/register";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
 import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
+import { signedTmaAuthorization, TEST_BOT_TOKEN } from "@/test/tma-init-data";
 
 import { GET } from "./route";
 
@@ -12,11 +13,6 @@ const TEST_CHAT_ID = -100_111_222;
 const BOT_USER_ID = 777;
 const REGISTRATION_PIN_ID = 500;
 const OPENER_ID = 701;
-
-function tmaAuthorization(userId: number): string {
-  const initData = `user=${encodeURIComponent(JSON.stringify({ id: userId }))}`;
-  return `tma ${initData}`;
-}
 
 function reactionUpdate(
   updateId: number,
@@ -42,7 +38,12 @@ function reactionUpdate(
 }
 
 describe("GET /api/chats", () => {
+  beforeEach(() => {
+    process.env.BOT_TOKEN = TEST_BOT_TOKEN;
+  });
+
   afterEach(async () => {
+    delete process.env.BOT_TOKEN;
     await resetRuntimeDbForTests();
   });
 
@@ -50,7 +51,7 @@ describe("GET /api/chats", () => {
     const db = await getRuntimeDb();
     const response = await GET(
       new Request("http://localhost/api/chats", {
-        headers: { authorization: tmaAuthorization(OPENER_ID) },
+        headers: { authorization: signedTmaAuthorization(OPENER_ID) },
       }),
     );
 
@@ -78,7 +79,7 @@ describe("GET /api/chats", () => {
 
     const response = await GET(
       new Request("http://localhost/api/chats", {
-        headers: { authorization: tmaAuthorization(OPENER_ID) },
+        headers: { authorization: signedTmaAuthorization(OPENER_ID) },
       }),
     );
 
@@ -86,5 +87,30 @@ describe("GET /api/chats", () => {
     await expect(response.json()).resolves.toEqual({
       chats: [{ chatId: TEST_CHAT_ID, label: "Чат -100111222" }],
     });
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["malformed", "tma not-init-data"],
+    [
+      "bad signature",
+      signedTmaAuthorization(OPENER_ID, new Date(), "987654321:WRONG_TOKEN"),
+    ],
+    [
+      "expired",
+      signedTmaAuthorization(
+        OPENER_ID,
+        new Date(Date.now() - 366 * 24 * 60 * 60 * 1_000),
+      ),
+    ],
+  ])("returns the stable 401 response for %s init data", async (_, header) => {
+    const response = await GET(
+      new Request("http://localhost/api/chats", {
+        headers: header ? { authorization: header } : undefined,
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "Unauthorized" });
   });
 });

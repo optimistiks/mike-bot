@@ -15,8 +15,8 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Reactions: use `bot.on('message_reaction')` + old/new diff — not `bot.reaction()` alone (no remove). `MessageReactionUpdated.user` = actor; message author = `subject_id` from `message_authors` cache. Bot API has no `getMessage`.
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `registration_messages`, `message_authors`, `processed_updates`.
-- Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from **registered** `chat_memberships` → leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
-- **Original build tickets [22–30](issues/22-monorepo-scaffold-and-postgres-foundation.md) are done.** Production-hardening frontier: [31](issues/31-simple-script-env-and-warning-free-lint.md).
+- Mini App: Menu Button → validate Telegram-signed init data → chat picker from **registered** `chat_memberships` → membership-authorized leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
+- **Original build tickets [22–30](issues/22-monorepo-scaffold-and-postgres-foundation.md) are done.** Production-hardening frontier: [34](issues/34-tma-react-sdk.md).
 - [26 v1 DynamoDB one-shot import](issues/26-v1-dynamodb-one-shot-import.md) — `scripts/import-v1.ts` scans `lolTable`, converts to events + chat_members; idempotent on `legacy_id`.
 - [30 Mini App go-register empty state](issues/30-mini-app-go-register-empty-state.md) — Russian «go register» prompt for unregistered openers; fixture seed registers default dev opener only.
 - [31 Script env and warning-free lint](issues/31-simple-script-env-and-warning-free-lint.md) → [32 deterministic `db:seed`](issues/32-deterministic-database-seed.md) → [33 TMA identity and Chat authorization](issues/33-tma-identity-and-chat-authorization.md) → [34 TMA React SDK](issues/34-tma-react-sdk.md) → [35 signed development personas](issues/35-signed-tma-development-personas.md) → [36 artifact and go-live reconciliation](issues/36-artifact-and-go-live-reconciliation.md).
@@ -36,6 +36,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 
 ## Decisions so far
 
+- [33 TMA identity and Chat authorization](issues/33-tma-identity-and-chat-authorization.md) — protected APIs validate Telegram-signed init data for at most one year, return stable authentication errors, and require the authenticated Member's Chat membership before exposing leaderboard data.
 - [32 Deterministic database seed](issues/32-deterministic-database-seed.md) — explicit Drizzle Seed reset populates shared local PGlite with deterministic personas and relative Moscow Seasons; remote reset requires `--remote` plus `ALLOW_REMOTE_DATABASE_SEED=1`; API reads never seed.
 - [31 Script environment and warning-free lint](issues/31-simple-script-env-and-warning-free-lint.md) — operational entry points load workspace-local `.env.local` then `.env` directly; direct database URLs are selected inline; ESLint warnings fail both lint commands.
 - **Destination & scoring** — grilled 2026-08-18: silent chat; Karma ± mutually exclusive with switch-by-undo; Humor independent; no self/bots; Seasons = calendar month; Current Season in UI.

@@ -1,39 +1,38 @@
-const TMA_PREFIX = /^tma\s+/i;
+import { parse, validate } from "@tma.js/init-data-node";
 
-/** Toy-scope auth: parse user.id from initData without HMAC validation. */
-export function parseUserIdFromInitData(initData: string): number | null {
-  const params = new URLSearchParams(initData);
-  const userRaw = params.get("user");
-  if (!userRaw) {
-    return null;
-  }
+const TMA_AUTHORIZATION = /^tma\s+(.+)$/i;
+const INIT_DATA_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
+const MAX_FUTURE_CLOCK_SKEW_MS = 60_000;
 
-  try {
-    const user = JSON.parse(userRaw) as { id?: unknown };
-    return typeof user.id === "number" ? user.id : null;
-  } catch {
-    return null;
-  }
+export interface AuthenticatedMember {
+  userId: number;
 }
 
-export function readInitDataFromAuthorization(
+/** Validate Telegram-signed launch data before exposing the Member identity. */
+export function authenticateTmaMember(
   authorization: string | null,
-): string | null {
-  if (!authorization || !TMA_PREFIX.test(authorization)) {
-    return null;
-  }
-
-  const initData = authorization.replace(TMA_PREFIX, "").trim();
-  return initData.length > 0 ? initData : null;
-}
-
-export function parseUserIdFromAuthorization(
-  authorization: string | null,
-): number | null {
-  const initData = readInitDataFromAuthorization(authorization);
+  botToken: string,
+): AuthenticatedMember | null {
+  const match = authorization?.match(TMA_AUTHORIZATION);
+  const initData = match?.[1]?.trim();
   if (!initData) {
     return null;
   }
 
-  return parseUserIdFromInitData(initData);
+  try {
+    validate(initData, botToken, { expiresIn: INIT_DATA_LIFETIME_SECONDS });
+    const parsed = parse(initData);
+
+    if (
+      parsed.auth_date.getTime() > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS ||
+      !parsed.user ||
+      !Number.isSafeInteger(parsed.user.id)
+    ) {
+      return null;
+    }
+
+    return { userId: parsed.user.id };
+  } catch {
+    return null;
+  }
 }

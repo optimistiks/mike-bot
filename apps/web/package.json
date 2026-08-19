@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.7",
+    "@tma.js/init-data-node": "^2.0.8",
     "@vercel/functions": "^2.2.4",
     "drizzle-orm": "^0.44.2",
     "grammy": "^1.45.1",
