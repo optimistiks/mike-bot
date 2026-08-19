@@ -24,6 +24,46 @@ Local database tests use PGlite — no Neon or AWS credentials required.
 
 Branch policy: all v2 work on `v2`. Do not commit to `master` (live v1 until cutover).
 
+## Production deploy (Vercel)
+
+Deploy target is `apps/web` on the `v2` branch. In the Vercel project, set **Root Directory** to `apps/web` (or import the repo and choose that path). `apps/web/vercel.json` uses the default Next.js build; install runs from the monorepo root via pnpm workspaces.
+
+### Server environment variables
+
+Set these in Vercel **only as server-side env vars** — never `NEXT_PUBLIC_*` for secrets (the Mini App client must not receive bot or database credentials).
+
+| Variable             | Required | Purpose                                                                |
+| -------------------- | -------- | ---------------------------------------------------------------------- |
+| `BOT_TOKEN`          | yes      | Telegram bot token from BotFather                                      |
+| `BOT_WEBHOOK_SECRET` | yes      | Shared secret for `setWebhook.secret_token` and `webhookCallback`      |
+| `DATABASE_URL`       | yes      | Neon Postgres **direct** TCP connection string (same as import script) |
+
+Production database access uses `pg` `Pool` + `attachDatabasePool` from `@vercel/functions` on Vercel Fluid compute (see `apps/web/lib/db/README.md`). Do not use the `@neondatabase/serverless` HTTP driver.
+
+`WEBHOOK_URL` is **not** a Vercel runtime variable — it is only for the local `set-webhook` script below.
+
+### Human deploy checklist
+
+1. **Bot in each target group** — Add the new BotFather bot; promote to **administrator** (required for `message_reaction`). Privacy mode **off**. Record `@username`.
+2. **Vercel** — Deploy from `v2` with Root Directory `apps/web`. Set `BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, and `DATABASE_URL` as server env vars.
+3. **BotFather** — Menu Button → production HTTPS origin (the Vercel deployment URL, same host as the Mini App).
+4. **Webhook** — Run `set-webhook` locally (or from CI) with `WEBHOOK_URL` pointing at `https://<deployment>/api/telegram`.
+5. **Registration** — Group admins run `/register` in each chat to post the registration pin; members react to the pin to appear in the Mini App picker.
+6. **v1 import (optional)** — Run the import script locally with temporary AWS creds before or after go-live (not on Vercel runtime).
+
+### Register the Telegram webhook
+
+After the Vercel deployment is live:
+
+```bash
+BOT_TOKEN="..." \
+BOT_WEBHOOK_SECRET="..." \
+WEBHOOK_URL="https://your-app.vercel.app/api/telegram" \
+pnpm --filter @mike-bot/web set-webhook
+```
+
+The script calls `setWebhook` with `secret_token` and `allowed_updates` of `message`, `message_reaction`, and `chat_member` (not `my_chat_member`), then verifies via `getWebhookInfo`.
+
 ## v1 history import
 
 One-shot script that copies v1 DynamoDB Marks into v2 Postgres. Run **locally** — not on Vercel. Safe to re-run: rows with the same v1 `id` are skipped via `legacy_id`.

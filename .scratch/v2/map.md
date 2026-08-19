@@ -16,7 +16,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `registration_messages`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from **registered** `chat_memberships` → leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
-- **Build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) largely done;** frontier [27](issues/27-production-webhook-and-vercel-deploy.md) (updated).
+- **Build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) done.** Frontier: none — v2 build scope complete; human deploy ops remain.
 - [26 v1 DynamoDB one-shot import](issues/26-v1-dynamodb-one-shot-import.md) — `scripts/import-v1.ts` scans `lolTable`, converts to events + chat_members; idempotent on `legacy_id`.
 - [30 Mini App go-register empty state](issues/30-mini-app-go-register-empty-state.md) — Russian «go register» prompt for unregistered openers; fixture seed registers default dev opener only.
 

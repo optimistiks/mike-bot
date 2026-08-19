@@ -6,10 +6,23 @@
 
 **Blocked by:** [24 — Reaction marking via webhook](24-reaction-marking-via-webhook.md), [29 — Explicit registration](29-explicit-registration-flow.md)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `set-webhook.ts` registers webhook with correct `allowed_updates` and secret token
-- [ ] Vercel deploy config targets `apps/web`; build succeeds on `v2`
-- [ ] Env vars documented as server-side only (no `NEXT_PUBLIC_*` for secrets)
-- [ ] Neon connected via TCP pool + `attachDatabasePool` on deployed Vercel Fluid functions
-- [ ] Human deploy checklist included (BotFather Menu Button, group admin, privacy off, Neon URL)
+- [x] `set-webhook.ts` registers webhook with correct `allowed_updates` and secret token
+- [x] Vercel deploy config targets `apps/web`; build succeeds on `v2`
+- [x] Env vars documented as server-side only (no `NEXT_PUBLIC_*` for secrets)
+- [x] Neon connected via TCP pool + `attachDatabasePool` on deployed Vercel Fluid functions
+- [x] Human deploy checklist included (BotFather Menu Button, group admin, privacy off, Neon URL)
+
+## Answer
+
+Added production deploy plumbing (ticket 27):
+
+- `apps/web/scripts/set-webhook.ts` — `setWebhook` with `secret_token` and `allowed_updates` (`message`, `message_reaction`, `chat_member`); verifies via `getWebhookInfo`
+- `apps/web/lib/bot/webhook-setup.ts` — shared allowed-update list and `assertWebhookRegistered` (rejects `my_chat_member`)
+- `apps/web/vercel.json` — monorepo install/build for Root Directory `apps/web`
+- `README.md` — server-only env vars, human deploy checklist, `set-webhook` usage
+
+Run: `pnpm --filter @mike-bot/web set-webhook` with `BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `WEBHOOK_URL`.
+
+Neon TCP pooling (`attachDatabasePool`) was already in ticket 22 (`lib/db/production.ts`).
