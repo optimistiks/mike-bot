@@ -13,6 +13,7 @@
     "fmt": "prettier --write ../.. --ignore-path ../../.prettierignore",
     "fmt:check": "prettier --check ../.. --ignore-path ../../.prettierignore",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "import:v1": "tsx scripts/import-v1.ts",
     "set-webhook": "tsx scripts/set-webhook.ts"
   },

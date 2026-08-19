@@ -2,7 +2,16 @@
 
 v2 uses **Lakebase Postgres** (Neon) in production and **PGlite** locally (no cloud credentials required).
 
-Provision production Postgres via **Vercel Marketplace → Neon Postgres** (Vercel-managed integration). Vercel injects `DATABASE_URL` (pooled) for the app and `DATABASE_URL_UNPOOLED` (direct) for migrations — see root `README.md` go-live steps.
+Provision production Postgres via **Vercel Marketplace → Neon Postgres** (Vercel-managed integration). Vercel injects `DATABASE_URL` (pooled) for the app and `DATABASE_URL_UNPOOLED` (direct) for `drizzle-kit migrate` — see root `README.md` go-live steps.
+
+## Migrations (Drizzle)
+
+| Environment       | Pattern                                                                                   | How                                         |
+| ----------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Neon / production | [Option 3](https://orm.drizzle.team/docs/migrations) — `generate` + `drizzle-kit migrate` | `DATABASE_URL=<direct URL> pnpm db:migrate` |
+| PGlite tests      | Option 4 — runtime migrator on same SQL files                                             | `createPgliteDb()` in `pglite.ts`           |
+
+Schema changes: edit `lib/db/schema.ts` → `pnpm db:generate` → commit `drizzle/` → `pnpm db:migrate` on each database.
 
 ## Production (Vercel Fluid + Neon)
 

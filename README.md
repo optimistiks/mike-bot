@@ -69,17 +69,23 @@ vercel env pull .env.local
 
 ### 2. Apply database migrations
 
-Run once against the **production** database branch using the **direct** connection string (`DATABASE_URL_UNPOOLED` from `.env.local` or the Storage tab connection UI). From repo root:
+This repo uses Drizzle [**Option 3**](https://orm.drizzle.team/docs/migrations): TypeScript schema → generated SQL in `apps/web/drizzle/` → `drizzle-kit migrate` applies pending files and records them in Drizzle’s migration journal.
+
+| Context                  | Drizzle pattern                               | Command                         |
+| ------------------------ | --------------------------------------------- | ------------------------------- |
+| **Production / Neon**    | Option 3 — `generate` + `drizzle-kit migrate` | `pnpm db:migrate` (below)       |
+| **Local tests (PGlite)** | Option 4 — same SQL files, runtime migrator   | automatic in `createPgliteDb()` |
+
+After schema changes: `pnpm --filter @mike-bot/web db:generate` → commit new files under `apps/web/drizzle/` → run `db:migrate` against each environment.
+
+Apply to **production** once using the **direct** connection string (`DATABASE_URL_UNPOOLED` — migrations should not use the pooled `DATABASE_URL`):
 
 ```bash
-# After vercel env pull — use the unpooled URL for DDL
-export DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)"
+vercel env pull .env.local
 
-psql "$DATABASE_URL" -f apps/web/drizzle/0000_init.sql
-psql "$DATABASE_URL" -f apps/web/drizzle/0001_registration_messages.sql
+DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)" \
+pnpm --filter @mike-bot/web db:migrate
 ```
-
-Alternatively: Vercel **Storage** → your database → run the same SQL in the built-in SQL editor.
 
 Tables: `events`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`, `registration_messages`.
 
@@ -226,5 +232,5 @@ When a member leaves or is kicked, their registration row is removed automatical
 ### Not covered here
 
 - **v1 → v2 cutover** (retire AWS bot, update `master`) — deferred until v2 is proven in production.
-- **Drizzle schema changes** — add new migration SQL under `apps/web/drizzle/` and apply with `psql` using `DATABASE_URL_UNPOOLED` like step 2.
+- **Drizzle schema changes** — `pnpm --filter @mike-bot/web db:generate`, commit SQL under `apps/web/drizzle/`, then `db:migrate` with `DATABASE_URL_UNPOOLED` like step 2.
 - **Neon-Managed integration** (link an existing Neon account) — only if you want Neon billing; this guide assumes Vercel-managed.
