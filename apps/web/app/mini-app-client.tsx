@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { LeaderboardResponse } from "@/lib/leaderboard/schema";
 import type { ChatsResponse } from "@/lib/mini-app/schema";
@@ -11,16 +11,11 @@ import {
 import { getCurrentSeason, type Season } from "@/lib/scoring";
 
 import { LeaderboardSections } from "./leaderboard-sections";
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        initData?: string;
-      };
-    };
-  }
-}
+import {
+  initializeTmaPlatform,
+  type LaunchMiniApp,
+  type MiniAppLaunch,
+} from "./tma-platform";
 
 type Screen = "picker" | "leaderboard";
 
@@ -39,33 +34,13 @@ const MONTH_NAMES = [
   "Декабрь",
 ] as const;
 
-function readInitDataRaw(): string | null {
-  const telegramInitData = window.Telegram?.WebApp?.initData;
-  if (telegramInitData) {
-    return telegramInitData;
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    const devUserId = new URLSearchParams(window.location.search).get(
-      "devUserId",
-    );
-    if (devUserId) {
-      return `user=${encodeURIComponent(JSON.stringify({ id: Number(devUserId) }))}`;
-    }
-  }
-
-  return null;
-}
-
-async function fetchWithInitData<T>(path: string): Promise<T> {
-  const initData = readInitDataRaw();
-  if (!initData) {
-    throw new Error("initData missing");
-  }
-
+async function fetchWithInitData<T>(
+  path: string,
+  initDataRaw: string,
+): Promise<T> {
   const response = await fetch(path, {
     headers: {
-      Authorization: `tma ${initData}`,
+      Authorization: `tma ${initDataRaw}`,
     },
   });
 
@@ -95,7 +70,14 @@ function seasonsEqual(left: Season, right: Season): boolean {
   return left.year === right.year && left.month === right.month;
 }
 
-export function MiniAppClient() {
+interface MiniAppClientProps {
+  launchMiniApp?: LaunchMiniApp;
+}
+
+export function MiniAppClient({
+  launchMiniApp = initializeTmaPlatform,
+}: MiniAppClientProps = {}) {
+  const [launch, setLaunch] = useState<MiniAppLaunch | null>(null);
   const [screen, setScreen] = useState<Screen>("picker");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,8 +91,32 @@ export function MiniAppClient() {
 
   const currentSeason = getCurrentSeason();
   const isCurrentSeason = seasonsEqual(season, currentSeason);
+  const platform = launch?.kind === "telegram" ? launch.platform : null;
 
   useEffect(() => {
+    let cancelled = false;
+
+    void launchMiniApp().then((result) => {
+      if (!cancelled) {
+        setLaunch(result);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [launchMiniApp]);
+
+  useEffect(() => {
+    platform?.ready();
+  }, [platform]);
+
+  useEffect(() => {
+    if (!platform) {
+      return;
+    }
+
+    const launchedPlatform = platform;
     let cancelled = false;
 
     async function loadChats() {
@@ -118,17 +124,16 @@ export function MiniAppClient() {
       setError(null);
 
       try {
-        const data = await fetchWithInitData<ChatsResponse>("/api/chats");
+        const data = await fetchWithInitData<ChatsResponse>(
+          "/api/chats",
+          launchedPlatform.initDataRaw,
+        );
         if (!cancelled) {
           setChats(data.chats);
         }
       } catch {
         if (!cancelled) {
-          setError(
-            process.env.NODE_ENV === "development"
-              ? "Не удалось загрузить чаты. В локальной разработке добавьте ?devUserId=101 (зарегистрирован) или любой другой id (пустое состояние)."
-              : "Не удалось загрузить чаты.",
-          );
+          setError("Не удалось загрузить чаты.");
         }
       } finally {
         if (!cancelled) {
@@ -142,13 +147,14 @@ export function MiniAppClient() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [platform]);
 
   useEffect(() => {
-    if (screen !== "leaderboard" || selectedChatId === null) {
+    if (!platform || screen !== "leaderboard" || selectedChatId === null) {
       return;
     }
 
+    const launchedPlatform = platform;
     const chatId = selectedChatId;
     let cancelled = false;
 
@@ -159,6 +165,7 @@ export function MiniAppClient() {
       try {
         const data = await fetchWithInitData<LeaderboardResponse>(
           buildLeaderboardPath(chatId, season),
+          launchedPlatform.initDataRaw,
         );
         if (!cancelled) {
           setLeaderboard(data);
@@ -179,7 +186,7 @@ export function MiniAppClient() {
     return () => {
       cancelled = true;
     };
-  }, [screen, selectedChatId, season]);
+  }, [platform, screen, selectedChatId, season]);
 
   function openChat(chatId: number, label: string) {
     setSelectedChatId(chatId);
@@ -189,12 +196,48 @@ export function MiniAppClient() {
     setScreen("leaderboard");
   }
 
-  function backToPicker() {
+  const backToPicker = useCallback(() => {
     setScreen("picker");
     setSelectedChatId(null);
+    setSelectedChatLabel("");
+    setSeason(getCurrentSeason());
     setLeaderboard(null);
     setError(null);
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!platform) {
+      return;
+    }
+
+    return platform.setBackButton(screen === "leaderboard", backToPicker);
+  }, [backToPicker, platform, screen]);
+
+  if (launch === null) {
+    return (
+      <div className="mini-app">
+        <p>Загрузка…</p>
+      </div>
+    );
+  }
+
+  if (launch.kind === "outside-telegram") {
+    return (
+      <div className="mini-app empty-state">
+        <p>Откройте мини-приложение через Telegram.</p>
+        <p className="hint">Используйте кнопку меню у бота.</p>
+      </div>
+    );
+  }
+
+  if (launch.kind === "initialization-error") {
+    return (
+      <div className="mini-app empty-state">
+        <p>Не удалось запустить мини-приложение.</p>
+        <p className="hint">Закройте его и попробуйте открыть снова.</p>
+      </div>
+    );
   }
 
   if (screen === "picker") {
@@ -232,9 +275,11 @@ export function MiniAppClient() {
 
   return (
     <div className="mini-app">
-      <button type="button" className="back-button" onClick={backToPicker}>
-        ← К выбору чата
-      </button>
+      {!platform?.supportsNativeBackButton ? (
+        <button type="button" className="back-button" onClick={backToPicker}>
+          ← К выбору чата
+        </button>
+      ) : null}
 
       <p className="selected-chat">{selectedChatLabel}</p>
 

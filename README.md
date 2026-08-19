@@ -6,6 +6,7 @@ Telegram scoring bot and Mini App on Vercel (Next.js + Neon Postgres).
 
 ```bash
 pnpm install
+pnpm browser:install
 pnpm dev
 pnpm test
 pnpm build
@@ -14,6 +15,7 @@ pnpm fmt
 ```
 
 Local database tests use PGlite — no Neon or AWS credentials required.
+The browser install provisions Chromium for Vitest Browser Mode.
 For persistent local Mini App data, run `cd apps/web && pnpm db:seed`; this
 resets and populates the same `.data/pglite` database used by local development.
 

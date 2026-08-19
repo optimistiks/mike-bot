@@ -11,7 +11,7 @@
     "lint:fix": "eslint . --fix --max-warnings=0"
   },
   "peerDependencies": {
-    "eslint": "^10.8.1",
+    "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "typescript-eslint": "^8.46.0"
   }

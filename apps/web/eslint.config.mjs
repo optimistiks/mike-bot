@@ -17,5 +17,6 @@ export default defineConfig(
     "build/**",
     "next-env.d.ts",
     "drizzle/**",
+    "public/mockServiceWorker.js",
   ]),
 );

@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "browser:install": "pnpm --filter web browser:install",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -15,8 +16,13 @@
   "lint-staged": {
     "*": "prettier --ignore-unknown --write"
   },
+  "msw": {
+    "workerDirectory": [
+      "apps/web/public"
+    ]
+  },
   "devDependencies": {
-    "eslint": "10.8.1",
+    "eslint": "9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",

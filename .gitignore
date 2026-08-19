@@ -3,7 +3,10 @@ node_modules
 package-lock.json
 .env
 .turbo
+.pnpm-store/
 .next
 *.tsbuildinfo
 tmp/
 .data/
+.vitest-attachments/
+**/__screenshots__/

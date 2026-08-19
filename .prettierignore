@@ -8,5 +8,6 @@ build
 coverage
 .turbo
 apps/web/drizzle
+apps/web/public/mockServiceWorker.js
 .agents
 .scratch
