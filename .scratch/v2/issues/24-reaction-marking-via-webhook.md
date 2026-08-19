@@ -6,7 +6,7 @@
 
 **Blocked by:** [22 — Monorepo scaffold and Postgres foundation](22-monorepo-scaffold-and-postgres-foundation.md), [23 — Leaderboard read path](23-leaderboard-read-path.md)
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Webhook Route Handler validates secret token and returns 2xx for valid updates
 - [ ] Reaction add/remove maps to the six Event types; undo appends undo types, never deletes rows
