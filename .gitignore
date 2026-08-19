@@ -1,6 +1,5 @@
 dist
 node_modules
-.lambda.env.json
 .env
 .turbo
 .next
