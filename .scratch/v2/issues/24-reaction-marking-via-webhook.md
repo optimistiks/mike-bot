@@ -6,11 +6,15 @@
 
 **Blocked by:** [22 — Monorepo scaffold and Postgres foundation](22-monorepo-scaffold-and-postgres-foundation.md), [23 — Leaderboard read path](23-leaderboard-read-path.md)
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Webhook Route Handler validates secret token and returns 2xx for valid updates
-- [ ] Reaction add/remove maps to the six Event types; undo appends undo types, never deletes rows
-- [ ] Business rules skip self-Marks, bot subjects, and uncached messages (console.log only, no group message)
-- [ ] Duplicate `update_id` ignored via `processed_updates`
-- [ ] Adapter tests and one webhook integration test pass against PGlite
-- [ ] Synthetic 👍 on a cached message → `karma.plus` Event visible via leaderboard read path
+- [x] Webhook Route Handler validates secret token and returns 2xx for valid updates
+- [x] Reaction add/remove maps to the six Event types; undo appends undo types, never deletes rows
+- [x] Business rules skip self-Marks, bot subjects, and uncached messages (console.log only, no group message)
+- [x] Duplicate `update_id` ignored via `processed_updates`
+- [x] Adapter tests and one webhook integration test pass against PGlite
+- [x] Synthetic 👍 on a cached message → `karma.plus` Event visible via leaderboard read path
+
+## Answer
+
+Implemented Grammy webhook at `app/api/telegram/route.ts` (`webhookCallback` + `std/http` + secret token), pure reaction adapter in `lib/bot/reaction-events.ts`, and DB-backed update handler in `lib/bot/handle-update.ts` (message author cache, reaction scoring, `processed_updates` dedup, `chat_members` upsert). Table-driven adapter tests plus PGlite integration test proving 👍 → `karma.plus` on the leaderboard read path.
