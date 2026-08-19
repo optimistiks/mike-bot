@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { closePgliteDb, createPgliteDb } from './client';
+import { closePgliteDb, createPgliteDb } from './pglite';
 import {
   chatMembers,
   chatMemberships,

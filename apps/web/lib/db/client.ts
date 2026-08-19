@@ -1,8 +1,7 @@
+import 'server-only';
+
 import { attachDatabasePool } from '@vercel/functions';
-import { PGlite } from '@electric-sql/pglite';
 import { drizzle as drizzleNodePostgres } from 'drizzle-orm/node-postgres';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { Pool } from 'pg';
 
 import { schema, type Schema } from './schema';
@@ -20,23 +19,4 @@ export function getProductionDb(connectionString: string): Database {
   }
 
   return productionDb;
-}
-
-export type PgliteDatabase = {
-  db: ReturnType<typeof drizzlePglite<Schema>>;
-  client: PGlite;
-};
-
-/** Local dev and tests: in-memory PGlite with the same schema as production. */
-export async function createPgliteDb(
-  migrationsFolder = './drizzle',
-): Promise<PgliteDatabase> {
-  const client = new PGlite();
-  const db = drizzlePglite({ client, schema });
-  await migratePglite(db, { migrationsFolder });
-  return { db, client };
-}
-
-export async function closePgliteDb({ client }: PgliteDatabase): Promise<void> {
-  await client.close();
 }
