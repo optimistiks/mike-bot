@@ -17,7 +17,9 @@ attachDatabasePool(pool);
 export const db = drizzle({ client: pool, schema });
 ```
 
-See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel-connection-methods) and `getProductionDb()` in `client.ts`.
+See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel-connection-methods) and `getProductionDb()` in `production.ts` (re-exported from `client.ts` with `server-only`).
+
+Local one-shot scripts (`scripts/import-v1.ts`) use `createScriptDb()` — same Drizzle schema, plain `Pool`, no Vercel lifecycle hooks.
 
 ## Local dev and tests
 

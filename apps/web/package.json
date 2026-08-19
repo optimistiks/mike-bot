@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --fix",
     "fmt": "prettier --write ../.. --ignore-path ../../.prettierignore",
     "fmt:check": "prettier --check ../.. --ignore-path ../../.prettierignore",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "import:v1": "tsx scripts/import-v1.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.7",
@@ -27,6 +28,8 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.876.0",
+    "@aws-sdk/lib-dynamodb": "^3.876.0",
     "@mike-bot/eslint-config": "workspace:*",
     "@types/node": "^22.17.1",
     "@types/pg": "^8.15.5",
@@ -34,6 +37,7 @@
     "@types/react-dom": "19.2.4",
     "drizzle-kit": "^0.31.4",
     "eslint-config-next": "16.3.1",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },

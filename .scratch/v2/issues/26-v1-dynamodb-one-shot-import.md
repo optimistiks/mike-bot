@@ -6,7 +6,7 @@
 
 **Blocked by:** [23 — Leaderboard read path](23-leaderboard-read-path.md)
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Script Scans `lolTable` and inserts converted Events via Drizzle
 - [ ] `legacy_id` UNIQUE constraint makes re-import idempotent
