@@ -62,16 +62,15 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 42. As a developer, I want migration and operational scripts to prefer an unpooled database URL when provided, so that direct database operations retain the correct connection behavior.
 43. As a maintainer, I want lint to fail on the first remaining warning, so that a green verification run means zero warnings.
 44. As a maintainer, I want the existing unused-variable warning fixed, so that the zero-warning policy begins from a clean baseline.
-45. As a maintainer, I want a test that enters through the Telegram webhook HTTP Route Handler, so that framework, secret-header, bot, and persistence wiring are verified together.
-46. As a maintainer, I want protected API tests to use genuinely signed init data, so that tests cannot pass through an authentication shortcut that production rejects.
-47. As a maintainer, I want the map, specification, tickets, domain model, ADRs, and README to use one current vocabulary, so that future work is planned from true assumptions.
-48. As a maintainer, I want obsolete decisions removed rather than retained as historical amendments, so that agents do not rediscover and implement superseded behavior.
-49. As a maintainer, I want v1 source absent from the `v2` branch, so that this branch contains only the current system.
-50. As a bot operator, I want the one-shot v1 import capability to remain available, so that historical Events can still be loaded before cutover without retaining the v1 runtime source.
-51. As a bot operator, I want all human go-live steps collected in the README, so that deployment and Telegram configuration can be completed without searching tickets.
-52. As a bot operator, I do not want a human-only go-live ticket, so that the tracker represents agent-executable work rather than my personal checklist.
-53. As a maintainer, I want package manifests, the lockfile, generated database artifacts, and documentation to agree after the change, so that the branch contains no artifact drift.
-54. As a maintainer, I want formatting, zero-warning lint, type checking, build, and all tests to pass together, so that the hardened branch is ready for the human go-live steps.
+45. As a maintainer, I want protected API tests to use genuinely signed init data, so that tests cannot pass through an authentication shortcut that production rejects.
+46. As a maintainer, I want the map, specification, tickets, domain model, ADRs, and README to use one current vocabulary, so that future work is planned from true assumptions.
+47. As a maintainer, I want obsolete decisions removed rather than retained as historical amendments, so that agents do not rediscover and implement superseded behavior.
+48. As a maintainer, I want v1 source absent from the `v2` branch, so that this branch contains only the current system.
+49. As a bot operator, I want the one-shot v1 import capability to remain available, so that historical Events can still be loaded before cutover without retaining the v1 runtime source.
+50. As a bot operator, I want all human go-live steps collected in the README, so that deployment and Telegram configuration can be completed without searching tickets.
+51. As a bot operator, I do not want a human-only go-live ticket, so that the tracker represents agent-executable work rather than my personal checklist.
+52. As a maintainer, I want package manifests, the lockfile, generated database artifacts, and documentation to agree after the change, so that the branch contains no artifact drift.
+53. As a maintainer, I want formatting, zero-warning lint, type checking, build, and all tests to pass together, so that the hardened branch is ready for the human go-live steps.
 
 ## Implementation Decisions
 
@@ -170,13 +169,6 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 - For the Chat-picker API, cover valid registration, an authenticated Member with no registrations, missing authorization, malformed data, invalid signature, and data older than one year.
 - For the leaderboard API, cover an authorized registered Member, a valid but unregistered Member receiving 403, invalid identity receiving 401, malformed query receiving 400, and absence of request-triggered fixture writes.
 - Assert observable HTTP status and response JSON plus relevant persisted outcomes. Do not assert private validator call order or internal SQL structure.
-
-### Telegram webhook Route Handler
-
-- Add an HTTP-level integration test that enters through the POST webhook Route Handler with the configured Telegram secret header and a synthetic Telegram update.
-- Use PGlite and assert the externally meaningful persistence result: the expected Event and processed update are present after the response succeeds.
-- Cover a transition containing both 👍 and 👎 and later independent removal, proving that Events are appended without mutual-exclusion synthesis.
-- Keep lower bot-adapter tests for detailed reaction diff, self-Mark, bot Subject, uncached message, registration, and duplicate-update cases.
 
 ### TMA application boundary
 
