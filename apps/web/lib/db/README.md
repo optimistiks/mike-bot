@@ -25,10 +25,11 @@ See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel
 
 ## Tables
 
-| Table               | Purpose                                                    |
-| ------------------- | ---------------------------------------------------------- |
-| `events`            | Append-only scoring log (`type` string, no `value` column) |
-| `chat_members`      | Display names per (`chat_id`, `user_id`)                   |
-| `chat_memberships`  | Mini App chat picker roster                                |
-| `message_authors`   | Message author cache for reaction Subject lookup           |
-| `processed_updates` | Webhook `update_id` deduplication                          |
+| Table                   | Purpose                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `events`                | Append-only scoring log (`type` string, no `value` column) |
+| `chat_members`          | Display names per (`chat_id`, `user_id`)                   |
+| `chat_memberships`      | Mini App chat picker roster (explicit registration)        |
+| `message_authors`       | Message author cache for reaction Subject lookup           |
+| `registration_messages` | Bot-posted registration pins (`/register`)                 |
+| `processed_updates`     | Webhook `update_id` deduplication                          |

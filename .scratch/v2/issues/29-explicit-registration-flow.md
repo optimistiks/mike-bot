@@ -6,10 +6,14 @@
 
 **Blocked by:** None — can start immediately (supersedes join-sync portions of ticket 25 implementation)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `registration_messages` table migrated (PGlite + Neon)
-- [ ] `/register` works for group admins only; Russian error outside groups
-- [ ] Any reaction on a registered pin creates `chat_memberships` for the actor; no scoring event
-- [ ] `my_chat_member` handler removed; `chat_member` removes membership on leave/kick only
-- [ ] Integration test proves registration → chat appears in `/api/chats`
+- [x] `registration_messages` table migrated (PGlite + Neon)
+- [x] `/register` works for group admins only; Russian error outside groups
+- [x] Any reaction on a registered pin creates `chat_memberships` for the actor; no scoring event
+- [x] `my_chat_member` handler removed; `chat_member` removes membership on leave/kick only
+- [x] Integration test proves registration → chat appears in `/api/chats`
+
+## Answer
+
+Added `registration_messages` (Drizzle `0001_registration_messages.sql`) and `lib/bot/register.ts` with admin-only `/register` (Russian pin + errors), `recordRegistrationPin`, and registration lookup. `handleMessageReactionUpdate` registers actors on any added reaction to a bot-authored pin listed in `registration_messages` (no `events` row; removal ignored). Removed `my_chat_member` sync; `chat_member` only upserts display names and removes `chat_memberships` on leave/kick. Tests: table-driven guards in `register.test.ts`, webhook integration in `handle-update.test.ts`, and `GET /api/chats` in `route.test.ts`.

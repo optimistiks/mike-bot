@@ -2,23 +2,17 @@ import { and, eq } from "drizzle-orm";
 import type { Update } from "grammy/types";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import {
-  addChatMembership,
-  clearChatMemberships,
-  removeChatMembership,
-} from "@/lib/db/memberships";
+import { addChatMembership, removeChatMembership } from "@/lib/db/memberships";
 import {
   chatMembers,
   events,
   messageAuthors,
   processedUpdates,
 } from "@/lib/db/schema";
-import {
-  isActiveChatMemberStatus,
-  isBotPresentStatus,
-} from "@/lib/mini-app/membership-status";
+import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 
 import { memberDisplayName } from "./display-name";
+import { isRegistrationMessage } from "./register";
 import { reactionDiffToEventTypes } from "./reaction-events";
 
 function toEmojiList(reactions: { type: string; emoji?: string }[]): string[] {
@@ -99,21 +93,6 @@ async function handleMessageUpdate(
   await upsertChatMember(db, chatId, from);
 }
 
-async function handleMyChatMemberUpdate(
-  db: AppDatabase,
-  update: NonNullable<Update["my_chat_member"]>,
-): Promise<void> {
-  const chatId = update.chat.id;
-  const botStatus = update.new_chat_member.status;
-
-  if (!isBotPresentStatus(botStatus)) {
-    await clearChatMemberships(db, chatId);
-    return;
-  }
-
-  await addChatMembership(db, chatId, update.from.id);
-}
-
 async function handleChatMemberUpdate(
   db: AppDatabase,
   update: NonNullable<Update["chat_member"]>,
@@ -125,7 +104,6 @@ async function handleChatMemberUpdate(
   await upsertChatMember(db, chatId, member.user);
 
   if (isActiveChatMemberStatus(member.status)) {
-    await addChatMembership(db, chatId, userId);
     return;
   }
 
@@ -168,6 +146,17 @@ async function handleMessageReactionUpdate(
   const emojiAdded = toEmojiList(reaction.new_reaction);
   const emojiRemoved = toEmojiList(reaction.old_reaction);
 
+  if (author.authorIsBot) {
+    const isPin = await isRegistrationMessage(db, chatId, messageId);
+    if (!isPin || emojiAdded.length === 0) {
+      return;
+    }
+
+    await upsertChatMember(db, chatId, actor);
+    await addChatMembership(db, chatId, actor.id);
+    return;
+  }
+
   const mapped = reactionDiffToEventTypes({
     emojiAdded,
     emojiRemoved,
@@ -208,10 +197,6 @@ export async function handleTelegramUpdate(
 
   if (update.message) {
     await handleMessageUpdate(db, update.message);
-  }
-
-  if (update.my_chat_member) {
-    await handleMyChatMemberUpdate(db, update.my_chat_member);
   }
 
   if (update.chat_member) {
