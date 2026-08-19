@@ -1,0 +1,3 @@
+# Use the TMA React SDK and validate init data
+
+The Mini App integrates with Telegram through `@tma.js/sdk-react`, rather than direct access to the native `telegram-web-app.js` global. Protected API requests carry raw Telegram init data in the `Authorization: tma …` header; the server validates its signature and requires an `auth_date` no older than one year before trusting the opener. Leaderboard reads also require the opener to have registered in the requested Chat. The long lifetime is accepted because this is a friend-only project. The Mini App remains Menu Button-only—Main Mini App and direct-link launch modes remain out of scope.

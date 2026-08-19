@@ -5,7 +5,7 @@ A Telegram group scoring bot: members mark each other's messages, and a Mini App
 ## Language
 
 **Karma**:
-A member's net score from Karma plus minus Karma minus. An integer, no decay. Derived in application code from karma-related event types where the member is `subject_id`.
+A member's net score from Karma plus minus Karma minus. Karma plus and Karma minus are independent and may both be active on the same message; their contributions are summed. An integer, no decay, derived in application code from karma-related event types where the member is `subject_id`.
 _Avoid_: carma, score, уважение
 
 **Karma plus**:
@@ -53,7 +53,7 @@ A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Mem
 _Avoid_: conflating with `chat_members` (display names); conflating with Telegram group membership
 
 **Registration message**:
-A bot-posted pin in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any reaction on a registered pin registers the actor for Mini App access in that Chat.
+A bot-posted message in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any reaction on a Registration message registers the actor for Mini App access in that Chat. Registration messages are not pinned.
 _Avoid_: treating registration reactions as Marks (no `events` row)
 
 **Member**:

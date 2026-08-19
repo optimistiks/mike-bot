@@ -31,14 +31,6 @@ import type { PgliteDatabase } from "../lib/db/pglite";
 
 loadEnvFiles();
 
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
-}
-
 function readOptionalChatId(): number | undefined {
   const raw = process.env.IMPORT_CHAT_ID?.trim();
   if (!raw) {

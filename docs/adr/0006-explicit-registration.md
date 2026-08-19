@@ -4,9 +4,9 @@
 
 ## Registration
 
-Members opt in to Mini App access by reacting to a **registration message** posted by the bot. Marks in `events` are recorded for all Members regardless of registration; registration gates Mini App visibility only.
+Members opt in to Mini App access by reacting to a **Registration message** posted by the bot. Marks in `events` are recorded for all Members regardless of registration; registration gates Mini App visibility only. Registration messages are ordinary messages, not Telegram-pinned messages.
 
-**`/register` command (admins only, groups/supergroups only):** Bot posts a Russian pin and inserts `(chat_id, message_id)` into `registration_messages`. Multiple pins per chat are valid.
+**`/register` command (admins only, groups/supergroups only):** Bot posts a Russian Registration message and inserts `(chat_id, message_id)` into `registration_messages`. Multiple Registration messages per Chat are valid.
 
 **Registration reaction:** Any reaction on a row in `registration_messages` upserts `chat_memberships` for the actor. No `events` row. Reaction removal does not unregister.
 
