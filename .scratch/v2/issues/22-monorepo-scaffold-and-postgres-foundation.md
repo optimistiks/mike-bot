@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Turborepo root (`turbo.json`, workspace `package.json`) and `apps/web` Next.js App Router app scaffolded; `turbo build` passes
 - [x] Drizzle schema covers all five tables per spec (append-only `events` with typed `type` string, optional UNIQUE `legacy_id`; no `value` column)

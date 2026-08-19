@@ -53,6 +53,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 - **Webhook dedup** (ADR-0005) — ignore duplicate `update_id` before appending events.
 - [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; bucket matrix; keep v1 RU “given” labels.
 - [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
+- [23 Leaderboard read path](issues/23-leaderboard-read-path.md) — scoring module, `/api/leaderboard`, PGlite fixture seed, minimal Russian Mini App page for Current Season.
 - [Repo layout](issues/19-repo-layout.md) — Turborepo monorepo; `apps/web` Next.js App Router; no giggle copy; skip production hardening.
 - [Edge states](issues/20-edge-states.md) — empty picker RU message; uncached message skip + console.log; silent in group; no backfill.
 - [v1 import into events](issues/21-v1-import-into-events.md) — `legacy_id` idempotency; seed `chat_members` in same script; local one-shot; no `legacy_marks`.

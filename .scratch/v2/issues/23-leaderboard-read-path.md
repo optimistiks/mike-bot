@@ -6,10 +6,14 @@
 
 **Blocked by:** [22 — Monorepo scaffold and Postgres foundation](22-monorepo-scaffold-and-postgres-foundation.md)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Scoring module exports event type constants, `eventTypeToContributions`, and `aggregateLeaderboard` per spec bucket matrix
-- [ ] Unit tests cover Season boundaries (`Europe/Moscow`), undo inversion, net Karma, five sections, crown on #1 and chicken on last — no Telegram or DB in tests
-- [ ] Leaderboard API accepts `chat_id` and Season; response shape validated with Zod
-- [ ] Minimal Mini App page displays five Russian sections from seeded data (Current Season)
-- [ ] Display names come from `chat_members` join, not Event rows
+- [x] Scoring module exports event type constants, `eventTypeToContributions`, and `aggregateLeaderboard` per spec bucket matrix
+- [x] Unit tests cover Season boundaries (`Europe/Moscow`), undo inversion, net Karma, five sections, crown on #1 and chicken on last — no Telegram or DB in tests
+- [x] Leaderboard API accepts `chat_id` and Season; response shape validated with Zod
+- [x] Minimal Mini App page displays five Russian sections from seeded data (Current Season)
+- [x] Display names come from `chat_members` join, not Event rows
+
+## Answer
+
+Implemented `lib/scoring/` (bucket matrix, Season bucketing in `Europe/Moscow`, five ranked sections with crown/chicken), `lib/leaderboard/` query layer with Zod-validated `/api/leaderboard`, PGlite fixture seed, and a minimal Russian Mini App home page rendering Current Season leaderboards for a hardcoded test chat.

@@ -50,3 +50,47 @@ p {
   color: var(--muted);
   margin: 0;
 }
+
+.hint {
+  margin-bottom: 1.5rem;
+}
+
+.leaderboard {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.season-label {
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.leaderboard-section h2 {
+  font-size: 1.125rem;
+  margin: 0 0 0.5rem;
+}
+
+.leaderboard-section ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.leaderboard-section li {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.leaderboard-section .name {
+  flex: 1;
+}
+
+.leaderboard-section .score {
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  font-style: italic;
+}
