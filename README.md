@@ -78,12 +78,10 @@ This repo uses Drizzle [**Option 3**](https://orm.drizzle.team/docs/migrations):
 
 After schema changes: `pnpm --filter @mike-bot/web db:generate` → commit new files under `apps/web/drizzle/` → run `db:migrate` against each environment.
 
-Apply to **production** once using the **direct** connection string (`DATABASE_URL_UNPOOLED` — migrations should not use the pooled `DATABASE_URL`):
+Apply to **production** once after `vercel env pull .env.local` (repo root or `apps/web` — both are read). `drizzle.config.ts` loads `.env` files via dotenv and uses `DATABASE_URL_UNPOOLED` when present (direct connection; preferred for migrations):
 
 ```bash
 vercel env pull .env.local
-
-DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)" \
 pnpm --filter @mike-bot/web db:migrate
 ```
 
@@ -118,10 +116,9 @@ Deploy (or redeploy after adding env vars). Note the production HTTPS origin, e.
 
 Skip if you do not need DynamoDB history in leaderboards. Run **locally** — not on Vercel. Safe to re-run (`legacy_id` skips duplicates).
 
-Use the **direct** connection string (`DATABASE_URL_UNPOOLED` from `vercel env pull`, passed as `DATABASE_URL` below):
+Use the direct connection from `.env.local` (`DATABASE_URL_UNPOOLED` is picked up automatically after `vercel env pull`):
 
 ```bash
-DATABASE_URL="$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2-)" \
 AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
@@ -130,7 +127,7 @@ pnpm --filter @mike-bot/web import:v1
 
 | Variable                | Required | Purpose                                                       |
 | ----------------------- | -------- | ------------------------------------------------------------- |
-| `DATABASE_URL`          | yes†     | Direct Neon URL (`DATABASE_URL_UNPOOLED` value)               |
+| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`) |
 | `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                    |
 | `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                     |
 | `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                               |

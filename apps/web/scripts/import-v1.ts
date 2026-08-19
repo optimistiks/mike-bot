@@ -25,8 +25,11 @@ import { createScriptDb } from "../lib/db/production";
 import { dumpImportResults } from "../lib/import/dump-results";
 import { importV1Rows } from "../lib/import/import-events";
 import { scanV1LolTable } from "../lib/import/scan-v1";
+import { loadEnvFiles, resolveDatabaseUrl } from "../lib/load-env-files";
 import type { AppDatabase } from "../lib/db/runtime";
 import type { PgliteDatabase } from "../lib/db/pglite";
+
+loadEnvFiles();
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -84,7 +87,12 @@ async function openDatabase(): Promise<{
     };
   }
 
-  const databaseUrl = requireEnv("DATABASE_URL");
+  const databaseUrl = resolveDatabaseUrl();
+  if (!databaseUrl) {
+    throw new Error(
+      "DATABASE_URL is required (set DATABASE_URL or DATABASE_URL_UNPOOLED in .env.local or the shell)",
+    );
+  }
   return {
     db: createScriptDb(databaseUrl),
     close: async () => Promise.resolve(),

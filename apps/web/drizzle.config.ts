@@ -1,10 +1,14 @@
 import type { Config } from "drizzle-kit";
 
+import { loadEnvFiles, resolveDatabaseUrl } from "./lib/load-env-files";
+
+loadEnvFiles();
+
 export default {
   schema: "./lib/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "",
+    url: resolveDatabaseUrl(),
   },
 } satisfies Config;

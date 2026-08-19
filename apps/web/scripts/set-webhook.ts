@@ -19,6 +19,9 @@ import {
   assertWebhookRegistered,
   TELEGRAM_WEBHOOK_ALLOWED_UPDATES,
 } from "../lib/bot/webhook-setup";
+import { loadEnvFiles } from "../lib/load-env-files";
+
+loadEnvFiles();
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
