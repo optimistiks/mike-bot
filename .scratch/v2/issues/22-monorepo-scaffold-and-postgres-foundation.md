@@ -8,10 +8,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Turborepo root (`turbo.json`, workspace `package.json`) and `apps/web` Next.js App Router app scaffolded; `turbo build` passes
-- [ ] Drizzle schema covers all five tables per spec (append-only `events` with typed `type` string, optional UNIQUE `legacy_id`; no `value` column)
-- [ ] Drizzle migrations apply cleanly against PGlite locally
-- [ ] Database client module: Neon production path uses TCP `Pool` + `attachDatabasePool` + Drizzle; local/test path uses PGlite with the same schema
-- [ ] Zod schemas for server env vars (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL`) and core domain records (Event row shape, event type enum)
-- [ ] v1 Telegraf code under existing `src/` is not part of the v2 workspace build
-- [ ] README or inline docs note: Neon via Vercel Fluid TCP pooling (not `@neondatabase/serverless` HTTP driver) for production
+- [x] Turborepo root (`turbo.json`, workspace `package.json`) and `apps/web` Next.js App Router app scaffolded; `turbo build` passes
+- [x] Drizzle schema covers all five tables per spec (append-only `events` with typed `type` string, optional UNIQUE `legacy_id`; no `value` column)
+- [x] Drizzle migrations apply cleanly against PGlite locally
+- [x] Database client module: Neon production path uses TCP `Pool` + `attachDatabasePool` + Drizzle; local/test path uses PGlite with the same schema
+- [x] Zod schemas for server env vars (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL`) and core domain records (Event row shape, event type enum)
+- [x] v1 Telegraf code under existing `src/` is not part of the v2 workspace build
+- [x] README or inline docs note: Neon via Vercel Fluid TCP pooling (not `@neondatabase/serverless` HTTP driver) for production
