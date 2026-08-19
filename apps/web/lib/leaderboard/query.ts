@@ -44,8 +44,7 @@ export async function queryLeaderboard(
       title: section.title,
       entries: section.entries.map((entry) => ({
         userId: entry.userId,
-        displayName:
-          displayNames.get(entry.userId) ?? `User ${entry.userId}`,
+        displayName: displayNames.get(entry.userId) ?? `User ${entry.userId}`,
         score: entry.score,
         isCrown: entry.isCrown,
         isChicken: entry.isChicken,

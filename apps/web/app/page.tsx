@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 
 import { getRuntimeDb } from '@/lib/db/runtime';
 import { queryLeaderboard } from '@/lib/leaderboard/query';
-import { FIXTURE_CHAT_ID, seedLeaderboardFixture } from '@/lib/leaderboard/seed';
+import {
+  FIXTURE_CHAT_ID,
+  seedLeaderboardFixture,
+} from '@/lib/leaderboard/seed';
 import { getCurrentSeason } from '@/lib/scoring';
 
 import { LeaderboardSections } from './leaderboard-sections';
