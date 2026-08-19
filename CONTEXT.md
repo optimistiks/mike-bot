@@ -49,8 +49,12 @@ A conversation scoped by `chat_id`. The bot may serve many Chats; leaderboards a
 _Avoid_: assuming a single group
 
 **Chat membership**:
-A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Member is in a Chat where the bot is present. Synced on bot join and `chat_member` updates. Used by the Mini App to list Chats the opener belongs to.
-_Avoid_: conflating with `chat_members` (display names)
+A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Member has **explicitly registered** for Mini App access in that Chat (by reacting to a registration message). Removed on `chat_member` leave/kick. Used by the Mini App chat picker. Marks in `events` are recorded regardless of registration.
+_Avoid_: conflating with `chat_members` (display names); conflating with Telegram group membership
+
+**Registration message**:
+A bot-posted pin in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any reaction on a registered pin registers the actor for Mini App access in that Chat.
+_Avoid_: treating registration reactions as Marks (no `events` row)
 
 **Member**:
 A non-bot user in a Chat, identified by `user_id`. Members cannot Mark themselves or bots. Display name comes from `chat_members`, not from Event rows.
@@ -73,7 +77,7 @@ The Season for today's year and month in `Europe/Moscow`. The Mini App must show
 _Avoid_: treating "ongoing" as a different kind of Season
 
 **Mini App**:
-The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, including v1 history. Opener picks a Chat from their memberships, then sees that Chat's boards.
+The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, including v1 history. Opens from the Bot Menu Button. Opener picks a Chat from registered memberships (`chat_memberships`), then sees that Chat's boards. Unregistered openers see a prompt to complete registration first.
 _Avoid_: stats command, /stats
 
 **v1**:

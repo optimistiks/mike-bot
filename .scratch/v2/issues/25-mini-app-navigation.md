@@ -18,3 +18,5 @@
 ## Answer
 
 Implemented `chat_memberships` sync on `my_chat_member` and `chat_member` in `lib/bot/handle-update.ts`, naive initData parsing in `lib/mini-app/init-data.ts`, `/api/chats` with Zod validation, and a Russian Mini App client flow (chat picker → season drill-down → five leaderboard sections with crown/chicken). Local dev uses `?devUserId=101` when Telegram initData is unavailable.
+
+**Amended (2026-08-19):** Join-sync via `my_chat_member` / join-side `chat_member` superseded by [Explicit registration model](28-explicit-registration-model.md). Picker, season drill-down, and `/api/chats` remain; membership population moves to tickets [29](29-explicit-registration-flow.md) and [30](30-mini-app-go-register-empty-state.md).

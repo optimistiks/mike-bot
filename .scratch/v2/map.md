@@ -6,17 +6,17 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 
 ## Notes
 
-- Domain: `CONTEXT.md`. ADRs: `docs/adr/0001` through `docs/adr/0005`.
+- Domain: `CONTEXT.md`. ADRs: `docs/adr/0001` through `docs/adr/0006`.
 - Research: `docs/research/01`–`04`.
 - Branch policy: commit on `v2` only. No PRs. Do not touch `master`.
 - Local dev: [PGlite](https://pglite.dev/) — no bot admin, AWS keys, or Vercel secrets required to build and test.
 - Stack: **Turborepo monorepo** → `apps/web` Next.js on Vercel. redesigned-giggle = not copied.
-- Telegram bot: group **admin** required; **privacy mode off**; `allowed_updates` must include at least `message`, `message_reaction`, `my_chat_member`, `chat_member`.
+- Telegram bot: group **admin** required; **privacy mode off**; `allowed_updates` must include at least `message`, `message_reaction`, `chat_member` (not `my_chat_member`).
 - Reactions: use `bot.on('message_reaction')` + old/new diff — not `bot.reaction()` alone (no remove). `MessageReactionUpdated.user` = actor; message author = `subject_id` from `message_authors` cache. Bot API has no `getMessage`.
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
-- Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`.
-- Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from `chat_memberships` → leaderboard for chosen `chat_id`. Russian UI; `Europe/Moscow` seasons.
-- **Route clear** — wayfinder tickets resolved; [spec](../spec.md) published; build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) `ready-for-agent`.
+- Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `registration_messages`, `message_authors`, `processed_updates`.
+- Mini App: Menu Button → parse initData (no HMAC validation) → chat picker from **registered** `chat_memberships` → leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
+- **Build tickets [22–27](issues/22-monorepo-scaffold-and-postgres-foundation.md) largely done;** frontier [29](issues/29-explicit-registration-flow.md) → [30](issues/30-mini-app-go-register-empty-state.md) → [27](issues/27-production-webhook-and-vercel-deploy.md) (updated).
 
 ## Deploy ops
 
@@ -28,7 +28,7 @@ Human steps before production works in a real group. Non-blocking for developmen
    - `BOT_WEBHOOK_SECRET` (same value for `setWebhook.secret_token` and `webhookCallback`)
    - `DATABASE_URL` (Neon Postgres)
    - Mini App URL is the Vercel deployment HTTPS origin
-3. **BotFather** — Menu Button → production Vercel HTTPS URL. Run `scripts/set-webhook.ts` to register webhook with `message_reaction` in `allowed_updates`.
+3. **BotFather** — Menu Button → production Vercel HTTPS URL. Run `scripts/set-webhook.ts` to register webhook (`message`, `message_reaction`, `chat_member` in `allowed_updates`). Admins run `/register` in each group to post the registration pin.
 4. **v1 import** — Run `scripts/import-v1.ts` locally with temporary AWS creds (one-shot; not on Vercel runtime).
 
 ## Decisions so far
@@ -49,14 +49,15 @@ Human steps before production works in a real group. Non-blocking for developmen
 - [16 Cutover](issues/16-cutover-runbook.md) — out of scope until v2 is live.
 - **Event types** (ADR-0004) — `karma.plus` / `karma.undo.plus` / `karma.minus` / `karma.undo.minus` / `humor.add` / `humor.undo.add`; never delete rows.
 - **Message cache** (ADR-0005) — `message_authors`: `author_id`, `author_is_bot`, `message_date` only; no text/media; skip score if uncached.
-- **Chat picker** (ADR-0005) — `chat_memberships` synced on join/leave; Mini App lists user's chats with bot.
+- **Chat picker** (ADR-0005 → ADR-0006) — explicit registration via `/register` pin reaction; `chat_member` leave removes row.
 - **Webhook dedup** (ADR-0005) — ignore duplicate `update_id` before appending events.
 - [Legacy read mapping](issues/17-legacy-read-mapping.md) — single `events` table; v1 import converts rows to event types; bucket matrix; keep v1 RU “given” labels.
 - [Scoring module](issues/18-scoring-module.md) — `lib/scoring/` for read-side math; `lib/bot/` for reaction→type; bot writes types only; thin leaderboard API.
 - [24 Reaction marking via webhook](issues/24-reaction-marking-via-webhook.md) — Grammy `webhookCallback` at `/api/telegram`; reaction diff → six Event types; message author cache, dedup, silent skips; PGlite integration test to leaderboard.
-- [25 Mini App navigation](issues/25-mini-app-navigation.md) — `chat_memberships` sync on join/leave; `/api/chats` with naive initData; Russian picker, empty state, season drill-down, five leaderboard sections.
+- [25 Mini App navigation](issues/25-mini-app-navigation.md) — picker, `/api/chats`, season drill-down (join-sync superseded by 28).
+- [28 Explicit registration model](issues/28-explicit-registration-model.md) — `/register`, `registration_messages`, explicit-only memberships; no `my_chat_member`.
 - [Repo layout](issues/19-repo-layout.md) — Turborepo monorepo; `apps/web` Next.js App Router; no giggle copy; skip production hardening.
-- [Edge states](issues/20-edge-states.md) — empty picker RU message; uncached message skip + console.log; silent in group; no backfill.
+- [Edge states](issues/20-edge-states.md) — uncached message skip + console.log; silent in group for Marks; «go register» empty state (amended).
 - [v1 import into events](issues/21-v1-import-into-events.md) — `legacy_id` idempotency; seed `chat_members` in same script; local one-shot; no `legacy_marks`.
 
 ## Not yet specified
@@ -66,6 +67,8 @@ _(empty)_
 ## Out of scope
 
 - [Mini App look](issues/12-mini-app-look.md) — UI prototype skipped; test in production instead
+- **Direct-link Mini App entry** (`?startapp`, `chat_instance` context) — Menu Button + explicit registration instead
+- **Implicit registration** from scoring participation — registration is explicit pin reaction only
 - Dialogflow, Polly, `/stats`, Humor decay
 - AWS Lambda / CodeStar for v2
 - redesigned-giggle Kamal/TanStack stack

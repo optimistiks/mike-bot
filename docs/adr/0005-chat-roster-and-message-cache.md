@@ -1,6 +1,8 @@
 # Chat roster sync and message author cache
 
-**Chat roster (`chat_memberships`):** When the bot joins a chat (`my_chat_member`) or a member joins/leaves (`chat_member`), sync `chat_id` + `user_id` membership. On join, seed from `getChatAdministrators` / member list where practical. The Mini App uses this: given the opener's `user_id` from initData, list chats where they are a member and the bot is present → user picks a chat → leaderboard for that `chat_id`.
+> **Chat roster:** Superseded for Mini App access by [ADR-0006](./0006-explicit-registration.md) (explicit registration via `/register` pin reactions). The `chat_memberships` table remains; population model changed.
+
+**Chat roster (`chat_memberships`):** ~~When the bot joins a chat (`my_chat_member`) or a member joins/leaves (`chat_member`), sync `chat_id` + `user_id` membership.~~ See ADR-0006. Leave cleanup via `chat_member` (`left`/`kicked`) remains.
 
 **Message authors (`message_authors`):** `MessageReactionUpdated` includes `chat`, `message_id`, and `user` (who reacted). It does **not** include who wrote the message. Bot API has no `getMessage` — cache on `message` updates (privacy mode off).
 

@@ -14,6 +14,8 @@ Two edge cases need a decided behaviour:
 
 **Empty chat picker:** Russian empty state on Mini App home — «Нет общих чатов с ботом» plus a short hint to add the bot to a group. No error throw, no retry loop.
 
+**Amended (2026-08-19):** Superseded for unregistered openers by [Explicit registration model](28-explicit-registration-model.md) — show «go register» copy (react to registration pin; admin runs `/register`). Ticket [30 — Mini App go-register empty state](30-mini-app-go-register-empty-state.md).
+
 **Uncached message on reaction:** Skip scoring — do not append an event. Silent in the group (no bot message). `console.log` with `chat_id`, `message_id`, `actor_id` — toy-grade, no structured logging stack.
 
 **No backfill:** Bot API has no `getMessage`; if uncached, the mark is lost for scoring.

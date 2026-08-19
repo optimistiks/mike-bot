@@ -2,9 +2,9 @@
 
 **Parent:** [v2 spec](../spec.md)
 
-**What to build:** A `set-webhook.ts` script that registers the Telegram webhook with `secret_token`, `allowed_updates` including `message`, `message_reaction`, `my_chat_member`, and `chat_member`, and verifies via `getWebhookInfo`. Vercel project configured to deploy `apps/web` from the `v2` branch with server-side env vars only (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL` pointing at Neon). Production database client uses Vercel Fluid TCP pooling per ticket 22. Human deploy checklist from the spec is documented (BotFather Menu Button → production HTTPS URL, bot promoted to group admin with privacy mode off, optional v1 import before go-live).
+**What to build:** A `set-webhook.ts` script that registers the Telegram webhook with `secret_token`, `allowed_updates` including `message`, `message_reaction`, and `chat_member` (not `my_chat_member`), and verifies via `getWebhookInfo`. Vercel project configured to deploy `apps/web` from the `v2` branch with server-side env vars only (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL` pointing at Neon). Production database client uses Vercel Fluid TCP pooling per ticket 22. Human deploy checklist from the spec is documented (BotFather Menu Button → production HTTPS URL, bot promoted to group admin with privacy mode off, optional v1 import before go-live).
 
-**Blocked by:** [24 — Reaction Marking via webhook](24-reaction-marking-via-webhook.md)
+**Blocked by:** [24 — Reaction marking via webhook](24-reaction-marking-via-webhook.md), [29 — Explicit registration](29-explicit-registration-flow.md)
 
 **Status:** ready-for-agent
 

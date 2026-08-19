@@ -2,7 +2,7 @@ Status: ready-for-agent
 
 # v2: Telegram scoring bot on Vercel
 
-Synthesized from the cleared [v2 operational on Vercel](map.md) wayfinder map (21 resolved tickets, ADRs 0001–0005, `CONTEXT.md`).
+Synthesized from the [v2 operational on Vercel](map.md) wayfinder map (ADRs 0001–0006, `CONTEXT.md`). **Amended 2026-08-19:** explicit registration model ([ticket 28](issues/28-explicit-registration-model.md)).
 
 ## Problem Statement
 
@@ -10,7 +10,7 @@ Mike-bot v1 runs on AWS Lambda with reply-text Marks (`+`, `-`, `лол`), in-ch
 
 ## Solution
 
-Build v2 as a Turborepo monorepo on the `v2` branch: a Grammy bot webhook and Next.js Mini App deployed together on Vercel, backed by Neon Postgres (PGlite locally). Members Mark each other's messages with three Scoring reactions (👍 Karma plus, 👎 Karma minus, 🤣 Humor); removing a reaction appends an undo Event. The bot writes append-only Events, caches message authors and chat rosters, and never speaks in the group. The Mini App opens from the Bot Menu Button, lets the opener pick a Chat from their memberships, and shows five Russian leaderboard sections filtered by Season (calendar month in `Europe/Moscow`), with Current Season highlighted. v1 DynamoDB history is one-shot imported into the same `events` table before go-live.
+Build v2 as a Turborepo monorepo on the `v2` branch: a Grammy bot webhook and Next.js Mini App deployed together on Vercel, backed by Neon Postgres (PGlite locally). Members Mark each other's messages with three Scoring reactions (👍 Karma plus, 👎 Karma minus, 🤣 Humor); removing a reaction appends an undo Event. The bot writes append-only Events, caches message authors, and stays silent in the group for Marks (except when an admin runs `/register` to post the registration pin). The Mini App opens from the Bot Menu Button; Members must **explicitly register** by reacting to the pin before the chat appears in the picker. Registered openers pick a Chat and see five Russian leaderboard sections filtered by Season (calendar month in `Europe/Moscow`), with Current Season highlighted. Marks accumulate for everyone regardless of registration. v1 DynamoDB history is one-shot imported into the same `events` table before go-live.
 
 ## User Stories
 
@@ -32,55 +32,61 @@ Build v2 as a Turborepo monorepo on the `v2` branch: a Grammy bot webhook and Ne
 ### Mini App access and navigation
 
 13. As a Member, I want to open the Mini App from the bot's Menu Button, so that I do not need a `/stats` command or inline keyboard.
-14. As a Member opening the Mini App, I want to see a list of Chats where I am a member and the bot is present, so that I can pick which group's leaderboards to view.
-15. As a Member with no shared Chats with the bot, I want a Russian empty state («Нет общих чатов с ботом» plus a hint to add the bot to a group), so that I understand why the picker is empty.
-16. As a Member, I want the Mini App UI in Russian, so that it matches the tone of v1 `/stats`.
-17. As a Member, I want to view leaderboards scoped to the Chat I selected, so that scores from other groups do not mix in.
+14. As a group admin, I want to run `/register` in the group to post a registration pin, so that Members can opt in to Mini App access.
+15. As a Member, I want to register by reacting to the registration pin with any emoji, so that I can access leaderboards for that Chat.
+16. As a Member opening the Mini App, I want to see a list of Chats where I have registered, so that I can pick which group's leaderboards to view.
+17. As a Member who has not registered in any Chat, I want a Russian «go register» prompt (react to the pin; ask an admin to run `/register`), so that I know how to get access.
+18. As a Member, I want the Mini App UI in Russian, so that it matches the tone of v1 `/stats`.
+19. As a Member, I want to view leaderboards scoped to the Chat I selected, so that scores from other groups do not mix in.
 
 ### Leaderboards and Seasons
 
-18. As a Member, I want to see «Уважаемые люди» (net Karma received), so that I know who is most respected in the group.
-19. As a Member, I want to see «Юмористы» (Humor received, no decay), so that I know who makes people laugh.
-20. As a Member, I want to see «Поставили +» (Karma plus given), so that I know who hands out the most praise.
-21. As a Member, I want to see «Поставили −» (Karma minus given), so that I know who hands out the most criticism.
-22. As a Member, I want to see «Поставили лол» (Humor given), so that I know who spreads the most humor reactions.
-23. As a Member, I want Current Season to be the default view and clearly marked, so that I see what is happening now.
-24. As a Member, I want to drill down by calendar year and month, so that I can compare past Seasons.
-25. As a Member, I want Season boundaries in `Europe/Moscow`, so that everyone agrees when a month closes regardless of local timezone.
-26. As a Member, I want 👑 on the #1 entry in each section, so that the top spot is obvious.
-27. As a Member, I want 🐔 on the last-place entry in each section, so that the v1 `/stats` tone is preserved.
-28. As a Member, I want honest counts with no Humor decay, so that leaderboard numbers reflect actual Marks.
-29. As a Member, I want display names joined from the latest known username for each Member in the Chat, so that renames do not break readability.
-30. As a Member, I want v1 history included in the same leaderboards as live v2 Marks, so that long-running group history is not lost.
+20. As a Member, I want to see «Уважаемые люди» (net Karma received), so that I know who is most respected in the group.
+21. As a Member, I want to see «Юмористы» (Humor received, no decay), so that I know who makes people laugh.
+22. As a Member, I want to see «Поставили +» (Karma plus given), so that I know who hands out the most praise.
+23. As a Member, I want to see «Поставили −» (Karma minus given), so that I know who hands out the most criticism.
+24. As a Member, I want to see «Поставили лол» (Humor given), so that I know who spreads the most humor reactions.
+25. As a Member, I want Current Season to be the default view and clearly marked, so that I see what is happening now.
+26. As a Member, I want to drill down by calendar year and month, so that I can compare past Seasons.
+27. As a Member, I want Season boundaries in `Europe/Moscow`, so that everyone agrees when a month closes regardless of local timezone.
+28. As a Member, I want 👑 on the #1 entry in each section, so that the top spot is obvious.
+29. As a Member, I want 🐔 on the last-place entry in each section, so that the v1 `/stats` tone is preserved.
+30. As a Member, I want honest counts with no Humor decay, so that leaderboard numbers reflect actual Marks.
+31. As a Member, I want display names joined from the latest known username for each Member in the Chat, so that renames do not break readability.
+32. As a Member, I want v1 history included in the same leaderboards as live v2 Marks, so that long-running group history is not lost.
 
-### Multi-chat and membership
+### Multi-chat and registration
 
-31. As a bot operator, I want the bot to serve many Chats keyed by `chat_id`, so that the same deployment works for multiple groups.
-32. As a Member who joins a group with the bot, I want my Chat membership recorded, so that the Mini App picker includes that Chat.
-33. As a Member who leaves a group, I want my Chat membership updated, so that I no longer see that Chat in the picker.
-34. As the bot, I want to cache each message's author when I receive a `message` update, so that I can resolve the Subject on reaction events.
+33. As a bot operator, I want the bot to serve many Chats keyed by `chat_id`, so that the same deployment works for multiple groups.
+34. As a Member who registers in a group, I want a `chat_memberships` row created, so that the Mini App picker includes that Chat.
+35. As a Member who leaves a group, I want my registration removed, so that I no longer see that Chat in the picker.
+36. As the bot, I want to cache each message's author when I receive a `message` update, so that I can resolve the Subject on reaction events and detect bot-originated registration pins.
 
 ### Data integrity and history
 
-35. As a bot operator, I want every Mark change to append one Event with a typed string (never update or delete rows), so that the log is auditable and undo-safe.
-36. As a bot operator, I want scoring weights defined in application code rather than a database `value` column, so that new Event types can be added without schema migrations.
-37. As a bot operator, I want to run a one-shot v1 DynamoDB import locally, so that v1 rows become Events with `legacy_id` and import is idempotent on re-run.
-38. As a bot operator, I want the import to seed `chat_members` from v1 actors and subjects, so that Members who only appear in v1 history still have display names.
-39. As a bot operator, I want imported Events to keep v1 `created_at` timestamps bucketed in `Europe/Moscow`, so that Season views include accurate historical placement.
+37. As a bot operator, I want every Mark change to append one Event with a typed string (never update or delete rows), so that the log is auditable and undo-safe.
+38. As a bot operator, I want scoring weights defined in application code rather than a database `value` column, so that new Event types can be added without schema migrations.
+39. As a bot operator, I want to run a one-shot v1 DynamoDB import locally, so that v1 rows become Events with `legacy_id` and import is idempotent on re-run.
+40. As a bot operator, I want the import to seed `chat_members` from v1 actors and subjects, so that Members who only appear in v1 history still have display names.
+41. As a bot operator, I want imported Events to keep v1 `created_at` timestamps bucketed in `Europe/Moscow`, so that Season views include accurate historical placement.
+42. As a bot operator, I want registration to be explicit only (no automatic registration from Marks), so that Mini App access is a deliberate opt-in.
 
 ### Development and deployment
 
-40. As a developer, I want to run and test locally with PGlite without bot admin rights, AWS keys, or Vercel secrets, so that I can iterate on scoring and UI quickly.
-41. As a developer, I want a script to register the Telegram webhook with `secret_token` and the correct `allowed_updates`, so that production receives reactions and membership changes.
-42. As a developer, I want v1 `src/` to remain in the repo but unwired from the v2 build, so that cutover can happen later without blocking v2 development.
-43. As a deployer, I want server-side-only env vars (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL`), so that secrets are not exposed to the Mini App client.
-44. As a deployer, I want BotFather's Menu Button pointed at the production Vercel HTTPS origin, so that Members can open the Mini App.
+43. As a developer, I want to run and test locally with PGlite without bot admin rights, AWS keys, or Vercel secrets, so that I can iterate on scoring and UI quickly.
+44. As a developer, I want a script to register the Telegram webhook with `secret_token` and `allowed_updates` of `message`, `message_reaction`, and `chat_member`, so that production receives the right update types.
+45. As a developer, I want v1 `src/` to remain in the repo but unwired from the v2 build, so that cutover can happen later without blocking v2 development.
+46. As a deployer, I want server-side-only env vars (`BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL`), so that secrets are not exposed to the Mini App client.
+47. As a deployer, I want BotFather's Menu Button pointed at the production Vercel HTTPS origin, so that Members can open the Mini App.
+48. As a deployer, I want group admins to run `/register` after adding the bot, so that Members can opt in to the Mini App.
 
 ### Explicit non-goals (for clarity in stories)
 
-45. As a Member, I do not want `/stats` in the chat, so that stats live only in the Mini App.
-46. As a Member, I do not want in-chat emoji confirmations on Marks, so that the group stays quiet.
-47. As a bot operator, I do not want live DynamoDB reads from Vercel, so that v1 AWS infra is off the hot path after import.
+49. As a Member, I do not want `/stats` in the chat, so that stats live only in the Mini App.
+50. As a Member, I do not want in-chat emoji confirmations on Marks, so that the group stays quiet.
+51. As a bot operator, I do not want live DynamoDB reads from Vercel, so that v1 AWS infra is off the hot path after import.
+52. As a Member, I do not want Marks to require registration, so that scoring continues even before I opt in to the Mini App.
+53. As a Member, I do not want direct-link Mini App entry via `?startapp` or `chat_instance`, so that access stays Menu Button + explicit registration.
 
 ## Implementation Decisions
 
@@ -94,7 +100,7 @@ Build v2 as a Turborepo monorepo on the `v2` branch: a Grammy bot webhook and Ne
 ### Telegram bot (Grammy)
 
 - **Webhook:** POST Route Handler using `webhookCallback` with `std/http` adapter and `secretToken` matching `BOT_WEBHOOK_SECRET`.
-- **`allowed_updates`:** must include at least `message`, `message_reaction`, `my_chat_member`, `chat_member`. Reactions are opt-in and excluded by default.
+- **`allowed_updates`:** must include at least `message`, `message_reaction`, `chat_member` — **not** `my_chat_member`. Reactions are opt-in and excluded by default.
 - **Bot requirements in each group:** administrator; privacy mode off.
 - **Scoring reactions:** standard emoji only — 👍 = Karma plus, 👎 = Karma minus, 🤣 = Humor.
 - **Reaction handler:** subscribe with `bot.on('message_reaction')`; diff `old_reaction` vs `new_reaction` to detect add vs remove. Do not rely on `bot.reaction()` alone (add-only, no undo path).
@@ -105,7 +111,9 @@ Build v2 as a Turborepo monorepo on the `v2` branch: a Grammy bot webhook and Ne
   - Karma plus and Karma minus mutually exclusive per Member per message (app-enforced; Telegram allows multiple reactions).
   - Humor independent of Karma polarity.
 - **Message handler:** on each `message` update, upsert `message_authors` with `author_id`, `author_is_bot`, `message_date` only — never store text, media, or captions.
-- **Membership sync:** on `my_chat_member` and `chat_member`, maintain `chat_memberships` for the Mini App chat picker; seed member lists from administrators where practical on bot join.
+- **`/register` command:** group/supergroup admins only; posts a Russian registration pin and inserts `(chat_id, message_id)` into `registration_messages`. Multiple pins per Chat remain valid.
+- **Registration reactions:** on `message_reaction`, if `message_authors.author_is_bot` is true, look up `registration_messages`; any reaction on a registered pin upserts `chat_memberships` for the actor (no `events` row; removal ignored). If `author_is_bot` is false, scoring path only.
+- **Leave cleanup:** on `chat_member` with status `left` or `kicked`, delete `chat_memberships` for that user in that Chat. No `my_chat_member` handling.
 - **Display names:** upsert `chat_members` when processing live Events (Actor and Subject).
 - **Idempotency:** record processed Telegram `update_id` in `processed_updates` before appending Events; ignore duplicates.
 - **Silence:** never send confirmation messages in the group for Marks or undos.
@@ -138,7 +146,8 @@ Append-only **`events`** table — rows are never updated or deleted.
 Supporting tables:
 
 - **`chat_members`:** (`chat_id`, `user_id`) → latest display name (`@username` or first name).
-- **`chat_memberships`:** (`chat_id`, `user_id`) roster for Mini App picker; synced on join/leave.
+- **`chat_memberships`:** (`chat_id`, `user_id`) explicit registration roster for Mini App picker; created by registration pin reaction; removed on leave/kick.
+- **`registration_messages`:** (`chat_id`, `message_id`, `created_at`) valid registration pins; all historical pins remain valid.
 - **`message_authors`:** (`chat_id`, `message_id`) → `author_id`, `author_is_bot`, `message_date`.
 - **`processed_updates`:** `update_id` for webhook dedup.
 
@@ -186,7 +195,7 @@ Rankings include Crown on #1 and Chicken on last in each section.
 - **Authentication (toy scope):** parse `user.id` from Telegram initData naively — **no HMAC validation**. Client passes initData on API calls; harden later if needed.
 - **Flow:** Mini App home → chat picker from `chat_memberships` for opener's `user_id` → season selector (default Current Season; year/month drill-down) → five leaderboard sections for chosen `chat_id`.
 - **Leaderboard API:** thin Route Handler — query `events` for `chat_id` + season, run `aggregateLeaderboard`, join `chat_members` for display names, return ranked lists with crown/chicken metadata.
-- **Empty picker:** show Russian empty state; do not throw or retry loop.
+- **Empty picker (unregistered opener):** Russian «go register» prompt — react to the registration pin; ask a group admin to run `/register`. No leaderboard sections; do not throw or retry loop.
 - **UI language:** Russian for all user-visible Mini App copy; domain glossary in `CONTEXT.md` stays English for engineering.
 
 ### v1 import
@@ -210,7 +219,7 @@ Rankings include Crown on #1 and Chicken on last in each section.
 
 | Module | Responsibility |
 | --- | --- |
-| Bot adapter | Telegram shapes → Event types; membership and message cache sync; business rule enforcement |
+| Bot adapter | Telegram shapes → Event types; registration, message cache, leave cleanup; business rule enforcement |
 | Scoring | Event types → bucket contributions → aggregated leaderboard sections |
 | Database layer | Migrations, queries, PGlite/Neon connection |
 | Leaderboard API | Query + aggregate + join display names |
@@ -229,6 +238,7 @@ Tests feed arrays of Event-shaped records (type, actor_id, subject_id, created_a
 ### Secondary seams (integration, fewer tests)
 
 - **Bot adapter → Event type mapping:** table-driven tests from synthetic old/new reaction diffs to expected Event types and skip conditions (self, bot, uncached message). Keep these focused on mapping and rules, not Postgres.
+- **Bot adapter → registration path:** table-driven or PGlite integration tests for `/register` → pin reaction → `chat_memberships` row; registration reactions must not append `events` rows.
 - **Webhook Route Handler:** one or two end-to-end tests with PGlite — synthetic Telegram update payload in, expected rows in `events` / `processed_updates` out.
 - **Leaderboard API:** smoke test that query + scoring + `chat_members` join returns the five sections for a seeded fixture.
 
@@ -254,6 +264,9 @@ v1 has only a single Mocha test on the Lambda handler empty-body case (`tests/te
 - **Production hardening** beyond toy grade (structured logging, rate limits, monitoring dashboards).
 - **Live DynamoDB reads from Vercel** — history via one-shot import only.
 - **Message backfill** when `message_authors` is missing.
+- **Direct-link Mini App entry** (`?startapp`, `chat_instance` context) — Menu Button + explicit registration instead.
+- **Implicit registration** from scoring participation — registration is pin reaction only.
+- **`/app` command** or inline-keyboard Mini App entry.
 - **Changes to `master` / v1 runtime** during this build.
 
 ## Further Notes
@@ -262,13 +275,13 @@ v1 has only a single Mocha test on the Lambda handler empty-body case (`tests/te
 
 1. Add the new BotFather bot to each target group; promote to **administrator**; privacy mode **off**; record `@username`.
 2. Deploy the Next.js app from `v2` on Vercel; set `BOT_TOKEN`, `BOT_WEBHOOK_SECRET`, `DATABASE_URL` (server-side only).
-3. BotFather Menu Button → production Vercel HTTPS URL; run webhook registration script with `message_reaction` in `allowed_updates`.
+3. BotFather Menu Button → production Vercel HTTPS URL; run webhook registration script (`message`, `message_reaction`, `chat_member` in `allowed_updates`); group admins run `/register` to post the registration pin.
 4. Run v1 import script locally with temporary AWS creds (one-shot before or after deploy; not on Vercel runtime).
 
 ### Reference artifacts
 
 - Domain glossary: `CONTEXT.md`
-- Architecture: `docs/adr/0001` through `docs/adr/0005`
+- Architecture: `docs/adr/0001` through `docs/adr/0006`
 - Research: `docs/research/01` through `docs/research/04`
 - Wayfinder map and tickets: `.scratch/v2/map.md`, `.scratch/v2/issues/`
 
