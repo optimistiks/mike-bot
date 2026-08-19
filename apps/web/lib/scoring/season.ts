@@ -1,20 +1,20 @@
 /** Season = calendar month in Europe/Moscow (CONTEXT.md). */
-export type Season = {
+export interface Season {
   year: number;
   month: number;
-};
+}
 
-export const SEASON_TIMEZONE = 'Europe/Moscow';
+export const SEASON_TIMEZONE = "Europe/Moscow";
 
 function readMoscowParts(date: Date): { year: number; month: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: SEASON_TIMEZONE,
-    year: 'numeric',
-    month: 'numeric',
+    year: "numeric",
+    month: "numeric",
   }).formatToParts(date);
 
-  const year = Number(parts.find((part) => part.type === 'year')?.value);
-  const month = Number(parts.find((part) => part.type === 'month')?.value);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
 
   return { year, month };
 }
@@ -33,5 +33,5 @@ export function isEventInSeason(createdAt: Date, season: Season): boolean {
 }
 
 export function formatSeasonLabel(season: Season): string {
-  return `${season.year}-${String(season.month).padStart(2, '0')}`;
+  return `${String(season.year)}-${String(season.month).padStart(2, "0")}`;
 }

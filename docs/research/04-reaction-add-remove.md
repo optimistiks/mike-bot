@@ -8,12 +8,12 @@
 
 ## TL;DR
 
-| Event | `old_reaction` | `new_reaction` | Mark effect |
-|-------|----------------|----------------|-------------|
-| **Pure add** | `[]` | `[{type:"emoji", emoji:"…"}]` | Apply Mark for each scoring emoji in **added** set |
-| **Pure remove** | `[{…}]` | `[]` | Undo Mark for each scoring emoji in **removed** set |
-| **Switch karma ±** | `[karma+]` | `[karma−]` | Undo old karma Mark, apply new (one atomic update) |
-| **Add humor while keeping karma** | `[karma+]` | `[karma+, humor]` | Apply humor Mark only; karma unchanged |
+| Event                             | `old_reaction` | `new_reaction`                | Mark effect                                         |
+| --------------------------------- | -------------- | ----------------------------- | --------------------------------------------------- |
+| **Pure add**                      | `[]`           | `[{type:"emoji", emoji:"…"}]` | Apply Mark for each scoring emoji in **added** set  |
+| **Pure remove**                   | `[{…}]`        | `[]`                          | Undo Mark for each scoring emoji in **removed** set |
+| **Switch karma ±**                | `[karma+]`     | `[karma−]`                    | Undo old karma Mark, apply new (one atomic update)  |
+| **Add humor while keeping karma** | `[karma+]`     | `[karma+, humor]`             | Apply humor Mark only; karma unchanged              |
 
 Use **`bot.on("message_reaction")`** + **`ctx.reactions()`** (or manual old/new diff). Do **not** rely on **`bot.reaction()`** alone — it fires only on add, never on remove.
 
@@ -41,15 +41,15 @@ Telegram delivers reaction changes as `Update.message_reaction`:
 }
 ```
 
-| Field | Type | Meaning |
-|-------|------|---------|
-| `chat` | `Chat` | Chat containing the reacted message |
-| `message_id` | `Integer` | Target message id **inside that chat** |
-| `user` | `User?` | Member who changed their reaction (when not anonymous) |
-| `actor_chat` | `Chat?` | Chat on whose behalf the reaction changed (anonymous cases) |
-| `date` | `Integer` | Unix timestamp of the change |
-| `old_reaction` | `ReactionType[]` | This user's reactions **before** the change |
-| `new_reaction` | `ReactionType[]` | This user's reactions **after** the change |
+| Field          | Type             | Meaning                                                     |
+| -------------- | ---------------- | ----------------------------------------------------------- |
+| `chat`         | `Chat`           | Chat containing the reacted message                         |
+| `message_id`   | `Integer`        | Target message id **inside that chat**                      |
+| `user`         | `User?`          | Member who changed their reaction (when not anonymous)      |
+| `actor_chat`   | `Chat?`          | Chat on whose behalf the reaction changed (anonymous cases) |
+| `date`         | `Integer`        | Unix timestamp of the change                                |
+| `old_reaction` | `ReactionType[]` | This user's reactions **before** the change                 |
+| `new_reaction` | `ReactionType[]` | This user's reactions **after** the change                  |
 
 `ReactionType` is one of:
 
@@ -84,14 +84,14 @@ function diffReactions(old: ReactionType[], now: ReactionType[]) {
 }
 ```
 
-| Transition | `added` | `removed` | Mark action |
-|------------|---------|-----------|-------------|
-| First reaction | scoring emoji | — | **Apply** Mark (marker → author, type from emoji) |
-| Remove only | — | scoring emoji | **Undo** Mark |
-| Replace karma+ with karma− | karma− | karma+ | **Undo** karma+ Mark, **apply** karma− Mark |
-| Add humor, keep karma+ | humor | — | **Apply** humor Mark only |
-| Remove humor, keep karma+ | — | humor | **Undo** humor Mark only |
-| Clear all | — | all scoring | **Undo** each removed scoring Mark |
+| Transition                 | `added`       | `removed`     | Mark action                                       |
+| -------------------------- | ------------- | ------------- | ------------------------------------------------- |
+| First reaction             | scoring emoji | —             | **Apply** Mark (marker → author, type from emoji) |
+| Remove only                | —             | scoring emoji | **Undo** Mark                                     |
+| Replace karma+ with karma− | karma−        | karma+        | **Undo** karma+ Mark, **apply** karma− Mark       |
+| Add humor, keep karma+     | humor         | —             | **Apply** humor Mark only                         |
+| Remove humor, keep karma+  | —             | humor         | **Undo** humor Mark only                          |
+| Clear all                  | —             | all scoring   | **Undo** each removed scoring Mark                |
 
 **Apply:** For each emoji in `added` that maps to a Scoring reaction, persist a Mark `(chat, message_id, marker=user, author=…, type, season)`.  
 **Undo:** For each emoji in `removed` that maps to a Scoring reaction, delete/reverse the corresponding Mark for `(chat, message_id, marker=user, type)`.
@@ -151,11 +151,11 @@ Per [Bot API `Update`](https://core.telegram.org/bots/api#update):
 
 Requirements for Mike-bot v2:
 
-| Requirement | Detail |
-|-------------|--------|
-| Group admin | Bot promoted to administrator in the scoring supergroup (wayfinder ticket #13) |
-| `allowed_updates` | Webhook / `getUpdates` must include `"message_reaction"` — **excluded by default** when `allowed_updates` is omitted or empty |
-| Bot reactions ignored | Updates are **not received for reactions set by bots** — bot emoji reactions never drive Marks |
+| Requirement           | Detail                                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Group admin           | Bot promoted to administrator in the scoring supergroup (wayfinder ticket #13)                                                |
+| `allowed_updates`     | Webhook / `getUpdates` must include `"message_reaction"` — **excluded by default** when `allowed_updates` is omitted or empty |
+| Bot reactions ignored | Updates are **not received for reactions set by bots** — bot emoji reactions never drive Marks                                |
 
 Grammy also notes admin for `message_reaction_count` (channels / forwarded channel posts); Mike-bot targets a group with identifiable users, so **`message_reaction`** is the relevant type.
 
@@ -179,13 +179,13 @@ Bot API `setMessageReaction` note: bots (non-premium) may set **up to one** reac
 
 Rules from `CONTEXT.md` and ADR-0002:
 
-| Rule | Telegram behavior | v2 handling |
-|------|-------------------|-------------|
-| **No self** | API does not block self-reaction | After author lookup: if `marker.id === author.id`, ignore (no apply/undo) |
-| **No bots** | Bot reactions don't emit updates; author may be a bot | Ignore if `user.is_bot` or cached `author.is_bot` |
-| **Karma+ / Karma− mutually exclusive** | Telegram **allows** multiple emojis; does **not** enforce exclusivity | Enforce in app logic on `new_reaction` / `emoji` after diff |
-| **Switching karma ± allowed** | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Undo old karma Mark, apply new — matches ADR "undo by removing" |
-| **Humor independent** | Humor emoji can coexist with karma emoji in `new_reaction` | Apply/undo humor Marks independently via `emojiAdded` / `emojiRemoved` |
+| Rule                                   | Telegram behavior                                                                                   | v2 handling                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **No self**                            | API does not block self-reaction                                                                    | After author lookup: if `marker.id === author.id`, ignore (no apply/undo) |
+| **No bots**                            | Bot reactions don't emit updates; author may be a bot                                               | Ignore if `user.is_bot` or cached `author.is_bot`                         |
+| **Karma+ / Karma− mutually exclusive** | Telegram **allows** multiple emojis; does **not** enforce exclusivity                               | Enforce in app logic on `new_reaction` / `emoji` after diff               |
+| **Switching karma ± allowed**          | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Undo old karma Mark, apply new — matches ADR "undo by removing"           |
+| **Humor independent**                  | Humor emoji can coexist with karma emoji in `new_reaction`                                          | Apply/undo humor Marks independently via `emojiAdded` / `emojiRemoved`    |
 
 ### Karma mutual exclusion — implementation note
 
@@ -202,15 +202,15 @@ Humor is unaffected: karma+ and humor in `new_reaction` is valid and should crea
 
 ## Grammy: `bot.reaction()` vs `bot.on("message_reaction")`
 
-| | `bot.reaction("👍", handler)` | `bot.on("message_reaction", handler)` |
-|---|------------------------------|---------------------------------------|
-| **Fires on add** | Yes — when listed emoji **newly added** | Yes |
-| **Fires on remove** | **No** | Yes — full old/new diff |
-| **Undo Marks** | **Cannot** — remove events never run | **Required** for undo-on-remove (ADR-0002) |
-| **Switch karma ±** | May fire twice (remove handler missing) or miss undo | Single update with both `emojiRemoved` and `emojiAdded` |
-| **Multiple emoji in one update** | One handler per matching **added** emoji | One handler; inspect full diff |
-| **Custom / paid** | Supported triggers for **add** only | Filter queries: `message_reaction:new_reaction:emoji`, etc. |
-| **Anonymous channel counts** | No | Use `message_reaction_count` instead (not Mike-bot group path) |
+|                                  | `bot.reaction("👍", handler)`                        | `bot.on("message_reaction", handler)`                          |
+| -------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------- |
+| **Fires on add**                 | Yes — when listed emoji **newly added**              | Yes                                                            |
+| **Fires on remove**              | **No**                                               | Yes — full old/new diff                                        |
+| **Undo Marks**                   | **Cannot** — remove events never run                 | **Required** for undo-on-remove (ADR-0002)                     |
+| **Switch karma ±**               | May fire twice (remove handler missing) or miss undo | Single update with both `emojiRemoved` and `emojiAdded`        |
+| **Multiple emoji in one update** | One handler per matching **added** emoji             | One handler; inspect full diff                                 |
+| **Custom / paid**                | Supported triggers for **add** only                  | Filter queries: `message_reaction:new_reaction:emoji`, etc.    |
+| **Anonymous channel counts**     | No                                                   | Use `message_reaction_count` instead (not Mike-bot group path) |
 
 Grammy API reference (`Composer.reaction`):
 

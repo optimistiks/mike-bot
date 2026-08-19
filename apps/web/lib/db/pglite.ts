@@ -1,21 +1,21 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 
-import { schema, type Schema } from './schema';
+import { schema, type Schema } from "./schema";
 
 const migrationsFolder = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../drizzle',
+  "../../drizzle",
 );
 
-export type PgliteDatabase = {
+export interface PgliteDatabase {
   db: ReturnType<typeof drizzlePglite<Schema>>;
   client: PGlite;
-};
+}
 
 /** Local dev and tests: in-memory PGlite with the same schema as production. */
 export async function createPgliteDb(

@@ -1,22 +1,22 @@
-import { getCurrentSeason, isEventInSeason } from './season';
-import { eventTypeToContributions } from './contributions';
+import { getCurrentSeason, isEventInSeason } from "./season";
+import { eventTypeToContributions } from "./contributions";
 import type {
   AggregatedLeaderboard,
   LeaderboardEntry,
   LeaderboardSection,
   ScoringEvent,
-} from './types';
-import type { Season } from './season';
+} from "./types";
+import type { Season } from "./season";
 
 const SECTIONS = [
-  { id: 'karma-received', title: 'Уважаемые люди', bucket: 'karmaReceived' },
-  { id: 'humor-received', title: 'Юмористы', bucket: 'humorReceived' },
-  { id: 'karma-plus-given', title: 'Поставили +', bucket: 'karmaPlusGiven' },
-  { id: 'karma-minus-given', title: 'Поставили −', bucket: 'karmaMinusGiven' },
-  { id: 'humor-given', title: 'Поставили лол', bucket: 'humorGiven' },
+  { id: "karma-received", title: "Уважаемые люди", bucket: "karmaReceived" },
+  { id: "humor-received", title: "Юмористы", bucket: "humorReceived" },
+  { id: "karma-plus-given", title: "Поставили +", bucket: "karmaPlusGiven" },
+  { id: "karma-minus-given", title: "Поставили −", bucket: "karmaMinusGiven" },
+  { id: "humor-given", title: "Поставили лол", bucket: "humorGiven" },
 ] as const;
 
-type BucketKey = (typeof SECTIONS)[number]['bucket'];
+type BucketKey = (typeof SECTIONS)[number]["bucket"];
 
 function accumulateScores(
   events: ScoringEvent[],

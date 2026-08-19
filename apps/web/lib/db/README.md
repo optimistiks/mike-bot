@@ -7,9 +7,9 @@ v2 uses **Neon Postgres** in production and **PGlite** locally (no cloud credent
 Use a standard Postgres **TCP** connection with `pg` `Pool`, not the `@neondatabase/serverless` HTTP driver. Vercel Fluid compute makes connection pooling safe: idle connections close before function suspension.
 
 ```typescript
-import { attachDatabasePool } from '@vercel/functions';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { attachDatabasePool } from "@vercel/functions";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 attachDatabasePool(pool);
@@ -25,10 +25,10 @@ See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel
 
 ## Tables
 
-| Table | Purpose |
-| --- | --- |
-| `events` | Append-only scoring log (`type` string, no `value` column) |
-| `chat_members` | Display names per (`chat_id`, `user_id`) |
-| `chat_memberships` | Mini App chat picker roster |
-| `message_authors` | Message author cache for reaction Subject lookup |
-| `processed_updates` | Webhook `update_id` deduplication |
+| Table               | Purpose                                                    |
+| ------------------- | ---------------------------------------------------------- |
+| `events`            | Append-only scoring log (`type` string, no `value` column) |
+| `chat_members`      | Display names per (`chat_id`, `user_id`)                   |
+| `chat_memberships`  | Mini App chat picker roster                                |
+| `message_authors`   | Message author cache for reaction Subject lookup           |
+| `processed_updates` | Webhook `update_id` deduplication                          |

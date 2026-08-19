@@ -4,14 +4,14 @@ v2 persistence uses an append-only `events` table. Each reaction change appends 
 
 Each row has a single `type` string (no numeric `value` column). Scoring weights live in application code, not the schema.
 
-| Telegram action | Event `type` |
-| --- | --- |
-| Add 👍 | `karma.plus` |
-| Remove 👍 | `karma.undo.plus` |
-| Add 👎 | `karma.minus` |
-| Remove 👎 | `karma.undo.minus` |
-| Add 🤣 | `humor.add` |
-| Remove 🤣 | `humor.undo.add` |
+| Telegram action | Event `type`       |
+| --------------- | ------------------ |
+| Add 👍          | `karma.plus`       |
+| Remove 👍       | `karma.undo.plus`  |
+| Add 👎          | `karma.minus`      |
+| Remove 👎       | `karma.undo.minus` |
+| Add 🤣          | `humor.add`        |
+| Remove 🤣       | `humor.undo.add`   |
 
 Other columns: `chat_id`, `actor_id`, `subject_id`, `message_id`, `created_at`, optional `legacy_id` (UNIQUE, v1 DynamoDB UUID for idempotent import) — generic names, not Telegram field names.
 

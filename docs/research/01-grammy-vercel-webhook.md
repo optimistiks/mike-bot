@@ -37,51 +37,51 @@ scripts/
 
 Grammy’s adapter table ([deployment types](https://grammy.dev/guide/deployment-types)) lists:
 
-| Adapter | Runtime |
-|---|---|
-| `next-js` | Next.js **Pages Router** API routes (`req.body` + `res`) |
-| `https` / `http` | Node.js `http`/`https`, **Vercel Serverless (Pages `api/`)** |
-| `std/http` | Web `Request`/`Response` — **App Router Route Handlers**, Edge |
+| Adapter          | Runtime                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `next-js`        | Next.js **Pages Router** API routes (`req.body` + `res`)       |
+| `https` / `http` | Node.js `http`/`https`, **Vercel Serverless (Pages `api/`)**   |
+| `std/http`       | Web `Request`/`Response` — **App Router Route Handlers**, Edge |
 
 For **App Router**, use the `std/http` adapter: it accepts a standard `Request` and returns a `Response` via `handlerReturn` ([grammY `frameworks.ts`](https://github.com/grammyjs/grammY/blob/main/src/convenience/frameworks.ts)).
 
 ### `app/api/telegram/route.ts`
 
 ```ts
-import { webhookCallback } from 'grammy'
-import { bot } from '@/lib/bot/bot'
+import { webhookCallback } from "grammy";
+import { bot } from "@/lib/bot/bot";
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs' // default; use for DB/Node-only plugins
-export const maxDuration = 10    // align with Grammy webhook timeout (see below)
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // default; use for DB/Node-only plugins
+export const maxDuration = 10; // align with Grammy webhook timeout (see below)
 
-export const POST = webhookCallback(bot, 'std/http', {
+export const POST = webhookCallback(bot, "std/http", {
   secretToken: process.env.BOT_WEBHOOK_SECRET,
-})
+});
 ```
 
 ### `lib/bot/bot.ts`
 
 ```ts
-import { Bot } from 'grammy'
+import { Bot } from "grammy";
 
-const token = process.env.BOT_TOKEN
-if (!token) throw new Error('BOT_TOKEN is unset')
+const token = process.env.BOT_TOKEN;
+if (!token) throw new Error("BOT_TOKEN is unset");
 
-export const bot = new Bot(token)
+export const bot = new Bot(token);
 
 // Do NOT call bot.start() when using webhooks.
 
 // Option A: only newly *added* reactions (recommended for “mark” semantics)
-bot.reaction('👍', async (ctx) => {
+bot.reaction("👍", async (ctx) => {
   // ctx carries reaction context; handler runs on add only
-})
+});
 
 // Option B: full reaction diff (adds, removes, multi-emoji changes)
-bot.on('message_reaction', async (ctx) => {
-  const { emojiAdded, emojiRemoved } = ctx.reactions()
+bot.on("message_reaction", async (ctx) => {
+  const { emojiAdded, emojiRemoved } = ctx.reactions();
   // MessageReactionUpdated only includes message_id, not message text
-})
+});
 ```
 
 **Module-level bot singleton:** Instantiate `Bot` and register handlers once at import time, not inside `POST`. Re-instantiating per request loses middleware state and adds cold-start cost.
@@ -102,33 +102,33 @@ From [Update](https://core.telegram.org/bots/api#update) and [setWebhook](https:
 
 ### `message_reaction` update requirements
 
-| Requirement | Source |
-|---|---|
-| Bot is **administrator** in the chat | Telegram Bot API `Update.message_reaction` |
-| `"message_reaction"` in `allowed_updates` | Telegram Bot API `setWebhook` / `getUpdates` |
-| Updates **not** sent for reactions set by bots | Telegram Bot API `Update.message_reaction` |
+| Requirement                                    | Source                                       |
+| ---------------------------------------------- | -------------------------------------------- |
+| Bot is **administrator** in the chat           | Telegram Bot API `Update.message_reaction`   |
+| `"message_reaction"` in `allowed_updates`      | Telegram Bot API `setWebhook` / `getUpdates` |
+| Updates **not** sent for reactions set by bots | Telegram Bot API `Update.message_reaction`   |
 
 ### Registration via `setWebhook`
 
 ```ts
-import { Bot, API_CONSTANTS } from 'grammy'
+import { Bot, API_CONSTANTS } from "grammy";
 
-const bot = new Bot(process.env.BOT_TOKEN!)
+const bot = new Bot(process.env.BOT_TOKEN!);
 
-await bot.api.setWebhook('https://your-app.vercel.app/api/telegram', {
+await bot.api.setWebhook("https://your-app.vercel.app/api/telegram", {
   secret_token: process.env.BOT_WEBHOOK_SECRET!, // 1–256 chars, [A-Za-z0-9_-]
   allowed_updates: [
-    'message',
-    'edited_message',
-    'message_reaction',        // required for reaction marks in groups/DMs
-    'message_reaction_count',  // optional: channels / anonymous counts
+    "message",
+    "edited_message",
+    "message_reaction", // required for reaction marks in groups/DMs
+    "message_reaction_count", // optional: channels / anonymous counts
     // ... other types your bot needs
   ],
   // drop_pending_updates: true,  // optional on deploy
-})
+});
 
-const info = await bot.api.getWebhookInfo()
-console.log(info.url, info.allowed_updates)
+const info = await bot.api.getWebhookInfo();
+console.log(info.url, info.allowed_updates);
 ```
 
 Grammy also documents using `API_CONSTANTS.ALL_UPDATE_TYPES` when you want every update type including the opt-in ones ([Reactions guide](https://grammy.dev/guide/reactions)).
@@ -153,9 +153,9 @@ Two-sided configuration:
 From [WebhookOptions](https://grammy.dev/ref/core/webhookoptions):
 
 ```ts
-webhookCallback(bot, 'std/http', {
+webhookCallback(bot, "std/http", {
   secretToken: process.env.BOT_WEBHOOK_SECRET,
-})
+});
 ```
 
 GrammY compares the incoming header to `secretToken` ([`compareSecretToken` in webhook.ts](https://github.com/grammyjs/grammY/blob/main/src/convenience/webhook.ts)). On mismatch → **401** `"unauthorized"` / `"secret token is wrong"`. Telegram treats non-2xx as failed delivery and **retries**.
@@ -168,13 +168,13 @@ GrammY compares the incoming header to `secretToken` ([`compareSecretToken` in w
 
 ### Vercel function limits ([docs](https://vercel.com/docs/functions/limitations))
 
-| Constraint | Typical impact on reactions |
-|---|---|
-| **Request body max 4.5 MB** | Reaction updates are small JSON; not a concern. |
-| **Response body max 4.5 MB** | Same. |
-| **Default max duration 300s** (Hobby) | Far above reaction handler needs, but see Grammy/Telegram timeouts below. |
-| **Cold starts** | First webhook after idle adds latency; keep handler lean. |
-| **Concurrent executions** | Updates from **different chats** deliver concurrently; same chat is sequential (Telegram-side). |
+| Constraint                            | Typical impact on reactions                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Request body max 4.5 MB**           | Reaction updates are small JSON; not a concern.                                                 |
+| **Response body max 4.5 MB**          | Same.                                                                                           |
+| **Default max duration 300s** (Hobby) | Far above reaction handler needs, but see Grammy/Telegram timeouts below.                       |
+| **Cold starts**                       | First webhook after idle adds latency; keep handler lean.                                       |
+| **Concurrent executions**             | Updates from **different chats** deliver concurrently; same chat is sequential (Telegram-side). |
 
 ### Grammy internal webhook timeout (10s default)
 
@@ -218,11 +218,11 @@ Most common misconfiguration. Default webhook/polling **excludes** `message_reac
 
 From [Reactions guide](https://grammy.dev/guide/reactions) and [Bot.reaction API](https://grammy.dev/ref/core/bot#reaction):
 
-| API | Triggers when | Does not trigger when |
-|---|---|---|
-| `bot.reaction('👍', …)` | User **adds** matching emoji/custom/paid reaction | Reaction removed; anonymous count-only updates |
-| `bot.on('message_reaction', …)` | Any reaction list change (`old_reaction` → `new_reaction`) | `message_reaction_count` events |
-| `bot.on('message_reaction_count', …)` | Anonymous/channel aggregate counts | Per-user reaction identity |
+| API                                   | Triggers when                                              | Does not trigger when                          |
+| ------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| `bot.reaction('👍', …)`               | User **adds** matching emoji/custom/paid reaction          | Reaction removed; anonymous count-only updates |
+| `bot.on('message_reaction', …)`       | Any reaction list change (`old_reaction` → `new_reaction`) | `message_reaction_count` events                |
+| `bot.on('message_reaction_count', …)` | Anonymous/channel aggregate counts                         | Per-user reaction identity                     |
 
 For “user marked with 👍”, `bot.reaction('👍', …)` is the ergonomic choice. For undo/remove logic, use `bot.on('message_reaction')` + `ctx.reactions()`.
 

@@ -1,15 +1,15 @@
-import { eq } from 'drizzle-orm';
+import { eq } from "drizzle-orm";
 
-import type { AppDatabase } from '@/lib/db/runtime';
-import { chatMembers, events } from '@/lib/db/schema';
-import type { EventType } from '@/lib/domain/event';
+import type { AppDatabase } from "@/lib/db/runtime";
+import { chatMembers, events } from "@/lib/db/schema";
+import type { EventType } from "@/lib/domain/event";
 import {
   aggregateLeaderboard,
   getCurrentSeason,
   type Season,
-} from '@/lib/scoring';
+} from "@/lib/scoring";
 
-import type { LeaderboardResponse } from './schema';
+import type { LeaderboardResponse } from "./schema";
 
 export async function queryLeaderboard(
   db: AppDatabase,
@@ -44,7 +44,8 @@ export async function queryLeaderboard(
       title: section.title,
       entries: section.entries.map((entry) => ({
         userId: entry.userId,
-        displayName: displayNames.get(entry.userId) ?? `User ${entry.userId}`,
+        displayName:
+          displayNames.get(entry.userId) ?? `User ${String(entry.userId)}`,
         score: entry.score,
         isCrown: entry.isCrown,
         isChicken: entry.isChicken,

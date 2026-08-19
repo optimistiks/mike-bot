@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const seasonSchema = z.object({
   year: z.coerce.number().int(),
@@ -38,9 +38,9 @@ export const leaderboardQuerySchema = z
   .superRefine((query, context) => {
     if (query.chatId === undefined && query.chat_id === undefined) {
       context.addIssue({
-        code: 'custom',
-        message: 'chat_id is required',
-        path: ['chat_id'],
+        code: "custom",
+        message: "chat_id is required",
+        path: ["chat_id"],
       });
     }
 
@@ -49,16 +49,23 @@ export const leaderboardQuerySchema = z
 
     if (hasYear !== hasMonth) {
       context.addIssue({
-        code: 'custom',
-        message: 'year and month must be provided together',
-        path: hasYear ? ['month'] : ['year'],
+        code: "custom",
+        message: "year and month must be provided together",
+        path: hasYear ? ["month"] : ["year"],
       });
     }
   })
-  .transform((query) => ({
-    chatId: query.chatId ?? query.chat_id!,
-    year: query.year,
-    month: query.month,
-  }));
+  .transform((query) => {
+    const chatId = query.chatId ?? query.chat_id;
+    if (chatId === undefined) {
+      throw new Error("chat_id is required");
+    }
+
+    return {
+      chatId,
+      year: query.year,
+      month: query.month,
+    };
+  });
 
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;

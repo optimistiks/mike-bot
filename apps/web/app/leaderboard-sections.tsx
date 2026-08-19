@@ -1,16 +1,16 @@
-import type { LeaderboardResponse } from '@/lib/leaderboard/schema';
+import type { LeaderboardResponse } from "@/lib/leaderboard/schema";
 
-type LeaderboardSectionsProps = {
+interface LeaderboardSectionsProps {
   leaderboard: LeaderboardResponse;
-};
+}
 
 export function LeaderboardSections({ leaderboard }: LeaderboardSectionsProps) {
   return (
     <div className="leaderboard">
       <p className="season-label">
         Сезон {leaderboard.season.year}-
-        {String(leaderboard.season.month).padStart(2, '0')}
-        {leaderboard.isCurrentSeason ? ' · текущий сезон' : ''}
+        {String(leaderboard.season.month).padStart(2, "0")}
+        {leaderboard.isCurrentSeason ? " · текущий сезон" : ""}
       </p>
 
       {leaderboard.sections.map((section) => (

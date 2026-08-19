@@ -1,10 +1,10 @@
-import 'server-only';
+import "server-only";
 
-import type { Database } from './client';
-import { getProductionDb } from './client';
-import { closePgliteDb, createPgliteDb, type PgliteDatabase } from './pglite';
+import type { Database } from "./client";
+import { getProductionDb } from "./client";
+import { closePgliteDb, createPgliteDb, type PgliteDatabase } from "./pglite";
 
-export type AppDatabase = Database | PgliteDatabase['db'];
+export type AppDatabase = Database | PgliteDatabase["db"];
 
 let devDb: PgliteDatabase | undefined;
 
@@ -16,9 +16,7 @@ export async function getRuntimeDb(): Promise<AppDatabase> {
     return getProductionDb(connectionString);
   }
 
-  if (!devDb) {
-    devDb = await createPgliteDb();
-  }
+  devDb ??= await createPgliteDb();
 
   return devDb.db;
 }

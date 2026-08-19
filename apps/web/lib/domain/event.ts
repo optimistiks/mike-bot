@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /** Closed vocabulary of v2 Event types (ADR-0004). */
 export const eventTypeSchema = z.enum([
-  'karma.plus',
-  'karma.undo.plus',
-  'karma.minus',
-  'karma.undo.minus',
-  'humor.add',
-  'humor.undo.add',
+  "karma.plus",
+  "karma.undo.plus",
+  "karma.minus",
+  "karma.undo.minus",
+  "humor.add",
+  "humor.undo.add",
 ]);
 
 export type EventType = z.infer<typeof eventTypeSchema>;

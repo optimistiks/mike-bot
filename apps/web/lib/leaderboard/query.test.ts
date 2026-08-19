@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { closePgliteDb, createPgliteDb } from '@/lib/db/pglite';
+import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 
-import { queryLeaderboard } from './query';
-import { FIXTURE_CHAT_ID, seedLeaderboardFixture } from './seed';
+import { queryLeaderboard } from "./query";
+import { FIXTURE_CHAT_ID, seedLeaderboardFixture } from "./seed";
 
-describe('queryLeaderboard', () => {
-  it('returns five sections with display names joined from chat_members', async () => {
+describe("queryLeaderboard", () => {
+  it("returns five sections with display names joined from chat_members", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -19,16 +19,16 @@ describe('queryLeaderboard', () => {
       expect(leaderboard.chatId).toBe(FIXTURE_CHAT_ID);
       expect(leaderboard.sections).toHaveLength(5);
       expect(leaderboard.sections.map((section) => section.title)).toEqual([
-        'Уважаемые люди',
-        'Юмористы',
-        'Поставили +',
-        'Поставили −',
-        'Поставили лол',
+        "Уважаемые люди",
+        "Юмористы",
+        "Поставили +",
+        "Поставили −",
+        "Поставили лол",
       ]);
 
       const karmaReceived = leaderboard.sections[0]?.entries ?? [];
       expect(karmaReceived[0]).toMatchObject({
-        displayName: '@bob',
+        displayName: "@bob",
         score: 2,
         isCrown: true,
       });
@@ -36,8 +36,8 @@ describe('queryLeaderboard', () => {
       const humorReceived = leaderboard.sections[1]?.entries ?? [];
       expect(humorReceived).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ displayName: '@bob', score: 1 }),
-          expect.objectContaining({ displayName: '@carol', score: 1 }),
+          expect.objectContaining({ displayName: "@bob", score: 1 }),
+          expect.objectContaining({ displayName: "@carol", score: 1 }),
         ]),
       );
     } finally {

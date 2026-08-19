@@ -1,10 +1,10 @@
-import 'server-only';
+import "server-only";
 
-import { attachDatabasePool } from '@vercel/functions';
-import { drizzle as drizzleNodePostgres } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { attachDatabasePool } from "@vercel/functions";
+import { drizzle as drizzleNodePostgres } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
-import { schema, type Schema } from './schema';
+import { schema, type Schema } from "./schema";
 
 export type Database = ReturnType<typeof drizzleNodePostgres<Schema>>;
 

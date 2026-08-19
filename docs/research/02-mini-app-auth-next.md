@@ -34,11 +34,11 @@ There is no separate “login” step: if init data validates, the request is fr
 
 ## Authentication model
 
-| Layer | Mechanism |
-| --- | --- |
-| Identity | Telegram user embedded in init data (`user.id`, name, etc.) |
-| Proof | HMAC-SHA256 signature (`hash` field) signed with bot secret |
-| Transport | `Authorization: tma <url-encoded-init-data-query-string>` |
+| Layer          | Mechanism                                                                               |
+| -------------- | --------------------------------------------------------------------------------------- |
+| Identity       | Telegram user embedded in init data (`user.id`, name, etc.)                             |
+| Proof          | HMAC-SHA256 signature (`hash` field) signed with bot secret                             |
+| Transport      | `Authorization: tma <url-encoded-init-data-query-string>`                               |
 | Trust boundary | Server only — never trust `initDataUnsafe` or parsed client-side data for authorization |
 
 From [core.telegram.org](https://core.telegram.org/bots/webapps):
@@ -60,18 +60,18 @@ pnpm add @tma.js/sdk-react
 ```
 
 ```tsx
-'use client'
+"use client";
 
-import { init, initData } from '@tma.js/sdk-react'
-import { useEffect } from 'react'
+import { init, initData } from "@tma.js/sdk-react";
+import { useEffect } from "react";
 
 export function TelegramProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    init()           // bind to Telegram WebApp bridge
-    initData.restore() // restore init data from launch params (URL hash)
-  }, [])
+    init(); // bind to Telegram WebApp bridge
+    initData.restore(); // restore init data from launch params (URL hash)
+  }, []);
 
-  return <>{children}</>
+  return <>{children}</>;
 }
 ```
 
@@ -82,10 +82,10 @@ Telegram passes launch params in `window.location.hash` ([launch parameters docs
 **Hook (React):**
 
 ```tsx
-import { useRawInitData } from '@tma.js/sdk-react'
+import { useRawInitData } from "@tma.js/sdk-react";
 
 function ApiConsumer() {
-  const initDataRaw = useRawInitData()
+  const initDataRaw = useRawInitData();
   // e.g. query_id=...&user=%7B...%7D&auth_date=...&hash=...
 }
 ```
@@ -93,9 +93,9 @@ function ApiConsumer() {
 **Imperative (outside React / fetch helpers):**
 
 ```ts
-import { retrieveRawInitData } from '@tma.js/sdk-react'
+import { retrieveRawInitData } from "@tma.js/sdk-react";
 
-const initDataRaw = retrieveRawInitData()
+const initDataRaw = retrieveRawInitData();
 ```
 
 Docs note `useRawInitData` wraps `retrieveRawInitData` and returns the init data in its **initial wire format** (URL query string).
@@ -110,13 +110,13 @@ Docs note `useRawInitData` wraps `retrieveRawInitData` and returns the init data
 Recommended pattern from [init data docs](https://docs.telegram-mini-apps.com/platform/init-data):
 
 ```ts
-const initDataRaw = retrieveRawInitData()
+const initDataRaw = retrieveRawInitData();
 
-await fetch('/api/me', {
+await fetch("/api/me", {
   headers: {
     Authorization: `tma ${initDataRaw}`,
   },
-})
+});
 ```
 
 Send on **every** authenticated request (or centralize in a fetch wrapper / React Query helper). Pattern in redesigned-giggle: `useInitDataQuery` + `Authorization: tma ${rawInitData}`.
@@ -147,16 +147,16 @@ From [docs.telegram-mini-apps.com/platform/init-data](https://docs.telegram-mini
 `@tma.js/init-data-node` implements this:
 
 ```ts
-import { validate, parse } from '@tma.js/init-data-node'
+import { validate, parse } from "@tma.js/init-data-node";
 
-const botToken = process.env.BOT_TOKEN!
+const botToken = process.env.BOT_TOKEN!;
 
 validate(initDataRaw, botToken, {
   expiresIn: 3600, // seconds; checks auth_date freshness
-})
+});
 
-const initData = parse(initDataRaw)
-const user = initData.user // Telegram user for this session
+const initData = parse(initDataRaw);
+const user = initData.user; // Telegram user for this session
 ```
 
 `validate()` throws on bad signature or expiry; `parse()` returns typed fields (`user`, `chat`, `start_param`, etc.).
@@ -167,33 +167,39 @@ Route Handlers use the Web `Request` / `Response` APIs ([Next.js docs](https://n
 
 ```ts
 // app/api/me/route.ts
-import { validate, parse } from '@tma.js/init-data-node'
+import { validate, parse } from "@tma.js/init-data-node";
 
-const TMA_PREFIX = /^tma\s+/i
+const TMA_PREFIX = /^tma\s+/i;
 
 export async function GET(request: Request) {
-  const auth = request.headers.get('authorization')
+  const auth = request.headers.get("authorization");
   if (!auth || !TMA_PREFIX.test(auth)) {
     return Response.json(
-      { error: 'Missing or invalid Authorization header (expected tma <initData>)' },
+      {
+        error:
+          "Missing or invalid Authorization header (expected tma <initData>)",
+      },
       { status: 401 },
-    )
+    );
   }
 
-  const initDataRaw = auth.replace(TMA_PREFIX, '').trim()
+  const initDataRaw = auth.replace(TMA_PREFIX, "").trim();
   if (!initDataRaw) {
-    return Response.json({ error: 'Empty init data' }, { status: 400 })
+    return Response.json({ error: "Empty init data" }, { status: 400 });
   }
 
   try {
-    validate(initDataRaw, process.env.BOT_TOKEN!, { expiresIn: 3600 })
-    const { user } = parse(initDataRaw)
+    validate(initDataRaw, process.env.BOT_TOKEN!, { expiresIn: 3600 });
+    const { user } = parse(initDataRaw);
     if (!user) {
-      return Response.json({ error: 'User not in init data' }, { status: 404 })
+      return Response.json({ error: "User not in init data" }, { status: 404 });
     }
-    return Response.json({ user })
+    return Response.json({ user });
   } catch {
-    return Response.json({ error: 'Init data validation failed' }, { status: 401 })
+    return Response.json(
+      { error: "Init data validation failed" },
+      { status: 401 },
+    );
   }
 }
 ```
@@ -216,9 +222,9 @@ Convention documented in [@tma.js/init-data-node](https://docs.telegram-mini-app
 Authorization: tma <auth-data>
 ```
 
-| Part | Value |
-| --- | --- |
-| Scheme | `tma` (Telegram Mini App) |
+| Part        | Value                                                          |
+| ----------- | -------------------------------------------------------------- |
+| Scheme      | `tma` (Telegram Mini App)                                      |
 | Credentials | Full raw init data query string, **as received** from Telegram |
 
 Server steps:
@@ -288,11 +294,11 @@ No extra cert setup for default Vercel hosting.
 
 ### Environment variables
 
-| Variable | Purpose | Exposure |
-| --- | --- | --- |
-| `BOT_TOKEN` | Validate init data HMAC; Grammy webhook | **Server only** — Vercel env, never `NEXT_PUBLIC_*` |
-| `WEBHOOK_SECRET` (if used) | Verify Telegram webhook requests | Server only |
-| Database / other backend secrets | API routes after auth | Server only |
+| Variable                         | Purpose                                 | Exposure                                            |
+| -------------------------------- | --------------------------------------- | --------------------------------------------------- |
+| `BOT_TOKEN`                      | Validate init data HMAC; Grammy webhook | **Server only** — Vercel env, never `NEXT_PUBLIC_*` |
+| `WEBHOOK_SECRET` (if used)       | Verify Telegram webhook requests        | Server only                                         |
+| Database / other backend secrets | API routes after auth                   | Server only                                         |
 
 Set in Vercel: **Project → Settings → Environment Variables** for Production (and Preview if testing webhooks/previews).
 
@@ -370,10 +376,10 @@ sequenceDiagram
 
 ## References
 
-- Init data & `tma` header: https://docs.telegram-mini-apps.com/platform/init-data  
-- SDK React hooks: https://docs.telegram-mini-apps.com/packages/tma-js-sdk-react  
-- Server validation: https://docs.telegram-mini-apps.com/packages/tma-js-init-data-node  
-- BotFather setup: https://docs.telegram-mini-apps.com/platform/creating-new-app  
-- HTTPS requirement: https://docs.telegram-mini-apps.com/platform/getting-app-link  
-- Telegram WebApp validation: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app  
-- Next.js Route Handlers: https://nextjs.org/docs/app/api-reference/file-conventions/route  
+- Init data & `tma` header: https://docs.telegram-mini-apps.com/platform/init-data
+- SDK React hooks: https://docs.telegram-mini-apps.com/packages/tma-js-sdk-react
+- Server validation: https://docs.telegram-mini-apps.com/packages/tma-js-init-data-node
+- BotFather setup: https://docs.telegram-mini-apps.com/platform/creating-new-app
+- HTTPS requirement: https://docs.telegram-mini-apps.com/platform/getting-app-link
+- Telegram WebApp validation: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+- Next.js Route Handlers: https://nextjs.org/docs/app/api-reference/file-conventions/route

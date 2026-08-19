@@ -1,19 +1,19 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import { getRuntimeDb } from '@/lib/db/runtime';
-import { queryLeaderboard } from '@/lib/leaderboard/query';
+import { getRuntimeDb } from "@/lib/db/runtime";
+import { queryLeaderboard } from "@/lib/leaderboard/query";
 import {
   FIXTURE_CHAT_ID,
   seedLeaderboardFixture,
-} from '@/lib/leaderboard/seed';
-import { getCurrentSeason } from '@/lib/scoring';
+} from "@/lib/leaderboard/seed";
+import { getCurrentSeason } from "@/lib/scoring";
 
-import { LeaderboardSections } from './leaderboard-sections';
+import { LeaderboardSections } from "./leaderboard-sections";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: 'Таблица лидеров',
+  title: "Таблица лидеров",
 };
 
 export default async function HomePage() {

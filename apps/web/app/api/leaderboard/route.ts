@@ -1,25 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-import { getRuntimeDb } from '@/lib/db/runtime';
-import { queryLeaderboard, resolveSeason } from '@/lib/leaderboard/query';
-import { seedLeaderboardFixture } from '@/lib/leaderboard/seed';
+import { getRuntimeDb } from "@/lib/db/runtime";
+import { queryLeaderboard, resolveSeason } from "@/lib/leaderboard/query";
+import { seedLeaderboardFixture } from "@/lib/leaderboard/seed";
 import {
   leaderboardQuerySchema,
   leaderboardResponseSchema,
-} from '@/lib/leaderboard/schema';
+} from "@/lib/leaderboard/schema";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
   const parsed = leaderboardQuerySchema.safeParse({
-    chatId: url.searchParams.get('chatId') ?? undefined,
-    chat_id: url.searchParams.get('chat_id') ?? undefined,
-    year: url.searchParams.get('year') ?? undefined,
-    month: url.searchParams.get('month') ?? undefined,
+    chatId: url.searchParams.get("chatId") ?? undefined,
+    chat_id: url.searchParams.get("chat_id") ?? undefined,
+    year: url.searchParams.get("year") ?? undefined,
+    month: url.searchParams.get("month") ?? undefined,
   });
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid query parameters' },
+      { error: "Invalid query parameters" },
       { status: 400 },
     );
   }

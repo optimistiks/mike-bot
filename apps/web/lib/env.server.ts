@@ -1,3 +1,3 @@
-import 'server-only';
+import "server-only";
 
-export { parseServerEnv, serverEnvSchema, type ServerEnv } from './env';
+export { parseServerEnv, serverEnvSchema, type ServerEnv } from "./env";

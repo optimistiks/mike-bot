@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { leaderboardQuerySchema } from './schema';
+import { leaderboardQuerySchema } from "./schema";
 
-describe('leaderboardQuerySchema', () => {
-  it('accepts chat_id with optional year and month', () => {
+describe("leaderboardQuerySchema", () => {
+  it("accepts chat_id with optional year and month", () => {
     const parsed = leaderboardQuerySchema.parse({
-      chat_id: '-100456789',
-      year: '2026',
-      month: '8',
+      chat_id: "-100456789",
+      year: "2026",
+      month: "8",
     });
 
     expect(parsed).toEqual({
@@ -17,10 +17,10 @@ describe('leaderboardQuerySchema', () => {
     });
   });
 
-  it('rejects partial season parameters', () => {
+  it("rejects partial season parameters", () => {
     const parsed = leaderboardQuerySchema.safeParse({
-      chat_id: '1',
-      year: '2026',
+      chat_id: "1",
+      year: "2026",
     });
 
     expect(parsed.success).toBe(false);

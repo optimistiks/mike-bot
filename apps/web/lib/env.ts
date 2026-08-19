@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /** Import `parseServerEnv` from `./env.server` in Route Handlers and Server Components. */
 export const serverEnvSchema = z.object({

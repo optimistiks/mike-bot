@@ -1,5 +1,5 @@
-export { aggregateLeaderboard } from './aggregate';
-export { eventTypeToContributions } from './contributions';
+export { aggregateLeaderboard } from "./aggregate";
+export { eventTypeToContributions } from "./contributions";
 export {
   formatSeasonLabel,
   getCurrentSeason,
@@ -7,7 +7,7 @@ export {
   seasonForDate,
   SEASON_TIMEZONE,
   type Season,
-} from './season';
+} from "./season";
 export {
   EVENT_TYPES,
   type AggregatedLeaderboard,
@@ -15,4 +15,4 @@ export {
   type LeaderboardEntry,
   type LeaderboardSection,
   type ScoringEvent,
-} from './types';
+} from "./types";

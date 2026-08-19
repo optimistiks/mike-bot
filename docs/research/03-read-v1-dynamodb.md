@@ -10,12 +10,12 @@ v1 stores Marks in DynamoDB table `lolTable`. From Vercel or a one-off script, w
 
 ## Summary
 
-| Approach | Best for | Verdict |
-| --- | --- | --- |
-| One-off Node script + IAM user keys (Scan) | Small table, cutover import | **Recommended** |
-| AWS CLI one-off Scan → JSON file | Same as above, no code | Good alternative |
-| DynamoDB export to S3 | Large table, audit trail, repeat exports | Overkill unless table is huge or PITR already on |
-| Live Scan/Query from Vercel | Ongoing reads | **Reject** — keeps v1 AWS on the hot path |
+| Approach                                   | Best for                                 | Verdict                                          |
+| ------------------------------------------ | ---------------------------------------- | ------------------------------------------------ |
+| One-off Node script + IAM user keys (Scan) | Small table, cutover import              | **Recommended**                                  |
+| AWS CLI one-off Scan → JSON file           | Same as above, no code                   | Good alternative                                 |
+| DynamoDB export to S3                      | Large table, audit trail, repeat exports | Overkill unless table is huge or PITR already on |
+| Live Scan/Query from Vercel                | Ongoing reads                            | **Reject** — keeps v1 AWS on the hot path        |
 
 **Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Marks tagged `source: v1`, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats ([issue 08](../../.scratch/v2/issues/08-v1-history-path.md)).
 
@@ -39,13 +39,13 @@ Sources: [`template.yml`](../../template.yml) lines 42, 69–73.
 @Model({ tableName: process.env.LOL_TABLE_NAME })
 export class Lol {
   @PartitionKey()
-  id: string;                    // UUID v4
+  id: string; // UUID v4
 
   @Property({ mapper: dateToNumberMapper })
-  createdAt: Date;               // stored as Number (epoch ms)
+  createdAt: Date; // stored as Number (epoch ms)
 
-  lolType: LolType;              // "lol" | "plus" | "minus"
-  fromUser: User;                // { id: number, username?: string }
+  lolType: LolType; // "lol" | "plus" | "minus"
+  fromUser: User; // { id: number, username?: string }
   toUser: User;
   chatId: number;
   toMessageId: number;
@@ -58,15 +58,15 @@ Sources: [`src/lolModel.ts`](../../src/lolModel.ts), [`src/bot.ts`](../../src/bo
 
 `@shiftcoders/dynamo-easy@7.0.0` stores:
 
-| Field | DynamoDB type | Notes |
-| --- | --- | --- |
-| `id` | `S` | UUID string (partition key) |
-| `createdAt` | `N` | Unix epoch **milliseconds** (`dateToNumberMapper`) |
-| `lolType` | `S` | `"lol"`, `"plus"`, or `"minus"` |
-| `fromUser` | `M` | `{ id: N, username?: S }` |
-| `toUser` | `M` | `{ id: N, username?: S }` |
-| `chatId` | `N` | Telegram chat id (negative for supergroups) |
-| `toMessageId` | `N` | Target message id |
+| Field         | DynamoDB type | Notes                                              |
+| ------------- | ------------- | -------------------------------------------------- |
+| `id`          | `S`           | UUID string (partition key)                        |
+| `createdAt`   | `N`           | Unix epoch **milliseconds** (`dateToNumberMapper`) |
+| `lolType`     | `S`           | `"lol"`, `"plus"`, or `"minus"`                    |
+| `fromUser`    | `M`           | `{ id: N, username?: S }`                          |
+| `toUser`      | `M`           | `{ id: N, username?: S }`                          |
+| `chatId`      | `N`           | Telegram chat id (negative for supergroups)        |
+| `toMessageId` | `N`           | Target message id                                  |
 
 Example item (illustrative):
 
@@ -86,18 +86,18 @@ Source: dynamo-easy `dateToNumberMapper` ([`date-to-number.mapper.js`](https://u
 
 ### v1 → v2 field mapping
 
-| v1 | v2 concept | Notes |
-| --- | --- | --- |
-| `lolType: "plus"` | Karma plus Mark | +1 Karma to `toUser` |
-| `lolType: "minus"` | Karma minus Mark | −1 Karma to `toUser` |
-| `lolType: "lol"` | Humor Mark | +1 Humor to `toUser` |
-| `fromUser.id` | Mark author (Member) | For “given” leaderboards |
-| `toUser.id` | Mark target (Member) | For “received” leaderboards |
-| `createdAt` | Season bucket | Calendar month in a **single configured timezone** (open decision — [issue 10](../../.scratch/v2/issues/10-season-timezone.md)) |
-| `chatId` | Chat filter | v1 `/stats` already filters by `ctx.chat.id`; import should filter to the target group if v2 is single-chat |
-| `id` | Import dedup key | Stable v1 primary key → idempotent upsert |
-| `toMessageId` | Not needed for Season totals | Useful for audit/debug only |
-| `*.username` | Display / PII | Optional at import; can refresh from Telegram later |
+| v1                 | v2 concept                   | Notes                                                                                                                           |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `lolType: "plus"`  | Karma plus Mark              | +1 Karma to `toUser`                                                                                                            |
+| `lolType: "minus"` | Karma minus Mark             | −1 Karma to `toUser`                                                                                                            |
+| `lolType: "lol"`   | Humor Mark                   | +1 Humor to `toUser`                                                                                                            |
+| `fromUser.id`      | Mark author (Member)         | For “given” leaderboards                                                                                                        |
+| `toUser.id`        | Mark target (Member)         | For “received” leaderboards                                                                                                     |
+| `createdAt`        | Season bucket                | Calendar month in a **single configured timezone** (open decision — [issue 10](../../.scratch/v2/issues/10-season-timezone.md)) |
+| `chatId`           | Chat filter                  | v1 `/stats` already filters by `ctx.chat.id`; import should filter to the target group if v2 is single-chat                     |
+| `id`               | Import dedup key             | Stable v1 primary key → idempotent upsert                                                                                       |
+| `toMessageId`      | Not needed for Season totals | Useful for audit/debug only                                                                                                     |
+| `*.username`       | Display / PII                | Optional at import; can refresh from Telegram later                                                                             |
 
 ### Fields required for honest Seasonal bucketing
 
@@ -144,15 +144,19 @@ v1 `/stats` already proves the aggregation logic: scan by `chatId`, aggregate by
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
-const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: "..." }));
+const client = DynamoDBDocumentClient.from(
+  new DynamoDBClient({ region: "..." }),
+);
 let items = [];
 let ExclusiveStartKey;
 do {
-  const out = await client.send(new ScanCommand({
-    TableName: "lolTable",
-    ExclusiveStartKey,
-    // FilterExpression: "chatId = :c", ExpressionAttributeValues: { ":c": TARGET_CHAT_ID },
-  }));
+  const out = await client.send(
+    new ScanCommand({
+      TableName: "lolTable",
+      ExclusiveStartKey,
+      // FilterExpression: "chatId = :c", ExpressionAttributeValues: { ":c": TARGET_CHAT_ID },
+    }),
+  );
   items.push(...(out.Items ?? []));
   ExclusiveStartKey = out.LastEvaluatedKey;
 } while (ExclusiveStartKey);
@@ -219,13 +223,13 @@ Good **ad-hoc inspection** or **backup before import**; for production import, p
 
 ## One-shot import vs live query
 
-| | One-shot import | Live DynamoDB from Vercel |
-| --- | --- | --- |
-| Mini App query path | Single Postgres store (v1 + v2 Marks) | Two backends or proxy layer |
-| AWS dependency after cutover | None (table can stay read-only archive) | Permanent |
-| Season queries | Indexed SQL on `created_at`, `season` | Scan or new GSI project |
-| Cost at steady state | Postgres only | Scan RCUs + Vercel + AWS on every read |
-| Credential exposure | Short-lived import job | Ongoing in Vercel |
+|                              | One-shot import                         | Live DynamoDB from Vercel              |
+| ---------------------------- | --------------------------------------- | -------------------------------------- |
+| Mini App query path          | Single Postgres store (v1 + v2 Marks)   | Two backends or proxy layer            |
+| AWS dependency after cutover | None (table can stay read-only archive) | Permanent                              |
+| Season queries               | Indexed SQL on `created_at`, `season`   | Scan or new GSI project                |
+| Cost at steady state         | Postgres only                           | Scan RCUs + Vercel + AWS on every read |
+| Credential exposure          | Short-lived import job                  | Ongoing in Vercel                      |
 
 **Recommendation:** **One-shot import** into the same Postgres store as v2 Marks, with a `source = 'v1'` (or similar) column. Re-run import only if v1 stays live during a transition window; final cutover imports once, validates counts, then freeze v1 writes.
 
@@ -328,15 +332,15 @@ Additional actions per [AWS export docs](https://docs.aws.amazon.com/amazondynam
 
 ## Sources
 
-| Claim | Source |
-| --- | --- |
-| v1 Mark fields and types | [`src/lolModel.ts`](../../src/lolModel.ts) |
-| UUID id, createdAt, chatId, write path | [`src/bot.ts`](../../src/bot.ts) |
-| Table name `lolTable`, Lambda env, IAM | [`template.yml`](../../template.yml) |
-| `createdAt` stored as epoch ms Number | dynamo-easy `dateToNumberMapper` |
-| SimpleTable default key `id` String | [AWS SAM SimpleTable](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-simpletable.html) |
-| Scan RCU / filter behavior | [DynamoDB Scan](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html) |
-| Export requires PITR | [Export to S3](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataExport_Requesting.html) |
-| Vercel OIDC vs static keys | [Vercel AWS OIDC](https://vercel.com/docs/oidc/aws) |
-| One-shot import preference | [issue 08](../../.scratch/v2/issues/08-v1-history-path.md), [ADR 0003](../adr/0003-honest-seasonal-stats.md) |
-| Season timezone open decision | [issue 10](../../.scratch/v2/issues/10-season-timezone.md) |
+| Claim                                  | Source                                                                                                                              |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| v1 Mark fields and types               | [`src/lolModel.ts`](../../src/lolModel.ts)                                                                                          |
+| UUID id, createdAt, chatId, write path | [`src/bot.ts`](../../src/bot.ts)                                                                                                    |
+| Table name `lolTable`, Lambda env, IAM | [`template.yml`](../../template.yml)                                                                                                |
+| `createdAt` stored as epoch ms Number  | dynamo-easy `dateToNumberMapper`                                                                                                    |
+| SimpleTable default key `id` String    | [AWS SAM SimpleTable](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-simpletable.html) |
+| Scan RCU / filter behavior             | [DynamoDB Scan](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html)                                         |
+| Export requires PITR                   | [Export to S3](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataExport_Requesting.html)                       |
+| Vercel OIDC vs static keys             | [Vercel AWS OIDC](https://vercel.com/docs/oidc/aws)                                                                                 |
+| One-shot import preference             | [issue 08](../../.scratch/v2/issues/08-v1-history-path.md), [ADR 0003](../adr/0003-honest-seasonal-stats.md)                        |
+| Season timezone open decision          | [issue 10](../../.scratch/v2/issues/10-season-timezone.md)                                                                          |

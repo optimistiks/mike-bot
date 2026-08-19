@@ -6,13 +6,13 @@
 
 Columns:
 
-| Column | Source | Why |
-| --- | --- | --- |
-| `chat_id` | `message.chat.id` | PK part |
-| `message_id` | `message.message_id` | PK part |
-| `author_id` | `message.from.id` or `message.sender_chat.id` | `subject_id` lookup |
-| `author_is_bot` | `message.from.is_bot` | Enforce "no scoring bots" without re-fetch |
-| `message_date` | `message.date` | Optional audit; Seasons use reaction time, not this |
+| Column          | Source                                        | Why                                                 |
+| --------------- | --------------------------------------------- | --------------------------------------------------- |
+| `chat_id`       | `message.chat.id`                             | PK part                                             |
+| `message_id`    | `message.message_id`                          | PK part                                             |
+| `author_id`     | `message.from.id` or `message.sender_chat.id` | `subject_id` lookup                                 |
+| `author_is_bot` | `message.from.is_bot`                         | Enforce "no scoring bots" without re-fetch          |
+| `message_date`  | `message.date`                                | Optional audit; Seasons use reaction time, not this |
 
 **Do not store:** text, caption, entities, media, replies, forwards, edits. Not needed for scoring; adds privacy surface and churn.
 
