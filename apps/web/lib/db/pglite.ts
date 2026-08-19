@@ -17,11 +17,21 @@ export interface PgliteDatabase {
   client: PGlite;
 }
 
-/** Local dev and tests: in-memory PGlite with the same schema as production. */
+export interface CreatePgliteDbOptions {
+  migrationsDir?: string;
+  /** When set, PGlite persists to this directory instead of in-memory. */
+  dataDir?: string;
+}
+
+/** Local dev and tests: PGlite with the same schema as production. */
 export async function createPgliteDb(
-  migrationsDir = migrationsFolder,
+  options: CreatePgliteDbOptions | string = {},
 ): Promise<PgliteDatabase> {
-  const client = new PGlite();
+  const resolved =
+    typeof options === "string" ? { migrationsDir: options } : options;
+  const migrationsDir = resolved.migrationsDir ?? migrationsFolder;
+
+  const client = resolved.dataDir ? new PGlite(resolved.dataDir) : new PGlite();
   const db = drizzlePglite({ client, schema });
   await migratePglite(db, { migrationsFolder: migrationsDir });
   return { db, client };

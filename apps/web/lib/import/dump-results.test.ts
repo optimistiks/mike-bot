@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+
+import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
+
+import { dumpImportResults, loadV1RowsFromJson } from "./dump-results";
+import { importV1Rows } from "./import-events";
+
+const SAMPLE_ROW = {
+  id: "11111111-1111-4111-8111-111111111111",
+  createdAt: Date.parse("2026-07-31T21:00:00.000Z"),
+  lolType: "plus" as const,
+  fromUser: { id: 501, username: "giver" },
+  toUser: { id: 502, username: "receiver" },
+  chatId: -100_999_888,
+  toMessageId: 77,
+};
+
+describe("dumpImportResults", () => {
+  it("writes events, chat_members, and leaderboards JSON files", async () => {
+    const pglite = await createPgliteDb();
+    const outDir = "/tmp/mike-bot-import-dump-test";
+
+    try {
+      await importV1Rows(pglite.db, [SAMPLE_ROW]);
+      const files = await dumpImportResults(pglite.db, { outDir });
+
+      expect(files).toEqual([
+        `${outDir}/events.json`,
+        `${outDir}/chat_members.json`,
+        `${outDir}/leaderboards.json`,
+      ]);
+
+      const { readFile } = await import("node:fs/promises");
+      const eventsJson = JSON.parse(
+        await readFile(`${outDir}/events.json`, "utf8"),
+      ) as Array<{ type: string; legacyId: string | null }>;
+      const leaderboardsJson = JSON.parse(
+        await readFile(`${outDir}/leaderboards.json`, "utf8"),
+      ) as Array<{
+        chatId: number;
+        season: { year: number; month: number };
+        leaderboard: { sections: Array<{ title: string }> };
+      }>;
+
+      expect(eventsJson).toHaveLength(1);
+      expect(eventsJson[0]?.type).toBe("karma.plus");
+      expect(leaderboardsJson[0]?.season).toEqual({ year: 2026, month: 8 });
+      expect(leaderboardsJson[0]?.leaderboard.sections).toHaveLength(5);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+});
+
+describe("loadV1RowsFromJson", () => {
+  it("loads a JSON array of v1 rows", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = await mkdtemp(join(tmpdir(), "mike-bot-import-"));
+    const filePath = join(dir, "rows.json");
+
+    try {
+      await writeFile(filePath, JSON.stringify([SAMPLE_ROW]));
+      const rows = await loadV1RowsFromJson(filePath);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.lolType).toBe("plus");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

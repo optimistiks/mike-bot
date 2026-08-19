@@ -54,16 +54,22 @@ On success the script prints counts for rows processed, events inserted/skipped,
 
 ### Environment variables
 
-| Variable                | Required | Purpose                                                  |
-| ----------------------- | -------- | -------------------------------------------------------- |
-| `DATABASE_URL`          | yes      | Neon Postgres TCP connection string for the v2 database  |
-| `AWS_REGION`            | yes*     | AWS region where v1 `lolTable` lives                     |
-| `AWS_ACCESS_KEY_ID`     | yes      | IAM access key with `dynamodb:Scan` on the table         |
-| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret for the access key                       |
-| `LOL_TABLE_NAME`        | no       | DynamoDB table name (default: `lolTable`)                |
-| `IMPORT_CHAT_ID`        | no       | Numeric Telegram chat id; import only rows for that chat |
+| Variable                | Required | Purpose                                                                    |
+| ----------------------- | -------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`          | yes†     | Neon Postgres TCP connection string for the v2 database                    |
+| `AWS_REGION`            | yes*     | AWS region where v1 `lolTable` lives                                       |
+| `AWS_ACCESS_KEY_ID`     | yes      | IAM access key with `dynamodb:Scan` on the table                           |
+| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret for the access key                                         |
+| `LOL_TABLE_NAME`        | no       | DynamoDB table name (default: `lolTable`)                                  |
+| `IMPORT_CHAT_ID`        | no       | Numeric Telegram chat id; import only rows for that chat                   |
+| `IMPORT_TARGET`         | no       | Set to `pglite` to import into local PGlite instead of Neon                |
+| `PGLITE_DATA_DIR`       | no       | Directory for file-backed PGlite (default: in-memory)                      |
+| `IMPORT_V1_JSON`        | no       | Path to JSON file of v1 rows; skips DynamoDB Scan                          |
+| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `chat_members.json`, `leaderboards.json` after import |
 
 \* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`.
+
+† Not required when `IMPORT_TARGET=pglite`.
 
 Do **not** add AWS keys to Vercel. Create a short-lived IAM user for the import, then delete or deactivate the access key when done.
 
@@ -97,3 +103,72 @@ Telegram supergroup ids are negative numbers (often `-100…`). If you only care
 **Account id (for IAM policy ARNs only)**
 
 AWS Console → top-right account menu → **Account** — or IAM → **Dashboard** → **Account ID**. Use it when scoping the DynamoDB table ARN in the IAM policy (`arn:aws:dynamodb:REGION:ACCOUNT_ID:table/...`).
+
+### Dry run with PGlite (no Neon)
+
+Use PGlite to import into a local database and dump JSON you can inspect. No `DATABASE_URL` required.
+
+**1. Get v1 rows as JSON** (pick one):
+
+- **From DynamoDB** (needs AWS creds): export with the AWS CLI, then convert to plain objects (the script expects unmarshalled rows, not raw `{ "S": "..." }` DynamoDB JSON). Easiest path: scan with the import script itself (next section).
+- **Fixture file** for a smoke test — save as `tmp/v1-rows.json`:
+
+```json
+[
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "createdAt": 1722470400123,
+    "lolType": "plus",
+    "fromUser": { "id": 501, "username": "giver" },
+    "toUser": { "id": 502, "username": "receiver" },
+    "chatId": -100999888,
+    "toMessageId": 77
+  }
+]
+```
+
+**2. Import into PGlite and dump results**
+
+```bash
+IMPORT_TARGET=pglite \
+IMPORT_V1_JSON=./tmp/v1-rows.json \
+IMPORT_DUMP_DIR=./tmp/import-dump \
+pnpm --filter @mike-bot/web import:v1
+```
+
+Or scan DynamoDB straight into PGlite (still no Neon):
+
+```bash
+IMPORT_TARGET=pglite \
+AWS_REGION="eu-west-1" \
+AWS_ACCESS_KEY_ID="..." \
+AWS_SECRET_ACCESS_KEY="..." \
+IMPORT_DUMP_DIR=./tmp/import-dump \
+pnpm --filter @mike-bot/web import:v1
+```
+
+Optional: persist PGlite on disk between runs:
+
+```bash
+PGLITE_DATA_DIR=./tmp/pglite-data IMPORT_TARGET=pglite ...
+```
+
+**3. Verify the dump**
+
+The script writes three files under `IMPORT_DUMP_DIR`:
+
+| File                | Contents                                                      |
+| ------------------- | ------------------------------------------------------------- |
+| `events.json`       | Imported `events` rows (`type`, `legacy_id`, `created_at`, …) |
+| `chat_members.json` | Seeded display names                                          |
+| `leaderboards.json` | Five Russian sections per chat × Season (`Europe/Moscow`)     |
+
+Quick checks:
+
+```bash
+jq 'length' tmp/import-dump/events.json
+jq '.[0].leaderboard.sections[].title' tmp/import-dump/leaderboards.json
+jq '.[0].leaderboard.sections[0].entries' tmp/import-dump/leaderboards.json
+```
+
+Re-running the same import is safe (`legacy_id` skips duplicates). Delete `tmp/import-dump` or `tmp/pglite-data` to start fresh.
