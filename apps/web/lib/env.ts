@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Server-side secrets and connection config (never expose via `NEXT_PUBLIC_*`). */
+/** Import `parseServerEnv` from `./env.server` in Route Handlers and Server Components. */
 export const serverEnvSchema = z.object({
   BOT_TOKEN: z.string().min(1),
   BOT_WEBHOOK_SECRET: z.string().min(1),
