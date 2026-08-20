@@ -1,25 +1,3 @@
-# Explicit registration for Mini App access
+# Require explicit Registration for Mini App access
 
-**Supersedes** the chat roster sync portion of ADR-0005 (`my_chat_member` / join-side `chat_member`).
-
-## Registration
-
-Members opt in to Mini App access by reacting to a **Registration message** posted by the bot. Marks in `events` are recorded for all Members regardless of registration; registration gates Mini App visibility only. Registration messages are ordinary bot messages.
-
-**`/register` command (admins only, groups/supergroups only):** Bot posts a Russian Registration message and inserts `(chat_id, message_id)` into `registration_messages`. Multiple Registration messages per Chat are valid.
-
-**Registration reaction:** Any added reaction on a row in `registration_messages` upserts `chat_memberships` for the Actor. No `events` row. Reaction removal does not unregister.
-
-**Reaction handler optimization:** If `message_authors.author_is_bot` is false, skip registration lookup (scoring path). If true, consult `registration_messages`.
-
-## Leave cleanup
-
-On `chat_member` with status `left` or `kicked`, delete `chat_memberships` for that user in that chat. No `my_chat_member` handling.
-
-## Mini App
-
-Menu Button entry unchanged. Picker lists Chats where the opener has a `chat_memberships` row. Unregistered openers see a «go register» prompt only.
-
-## Webhook
-
-`allowed_updates`: `message`, `message_reaction`, `chat_member`.
+Mini App access is an explicit per-Chat Registration established when a Member adds a reaction to an administrator-requested Registration message, rather than being inferred from Telegram membership or scoring activity. Removing that reaction does not revoke Registration, while leaving or being removed from the Chat does; a returning Member must register again. This adds a small opt-in step in exchange for deliberate authorization and an accurate Chat picker.

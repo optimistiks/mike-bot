@@ -16,7 +16,7 @@ v1 stores Marks in DynamoDB table `lolTable`. From Vercel or a one-off script, w
 | DynamoDB export to S3                      | Large table, audit trail, repeat exports | Overkill unless table is huge or PITR already on |
 | Live Scan/Query from Vercel                | Ongoing reads                            | **Reject** — keeps v1 AWS on the hot path        |
 
-**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Events with `legacy_id` set, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats (see [ADR 0003](../adr/0003-honest-seasonal-stats.md) and [ADR 0004](../adr/0004-event-storage.md)).
+**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Events with `legacy_id` set, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats (see [ADR 0004](../adr/0004-event-storage.md)).
 
 ---
 
@@ -115,7 +115,7 @@ Source: dynamo-easy `dateToNumberMapper` ([`date-to-number.mapper.js`](https://u
 
 - `toMessageId`, usernames (PII; see Risks).
 
-v1 `/stats` already proves the aggregation logic: scan by `chatId`, aggregate by `lolType` and user ids ([`src/bot.ts`](../../src/bot.ts) lines 132–176). v2 differs only in **Season filter on `createdAt`** and **no Humor decay** ([ADR 0003](../adr/0003-honest-seasonal-stats.md)).
+v1 `/stats` already proves the aggregation logic: scan by `chatId`, aggregate by `lolType` and user ids ([`src/bot.ts`](../../src/bot.ts) lines 132–176). v2 differs in its explicit Season assignment and lack of Humor decay ([ADR 0003](../adr/0003-honest-seasonal-stats.md), [domain language](../../CONTEXT.md)).
 
 ---
 
@@ -213,7 +213,7 @@ Good **ad-hoc inspection** or **backup before import**; for production import, p
 
 **Verdict: Reject.**
 
-- Keeps v1 AWS infrastructure on the **hot path** for v2, contrary to the one-store decision in [ADR 0003](../adr/0003-honest-seasonal-stats.md).
+- Keeps v1 AWS infrastructure on the **hot path** for v2, contrary to the shared Event-log decision in [ADR 0004](../adr/0004-event-storage.md).
 - v1 table has **no GSI on `chatId` or `createdAt`** — every stats request is a full Scan (same as v1 `/stats`, but now from serverless at scale).
 - Adds latency, cost, and failure domain to every Mini App load.
 - Forces long-lived AWS credentials (or OIDC plumbing) in Vercel for data that is **immutable history**.
@@ -341,5 +341,5 @@ Additional actions per [AWS export docs](https://docs.aws.amazon.com/amazondynam
 | Scan RCU / filter behavior             | [DynamoDB Scan](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html)                                         |
 | Export requires PITR                   | [Export to S3](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataExport_Requesting.html)                       |
 | Vercel OIDC vs static keys             | [Vercel AWS OIDC](https://vercel.com/docs/oidc/aws)                                                                                 |
-| One-shot import preference             | [ADR 0003](../adr/0003-honest-seasonal-stats.md), [ADR 0004](../adr/0004-event-storage.md)                                          |
+| One-shot import preference             | [ADR 0004](../adr/0004-event-storage.md)                                                                                            |
 | Season timezone decision               | [ADR 0003](../adr/0003-honest-seasonal-stats.md)                                                                                    |

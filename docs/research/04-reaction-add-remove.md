@@ -2,7 +2,7 @@
 
 **Ticket:** wayfinder #04 — What does a reaction add vs remove look like?  
 **Sources:** [Telegram Bot API — `MessageReactionUpdated`](https://core.telegram.org/bots/api#messagereactionupdated), [Grammy — Reactions guide](https://grammy.dev/guide/reactions), [Grammy — `Composer.reaction`](https://grammy.dev/ref/core/composer#reaction), [Grammy — `Context.reactions`](https://grammy.dev/ref/core/context#reactions)  
-**Domain:** `CONTEXT.md`, ADR-0002 (reaction scoring)
+**Domain:** `CONTEXT.md`, ADR-0003 (Season eligibility), ADR-0004 (Event storage)
 
 ---
 
@@ -177,14 +177,14 @@ Bot API `setMessageReaction` note: bots (non-premium) may set **up to one** reac
 
 ## Mapping to domain rules
 
-Rules from `CONTEXT.md` and ADR-0002:
+Rules from `CONTEXT.md`, ADR-0003, and ADR-0004:
 
 | Rule                                       | Telegram behavior                                                                                   | v2 handling                                                                                               |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | **No self**                                | API does not block self-reaction                                                                    | After author lookup: if `marker.id === author.id`, ignore (no apply/undo)                                 |
 | **No bots**                                | Bot reactions don't emit updates; author may be a bot                                               | Ignore if `user.is_bot` or cached `author.is_bot`                                                         |
 | **Karma plus and Karma minus independent** | Telegram allows multiple emojis at once                                                             | Apply or undo each changed Scoring reaction independently; simultaneous contributions cancel in net Karma |
-| **Switching karma ± allowed**              | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Undo old karma Mark, apply new — matches ADR "undo by removing"                                           |
+| **Switching karma ± allowed**              | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Append an undo Event for the old Mark and an add Event for the new one                                    |
 | **Humor independent**                      | Humor emoji can coexist with karma emoji in `new_reaction`                                          | Apply/undo humor Marks independently via `emojiAdded` / `emojiRemoved`                                    |
 
 ### Independent Karma reactions — implementation note
@@ -199,7 +199,7 @@ Telegram may report Karma plus and Karma minus together in `new_reaction`. This 
 | -------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------- |
 | **Fires on add**                 | Yes — when listed emoji **newly added**              | Yes                                                            |
 | **Fires on remove**              | **No**                                               | Yes — full old/new diff                                        |
-| **Undo Marks**                   | **Cannot** — remove events never run                 | **Required** for undo-on-remove (ADR-0002)                     |
+| **Undo Marks**                   | **Cannot** — remove events never run                 | **Required** for append-only undo Events (ADR-0004)            |
 | **Switch karma ±**               | May fire twice (remove handler missing) or miss undo | Single update with both `emojiRemoved` and `emojiAdded`        |
 | **Multiple emoji in one update** | One handler per matching **added** emoji             | One handler; inspect full diff                                 |
 | **Custom / paid**                | Supported triggers for **add** only                  | Filter queries: `message_reaction:new_reaction:emoji`, etc.    |

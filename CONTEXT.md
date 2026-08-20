@@ -1,93 +1,93 @@
 # Mike-bot
 
-A Telegram group scoring bot: members mark each other's messages, and a Mini App shows honest seasonal leaderboards.
+A Telegram group scoring bot where Members mark each other's messages and compare seasonal Karma and Humor.
 
-## Language
-
-**Karma**:
-A Member's net score: Karma plus minus Karma minus. Karma plus and Karma minus are independent and may both be active on the same message.
-_Avoid_: carma, score, уважение
-
-**Karma plus**:
-The Scoring reaction that adds one Karma to a message's author.
-_Avoid_: plus, +, ➕ as the concept name (those are v1 triggers)
-
-**Karma minus**:
-The Scoring reaction that subtracts one Karma from a message's author.
-_Avoid_: minus, −, ➖ as the concept name
-
-**Humor**:
-The count a Member receives when others apply the Humor Scoring reaction to their messages. Humor has no decay.
-_Avoid_: lol, лол, humor points as a separate concept
-
-**Event**:
-An immutable record that a Mark was applied or removed. Its Event type determines its scoring effect; Events are never rewritten or deleted.
-_Avoid_: mark row, lol record, mutable score
-
-**Event type**:
-The closed vocabulary describing an Event: `karma.plus`, `karma.minus`, `karma.undo.plus`, `karma.undo.minus`, `humor.add`, or `humor.undo.add`.
-_Avoid_: encoding numeric weights in the name; `karma.add` / `karma.remove`
-
-**Actor**:
-The Member who applies or removes a Scoring reaction.
-_Avoid_: confusing Actor with Subject
-
-**Subject**:
-The Member who wrote the marked message and receives the scoring effect.
-_Avoid_: assuming the reacting Member is the Subject
+## Scoring
 
 **Mark**:
-The user-facing act of applying or removing a Scoring reaction. Each change produces one Event.
-_Avoid_: treating removal as deletion of an earlier Event
+An eligible scoring choice that an Actor applies to a different Member's message through a Scoring reaction. The message's author is the Mark's Subject.
+_Avoid_: Vote, rating
 
 **Scoring reaction**:
-One of the configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), or 🤣 (Humor).
-_Avoid_: vote, emoji (too vague), лол
+One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark.
+_Avoid_: Emoji, vote
+
+**Karma plus**:
+A kind of Mark that contributes one positive point to the Subject's Karma.
+_Avoid_: Upvote, plus, positive vote
+
+**Karma minus**:
+A kind of Mark that contributes one negative point to the Subject's Karma.
+_Avoid_: Downvote, minus, negative vote
+
+**Humor Mark**:
+A kind of Mark that contributes one point to the Subject's Humor.
+_Avoid_: Lol, joke vote
+
+**Karma**:
+A Member's net seasonal total from received Karma plus and Karma minus Marks and their reversals.
+_Avoid_: Carma, score, respect
+
+**Humor**:
+A Member's net seasonal total from received Humor Marks and their reversals. Humor does not decay.
+_Avoid_: Lol score, humor points
+
+**Actor**:
+The Member who applies or removes a Mark.
+_Avoid_: Giver, reactor
+
+**Subject**:
+The Member whose message receives the Mark.
+_Avoid_: Recipient, target
+
+**Event**:
+An immutable fact that an eligible Mark was applied or removed. Removing a Mark produces a compensating Event rather than changing the earlier Event.
+_Avoid_: Mark
+
+## Community and access
 
 **Chat**:
-A Telegram conversation with its own Members, Marks, registration, and leaderboards. Mike-bot may serve many Chats without sharing their data.
-_Avoid_: assuming one fixed group
-
-**Chat membership**:
-A Member's explicit registration for Mini App access in one Chat. It is independent of whether the Member may receive Marks or currently belongs to the Telegram group.
-_Avoid_: Telegram group membership, Chat member
-
-**Registration message**:
-An ordinary bot message posted after a Chat administrator runs `/register`. Reacting to it registers that Actor for Mini App access in that Chat.
-_Avoid_: treating its reactions as Marks
+A Telegram group or supergroup whose Marks, Display identities, Registrations, and leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat.
+_Avoid_: Room
 
 **Member**:
-A non-bot participant identified by their stable Telegram identity. Members cannot Mark themselves or bots.
-_Avoid_: account; user when discussing this domain role
+A non-bot person identified by their stable Telegram identity.
+_Avoid_: User, account
 
-**Chat member**:
-The latest known display identity for a Member in one Chat. It is presentation data, not proof of Chat membership.
-_Avoid_: Chat membership
+**Display identity**:
+The latest known name used to present a Member within one Chat.
+_Avoid_: Chat member, username
 
-**Message author**:
-The cached identity of a message's Subject, used because Telegram reaction updates identify the Actor but not the Subject. Message content is not part of this concept.
-_Avoid_: storing message bodies; inferring the Subject from the Actor
+**Registration**:
+A Member's authorization to view one Chat in the Mini App. It begins through a Registration message, survives removal of the registration reaction, and ends when the Member leaves or is removed from the Chat.
+_Avoid_: Chat membership, participation
+
+**Registration message**:
+A bot-authored message through which a Member can establish Registration by adding a reaction.
+_Avoid_: Registration post
+
+## Leaderboards
 
 **Season**:
-A calendar month within a calendar year, interpreted in `Europe/Moscow`. Events belong to the Season in which they occurred.
-_Avoid_: period, rolling window
+A calendar month in `Europe/Moscow` to which eligible Events are credited according to the marked message's timestamp. Reaction actions remain eligible for ten minutes after its calendar end; actions timestamped later cannot affect it.
+_Avoid_: Period, rolling window
 
 **Current Season**:
-The Season containing the present date in `Europe/Moscow`.
-_Avoid_: treating ongoing as a different kind of Season
+The Season containing the present time in `Europe/Moscow`.
+_Avoid_: Ongoing season
 
-**Mini App**:
-The Telegram app that shows a registered Member the seasonal Karma and Humor leaderboards for a selected Chat. It opens from the bot's Menu Button.
-_Avoid_: stats command, `/stats`
-
-**v1**:
-The previous AWS-hosted bot on `master`, whose reply-based Marks are imported once into v2 history.
-_Avoid_: old bot, legacy bot as glossary terms
+**Leaderboard**:
+A seasonal ranking of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
+_Avoid_: Stats, scoreboard
 
 **Crown**:
-Flair on the first entry in a leaderboard section (👑).
-_Avoid_: winner badge as a separate concept
+Flair awarded to every Member tied for the highest total in a Leaderboard section.
+_Avoid_: Winner badge
 
 **Chicken**:
-Flair on the last entry in a leaderboard section (🐔), preserving v1's tone.
-_Avoid_: loser badge as a separate concept
+Flair awarded to every Member tied for the lowest total in a Leaderboard section when at least one Member has a strictly higher total.
+_Avoid_: Loser badge
+
+**Mini App**:
+The Telegram interface through which a registered Member selects a Chat and views its Leaderboards.
+_Avoid_: Stats page

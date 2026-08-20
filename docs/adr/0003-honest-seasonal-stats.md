@@ -1,5 +1,3 @@
-# Honest seasonal leaderboards in the Mini App, no decay
+# Attribute scoring to message-based monthly Seasons
 
-v1 `/stats` applied Humor decay and showed a single all-time board. v2 kills `/stats`. The Mini App shows honest counts (no decay), broken down by Season (calendar month in `Europe/Moscow`, rolled up by year), with Current Season clearly marked. Crown 👑 on #1 and chicken 🐔 on last in each section, like v1.
-
-All scoring lives in Postgres table `events` (typed event strings, no value column — see ADR-0004). v1 DynamoDB history is imported once into the same Event store with a stable deduplication key. The Mini App queries that one store only. Aggregation lives in application code, while display names remain separate presentation data.
+A v2 Event is credited to the calendar-month Season in `Europe/Moscow` in which its message was posted, but only when Telegram's action timestamp falls before ten minutes after that Season ends; later reaction changes produce no Event and cannot alter that Season. The grace period absorbs boundary timing, and Telegram timestamps rather than webhook processing time determine eligibility. Imported v1 Events lack message timestamps, so their action timestamps also serve as their message timestamps.
