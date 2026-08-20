@@ -20,6 +20,7 @@ import {
   assertWebhookRegistered,
   TELEGRAM_WEBHOOK_ALLOWED_UPDATES,
 } from "../lib/bot/webhook-setup";
+import { parseWebhookSecret } from "../lib/env";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
@@ -50,7 +51,7 @@ function readWebhookUrl(): string {
 
 async function main(): Promise<void> {
   const token = requireEnv("BOT_TOKEN");
-  const secret = requireEnv("BOT_WEBHOOK_SECRET");
+  const secret = parseWebhookSecret();
   const webhookUrl = readWebhookUrl();
 
   const bot = new Bot(token);

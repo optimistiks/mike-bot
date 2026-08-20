@@ -30,7 +30,7 @@ describe("importV1Rows", () => {
         rowsProcessed: 1,
         eventsInserted: 1,
         eventsSkipped: 0,
-        membersUpserted: 2,
+        membersInserted: 2,
       });
 
       const storedEvents = await pglite.db
@@ -79,6 +79,7 @@ describe("importV1Rows", () => {
       expect(first.eventsInserted).toBe(1);
       expect(second.eventsInserted).toBe(0);
       expect(second.eventsSkipped).toBe(1);
+      expect(second.membersInserted).toBe(0);
 
       const storedEvents = await pglite.db
         .select({ id: events.id })
@@ -86,6 +87,50 @@ describe("importV1Rows", () => {
         .where(eq(events.legacyId, SAMPLE_ROW.id));
 
       expect(storedEvents).toHaveLength(1);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("preserves current names and chooses the newest v1 name for missing Members", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await pglite.db.insert(chatMembers).values({
+        chatId: IMPORT_CHAT_ID,
+        userId: 501,
+        displayName: "@current-giver",
+      });
+      const older = {
+        ...SAMPLE_ROW,
+        id: "22222222-2222-4222-8222-222222222222",
+        createdAt: SAMPLE_ROW.createdAt - 1_000,
+        toUser: { id: 503, username: "older-name" },
+      };
+      const newer = {
+        ...SAMPLE_ROW,
+        id: "33333333-3333-4333-8333-333333333333",
+        toUser: { id: 503, username: "newer-name" },
+      };
+
+      await importV1Rows(pglite.db, [newer, older]);
+
+      const storedMembers = await pglite.db
+        .select()
+        .from(chatMembers)
+        .where(eq(chatMembers.chatId, IMPORT_CHAT_ID));
+      expect(storedMembers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            userId: 501,
+            displayName: "@current-giver",
+          }),
+          expect.objectContaining({
+            userId: 503,
+            displayName: "@newer-name",
+          }),
+        ]),
+      );
     } finally {
       await closePgliteDb(pglite);
     }

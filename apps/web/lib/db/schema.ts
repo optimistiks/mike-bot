@@ -40,7 +40,7 @@ export const chatMembers = pgTable(
   (table) => [primaryKey({ columns: [table.chatId, table.userId] })],
 );
 
-/** Roster of Members in Chats where the bot is present (Mini App picker). */
+/** Members explicitly registered for Mini App access in each Chat. */
 export const chatMemberships = pgTable(
   "chat_memberships",
   {
@@ -63,7 +63,7 @@ export const messageAuthors = pgTable(
   (table) => [primaryKey({ columns: [table.chatId, table.messageId] })],
 );
 
-/** Bot-posted registration pins; any reaction registers the actor for Mini App access. */
+/** Bot-posted Registration messages; any reaction registers the actor for Mini App access. */
 export const registrationMessages = pgTable(
   "registration_messages",
   {

@@ -7,20 +7,36 @@ export interface ImportV1Stats {
   rowsProcessed: number;
   eventsInserted: number;
   eventsSkipped: number;
-  membersUpserted: number;
+  membersInserted: number;
 }
 
-async function upsertImportedMember(
-  db: AppDatabase,
-  member: { chatId: number; userId: number; displayName: string },
-): Promise<void> {
-  await db
-    .insert(chatMembers)
-    .values(member)
-    .onConflictDoUpdate({
-      target: [chatMembers.chatId, chatMembers.userId],
-      set: { displayName: member.displayName },
-    });
+interface ImportedMemberCandidate {
+  chatId: number;
+  userId: number;
+  displayName: string;
+  createdAt: number;
+}
+
+function latestImportedMembers(rows: V1LolRow[]): ImportedMemberCandidate[] {
+  const candidates = new Map<string, ImportedMemberCandidate>();
+
+  for (const row of rows) {
+    const { members } = convertV1Row(row);
+    for (const member of members) {
+      const key = `${String(member.chatId)}:${String(member.userId)}`;
+      const existing = candidates.get(key);
+      if (
+        !existing ||
+        row.createdAt > existing.createdAt ||
+        (row.createdAt === existing.createdAt &&
+          member.displayName.localeCompare(existing.displayName) > 0)
+      ) {
+        candidates.set(key, { ...member, createdAt: row.createdAt });
+      }
+    }
+  }
+
+  return [...candidates.values()];
 }
 
 export async function importV1Rows(
@@ -29,15 +45,26 @@ export async function importV1Rows(
 ): Promise<ImportV1Stats> {
   let eventsInserted = 0;
   let eventsSkipped = 0;
-  let membersUpserted = 0;
+  let membersInserted = 0;
+
+  const memberCandidates = latestImportedMembers(rows);
+  if (memberCandidates.length > 0) {
+    const inserted = await db
+      .insert(chatMembers)
+      .values(
+        memberCandidates.map((member) => ({
+          chatId: member.chatId,
+          userId: member.userId,
+          displayName: member.displayName,
+        })),
+      )
+      .onConflictDoNothing()
+      .returning();
+    membersInserted = inserted.length;
+  }
 
   for (const row of rows) {
-    const { event, members } = convertV1Row(row);
-
-    for (const member of members) {
-      await upsertImportedMember(db, member);
-      membersUpserted += 1;
-    }
+    const { event } = convertV1Row(row);
 
     const inserted = await db
       .insert(events)
@@ -56,6 +83,6 @@ export async function importV1Rows(
     rowsProcessed: rows.length,
     eventsInserted,
     eventsSkipped,
-    membersUpserted,
+    membersInserted,
   };
 }

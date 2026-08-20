@@ -9,10 +9,10 @@ import {
   handleRegisterCommand,
   isChatAdminStatus,
   isGroupChat,
-  recordRegistrationPin,
+  recordRegistrationMessage,
   REGISTER_ADMIN_ONLY_MESSAGE,
   REGISTER_GROUP_ONLY_MESSAGE,
-  REGISTRATION_PIN_TEXT,
+  REGISTRATION_MESSAGE_TEXT,
 } from "./register";
 import { getMessageAuthor } from "./handle-update";
 
@@ -95,14 +95,14 @@ describe("register command guards", () => {
     }
   });
 
-  it("posts pin and records registration_messages for group admin", async () => {
+  it("posts and records a Registration message for a group admin", async () => {
     const pglite = await createPgliteDb();
     const ctx = mockRegisterContext({ chatType: "supergroup" });
 
     try {
       await handleRegisterCommand(pglite.db, ctx);
 
-      expect(ctx.reply).toHaveBeenCalledWith(REGISTRATION_PIN_TEXT);
+      expect(ctx.reply).toHaveBeenCalledWith(REGISTRATION_MESSAGE_TEXT);
 
       const rows = await pglite.db.select().from(registrationMessages);
       expect(rows).toEqual([
@@ -123,8 +123,8 @@ describe("register command guards", () => {
   });
 });
 
-describe("recordRegistrationPin", () => {
-  it("is idempotent for the same pin", async () => {
+describe("recordRegistrationMessage", () => {
+  it("is idempotent for the same Registration message", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -135,8 +135,8 @@ describe("recordRegistrationPin", () => {
         messageDate: 1_722_513_600,
       };
 
-      await recordRegistrationPin(pglite.db, params);
-      await recordRegistrationPin(pglite.db, params);
+      await recordRegistrationMessage(pglite.db, params);
+      await recordRegistrationMessage(pglite.db, params);
 
       const rows = await pglite.db.select().from(registrationMessages);
       expect(rows).toHaveLength(1);

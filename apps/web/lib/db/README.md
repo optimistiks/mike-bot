@@ -30,7 +30,7 @@ export const db = drizzle({ client: pool, schema });
 
 See [Neon's Vercel connection methods guide](https://neon.com/docs/guides/vercel-connection-methods) and `getProductionDb()` in `production.ts` (re-exported from `client.ts` with `server-only`).
 
-Local one-shot scripts (`scripts/import-v1.ts`) use `createScriptDb()` — same Drizzle schema, plain `Pool`, no Vercel lifecycle hooks.
+Local one-shot scripts (`scripts/import-v1.ts`) use `createScriptDb()` — same Drizzle schema, plain `Pool`, explicit close, and no Vercel lifecycle hooks.
 
 ## Local development and seed data
 
@@ -58,5 +58,5 @@ run. Tests continue to use isolated in-memory PGlite through `createPgliteDb()`.
 | `chat_members`          | Display names per (`chat_id`, `user_id`)                   |
 | `chat_memberships`      | Mini App chat picker roster (explicit registration)        |
 | `message_authors`       | Message author cache for reaction Subject lookup           |
-| `registration_messages` | Bot-posted registration pins (`/register`)                 |
+| `registration_messages` | Bot-posted Registration messages (`/register`)             |
 | `processed_updates`     | Webhook `update_id` deduplication                          |

@@ -1,3 +1,5 @@
+import type { ReactionType } from "grammy/types";
+
 import type { EventType } from "@/lib/domain/event";
 
 import {
@@ -10,8 +12,8 @@ import {
 export type ReactionSkipReason = "self" | "bot_subject";
 
 export interface ReactionEventInput {
-  emojiAdded: string[];
-  emojiRemoved: string[];
+  addedReactions: ReactionType[];
+  removedReactions: ReactionType[];
   actorId: number;
   subjectId: number;
   subjectIsBot: boolean;
@@ -33,8 +35,40 @@ const REMOVE_TYPE: Record<string, EventType> = {
   [HUMOR_EMOJI]: "humor.undo.add",
 };
 
-function scoringEmojis(emojis: string[]): string[] {
-  return emojis.filter(isScoringEmoji);
+function reactionKey(reaction: ReactionType): string {
+  switch (reaction.type) {
+    case "emoji":
+      return `emoji:${reaction.emoji}`;
+    case "custom_emoji":
+      return `custom_emoji:${reaction.custom_emoji_id}`;
+    case "paid":
+      return "paid";
+  }
+}
+
+export function diffReactionStates(
+  oldReactions: ReactionType[],
+  newReactions: ReactionType[],
+): { addedReactions: ReactionType[]; removedReactions: ReactionType[] } {
+  const oldKeys = new Set(oldReactions.map(reactionKey));
+  const newKeys = new Set(newReactions.map(reactionKey));
+
+  return {
+    addedReactions: newReactions.filter(
+      (reaction) => !oldKeys.has(reactionKey(reaction)),
+    ),
+    removedReactions: oldReactions.filter(
+      (reaction) => !newKeys.has(reactionKey(reaction)),
+    ),
+  };
+}
+
+function scoringEmojis(reactions: ReactionType[]): string[] {
+  return reactions.flatMap((reaction) =>
+    reaction.type === "emoji" && isScoringEmoji(reaction.emoji)
+      ? [reaction.emoji]
+      : [],
+  );
 }
 
 /** Pure adapter: reaction diff → append-only Event types (no DB). */
@@ -51,11 +85,11 @@ export function reactionDiffToEventTypes(
 
   const eventTypes: EventType[] = [];
 
-  for (const emoji of scoringEmojis(input.emojiRemoved)) {
+  for (const emoji of scoringEmojis(input.removedReactions)) {
     eventTypes.push(REMOVE_TYPE[emoji]);
   }
 
-  for (const emoji of scoringEmojis(input.emojiAdded)) {
+  for (const emoji of scoringEmojis(input.addedReactions)) {
     eventTypes.push(ADD_TYPE[emoji]);
   }
 

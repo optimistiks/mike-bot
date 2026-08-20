@@ -47,10 +47,3 @@ export async function removeChatMembership(
       ),
     );
 }
-
-export async function clearChatMemberships(
-  db: AppDatabase,
-  chatId: number,
-): Promise<void> {
-  await db.delete(chatMemberships).where(eq(chatMemberships.chatId, chatId));
-}

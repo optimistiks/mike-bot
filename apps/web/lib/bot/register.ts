@@ -4,7 +4,7 @@ import type { Context } from "grammy";
 import type { AppDatabase } from "@/lib/db/runtime";
 import { messageAuthors, registrationMessages } from "@/lib/db/schema";
 
-export const REGISTRATION_PIN_TEXT =
+export const REGISTRATION_MESSAGE_TEXT =
   "Поставьте реакцию на это сообщение, чтобы участвовать в таблице лидеров";
 
 export const REGISTER_GROUP_ONLY_MESSAGE =
@@ -21,7 +21,7 @@ export function isChatAdminStatus(status: string): boolean {
   return status === "creator" || status === "administrator";
 }
 
-export async function recordRegistrationPin(
+export async function recordRegistrationMessage(
   db: AppDatabase,
   params: {
     chatId: number;
@@ -92,8 +92,8 @@ export async function handleRegisterCommand(
     return;
   }
 
-  const sent = await ctx.reply(REGISTRATION_PIN_TEXT);
-  await recordRegistrationPin(db, {
+  const sent = await ctx.reply(REGISTRATION_MESSAGE_TEXT);
+  await recordRegistrationMessage(db, {
     chatId: chat.id,
     messageId: sent.message_id,
     botUserId: ctx.me.id,

@@ -17,10 +17,10 @@ Other columns: `chat_id`, `actor_id`, `subject_id`, `message_id`, `created_at`, 
 
 `subject_id` is the message author. Telegram's `MessageReactionUpdated.user` is the reactor (`actor_id`), not the author — see `message_authors` cache (ADR-0005).
 
-Leaderboards aggregate by counting or weighting event types in `lib/scoring/`. New event types can be added without schema migrations.
+Leaderboards aggregate by counting or weighting event types in `lib/scoring/`. Event types are enforced by the application rather than a database constraint, so adding an Event type does not require a schema migration.
 
 v1 DynamoDB rows are converted to `events` on import (`plus`→`karma.plus`, etc.); see `.scratch/v2/issues/17-legacy-read-mapping.md` and `21-v1-import-into-events.md`. No separate legacy table.
 
 Display names live in `chat_members`. Chat roster for the Mini App picker lives in `chat_memberships` (ADR-0005).
 
-Webhook handlers dedupe on Telegram `update_id` before appending events.
+Webhook handlers claim Telegram `update_id` and apply the update's database effects in one transaction. A failed update rolls back its claim so Telegram can retry it safely.

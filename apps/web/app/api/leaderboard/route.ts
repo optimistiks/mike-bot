@@ -20,7 +20,6 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const url = new URL(request.url);
   const parsed = leaderboardQuerySchema.safeParse({
-    chatId: url.searchParams.get("chatId") ?? undefined,
     chat_id: url.searchParams.get("chat_id") ?? undefined,
     year: url.searchParams.get("year") ?? undefined,
     month: url.searchParams.get("month") ?? undefined,

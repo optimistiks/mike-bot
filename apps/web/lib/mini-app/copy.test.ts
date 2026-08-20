@@ -11,7 +11,7 @@ describe("go register empty state copy", () => {
     expect(GO_REGISTER_EMPTY_STATE_TITLE).toMatch(/лидер/i);
   });
 
-  it("prompts to react to the registration pin", () => {
+  it("prompts to react to the Registration message", () => {
     expect(GO_REGISTER_EMPTY_STATE_HINT).toMatch(/реакци/i);
     expect(GO_REGISTER_EMPTY_STATE_HINT).toMatch(/регистрац/i);
   });

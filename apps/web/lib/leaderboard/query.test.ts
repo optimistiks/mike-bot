@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
+import { events } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
 
 import { queryLeaderboard } from "./query";
@@ -40,6 +41,30 @@ describe("queryLeaderboard", () => {
       expect(
         entries.every((entry) => !entry.displayName.startsWith("User ")),
       ).toBe(true);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("rejects Event types outside the application vocabulary", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await pglite.db.insert(events).values({
+        type: "future.unknown",
+        chatId: PRIMARY_FIXTURE_CHAT_ID,
+        actorId: 1,
+        subjectId: 2,
+        messageId: 3,
+        createdAt: new Date("2026-08-15T12:00:00.000Z"),
+      });
+
+      await expect(
+        queryLeaderboard(pglite.db, PRIMARY_FIXTURE_CHAT_ID, {
+          year: 2026,
+          month: 8,
+        }),
+      ).rejects.toThrow();
     } finally {
       await closePgliteDb(pglite);
     }

@@ -5,6 +5,7 @@ export interface Season {
 }
 
 export const SEASON_TIMEZONE = "Europe/Moscow";
+export const MOSCOW_UTC_OFFSET_HOURS = 3;
 
 function readMoscowParts(date: Date): { year: number; month: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -30,6 +31,20 @@ export function getCurrentSeason(now = new Date()): Season {
 export function isEventInSeason(createdAt: Date, season: Season): boolean {
   const eventSeason = seasonForDate(createdAt);
   return eventSeason.year === season.year && eventSeason.month === season.month;
+}
+
+export function seasonDateRange(season: Season): {
+  start: Date;
+  end: Date;
+} {
+  return {
+    start: new Date(
+      Date.UTC(season.year, season.month - 1, 1, -MOSCOW_UTC_OFFSET_HOURS),
+    ),
+    end: new Date(
+      Date.UTC(season.year, season.month, 1, -MOSCOW_UTC_OFFSET_HOURS),
+    ),
+  };
 }
 
 export function formatSeasonLabel(season: Season): string {

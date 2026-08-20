@@ -1,11 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 import { chatMembers, events } from "@/lib/db/schema";
-import type { EventType } from "@/lib/domain/event";
+import { eventTypeSchema } from "@/lib/domain/event";
 import {
   aggregateLeaderboard,
   getCurrentSeason,
+  seasonDateRange,
   type Season,
 } from "@/lib/scoring";
 
@@ -16,8 +17,18 @@ export async function queryLeaderboard(
   chatId: number,
   season: Season,
 ): Promise<LeaderboardResponse> {
+  const range = seasonDateRange(season);
   const [eventRows, memberRows] = await Promise.all([
-    db.select().from(events).where(eq(events.chatId, chatId)),
+    db
+      .select()
+      .from(events)
+      .where(
+        and(
+          eq(events.chatId, chatId),
+          gte(events.createdAt, range.start),
+          lt(events.createdAt, range.end),
+        ),
+      ),
     db.select().from(chatMembers).where(eq(chatMembers.chatId, chatId)),
   ]);
 
@@ -27,7 +38,7 @@ export async function queryLeaderboard(
 
   const aggregated = aggregateLeaderboard(
     eventRows.map((row) => ({
-      type: row.type as EventType,
+      type: eventTypeSchema.parse(row.type),
       actorId: row.actorId,
       subjectId: row.subjectId,
       createdAt: row.createdAt,

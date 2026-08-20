@@ -1,7 +1,9 @@
 dist
 node_modules
 package-lock.json
-.env
+.env*
+!.env.development
+!.env.example
 .turbo
 .pnpm-store/
 .next

@@ -5,7 +5,7 @@ import type { EventType } from "@/lib/domain/event";
 import { aggregateLeaderboard } from "./aggregate";
 import { eventTypeToContributions } from "./contributions";
 import { EVENT_TYPES } from "./types";
-import { getCurrentSeason, isEventInSeason } from "./season";
+import { getCurrentSeason, isEventInSeason, seasonDateRange } from "./season";
 import type { ScoringEvent } from "./types";
 
 describe("eventTypeToContributions", () => {
@@ -101,6 +101,13 @@ describe("season bucketing", () => {
   it("derives Current Season from today in Moscow", () => {
     const frozenNow = new Date("2026-08-15T12:00:00.000Z");
     expect(getCurrentSeason(frozenNow)).toEqual({ year: 2026, month: 8 });
+  });
+
+  it("returns half-open UTC query bounds for a Moscow Season", () => {
+    expect(seasonDateRange({ year: 2026, month: 12 })).toEqual({
+      start: new Date("2026-11-30T21:00:00.000Z"),
+      end: new Date("2026-12-31T21:00:00.000Z"),
+    });
   });
 });
 

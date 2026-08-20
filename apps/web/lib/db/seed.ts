@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { reset, seed } from "drizzle-seed";
 
 import type { EventType } from "@/lib/domain/event";
+import { MOSCOW_UTC_OFFSET_HOURS } from "@/lib/scoring";
 
 import type { AppDatabase } from "./runtime";
 import {
@@ -27,7 +28,6 @@ export {
 } from "./seed-personas";
 
 const FIXTURE_GENERATOR_SEED = 42_424;
-const MOSCOW_UTC_OFFSET_HOURS = 3;
 
 const MEMBERS = [
   {

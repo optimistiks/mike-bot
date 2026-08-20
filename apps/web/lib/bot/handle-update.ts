@@ -13,34 +13,21 @@ import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 
 import { memberDisplayName } from "./display-name";
 import { isRegistrationMessage } from "./register";
-import { reactionDiffToEventTypes } from "./reaction-events";
+import {
+  diffReactionStates,
+  reactionDiffToEventTypes,
+} from "./reaction-events";
 
-function toEmojiList(reactions: { type: string; emoji?: string }[]): string[] {
-  const emojis: string[] = [];
-  for (const reaction of reactions) {
-    if (reaction.type === "emoji" && reaction.emoji) {
-      emojis.push(reaction.emoji);
-    }
-  }
-  return emojis;
-}
-
-async function tryMarkUpdateProcessed(
+async function tryClaimUpdate(
   db: AppDatabase,
   updateId: number,
 ): Promise<boolean> {
-  const existing = await db
-    .select({ updateId: processedUpdates.updateId })
-    .from(processedUpdates)
-    .where(eq(processedUpdates.updateId, updateId))
-    .limit(1);
-
-  if (existing.length > 0) {
-    return false;
-  }
-
-  await db.insert(processedUpdates).values({ updateId });
-  return true;
+  const inserted = await db
+    .insert(processedUpdates)
+    .values({ updateId })
+    .onConflictDoNothing()
+    .returning();
+  return inserted.length === 1;
 }
 
 async function upsertMessageAuthor(
@@ -143,12 +130,14 @@ async function handleMessageReactionUpdate(
     return;
   }
 
-  const emojiAdded = toEmojiList(reaction.new_reaction);
-  const emojiRemoved = toEmojiList(reaction.old_reaction);
+  const changes = diffReactionStates(
+    reaction.old_reaction,
+    reaction.new_reaction,
+  );
 
   if (author.authorIsBot) {
-    const isPin = await isRegistrationMessage(db, chatId, messageId);
-    if (!isPin || emojiAdded.length === 0) {
+    const isRegistration = await isRegistrationMessage(db, chatId, messageId);
+    if (!isRegistration || changes.addedReactions.length === 0) {
       return;
     }
 
@@ -158,8 +147,7 @@ async function handleMessageReactionUpdate(
   }
 
   const mapped = reactionDiffToEventTypes({
-    emojiAdded,
-    emojiRemoved,
+    ...changes,
     actorId: actor.id,
     subjectId: author.authorId,
     subjectIsBot: author.authorIsBot,
@@ -190,22 +178,25 @@ export async function handleTelegramUpdate(
   db: AppDatabase,
   update: Update,
 ): Promise<void> {
-  const isNew = await tryMarkUpdateProcessed(db, update.update_id);
-  if (!isNew) {
-    return;
-  }
+  await db.transaction(async (transaction) => {
+    const transactionDb = transaction as unknown as AppDatabase;
+    const isNew = await tryClaimUpdate(transactionDb, update.update_id);
+    if (!isNew) {
+      return;
+    }
 
-  if (update.message) {
-    await handleMessageUpdate(db, update.message);
-  }
+    if (update.message) {
+      await handleMessageUpdate(transactionDb, update.message);
+    }
 
-  if (update.chat_member) {
-    await handleChatMemberUpdate(db, update.chat_member);
-  }
+    if (update.chat_member) {
+      await handleChatMemberUpdate(transactionDb, update.chat_member);
+    }
 
-  if (update.message_reaction) {
-    await handleMessageReactionUpdate(db, update.message_reaction);
-  }
+    if (update.message_reaction) {
+      await handleMessageReactionUpdate(transactionDb, update.message_reaction);
+    }
+  });
 }
 
 /** Test helper: look up cached author for assertions. */

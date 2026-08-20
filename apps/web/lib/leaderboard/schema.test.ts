@@ -25,4 +25,10 @@ describe("leaderboardQuerySchema", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("does not accept the internal chatId spelling at the HTTP boundary", () => {
+    expect(
+      leaderboardQuerySchema.safeParse({ chatId: "-100456789" }).success,
+    ).toBe(false);
+  });
 });

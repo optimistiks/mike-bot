@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactionType, Update } from "grammy/types";
 
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
-import { recordRegistrationPin } from "@/lib/bot/register";
+import { recordRegistrationMessage } from "@/lib/bot/register";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
 import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
@@ -17,7 +17,7 @@ import { GET } from "./route";
 
 const TEST_CHAT_ID = -100_111_222;
 const BOT_USER_ID = 777;
-const REGISTRATION_PIN_ID = 500;
+const REGISTRATION_MESSAGE_ID = 500;
 const OPENER_ID = 701;
 
 function reactionUpdate(
@@ -69,19 +69,19 @@ describe("GET /api/chats", () => {
     await expect(db.select().from(chatMemberships)).resolves.toEqual([]);
   });
 
-  it("returns registered chat after pin reaction", async () => {
+  it("returns a registered Chat after a Registration-message reaction", async () => {
     const db = await getRuntimeDb();
 
-    await recordRegistrationPin(db, {
+    await recordRegistrationMessage(db, {
       chatId: TEST_CHAT_ID,
-      messageId: REGISTRATION_PIN_ID,
+      messageId: REGISTRATION_MESSAGE_ID,
       botUserId: BOT_USER_ID,
       messageDate: 1_722_513_600,
     });
 
     await handleTelegramUpdate(
       db,
-      reactionUpdate(1, REGISTRATION_PIN_ID, OPENER_ID),
+      reactionUpdate(1, REGISTRATION_MESSAGE_ID, OPENER_ID),
     );
 
     const response = await GET(

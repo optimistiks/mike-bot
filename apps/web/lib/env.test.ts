@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseServerEnv } from "./env";
+import { parseDatabaseUrl, parseServerEnv } from "./env";
 
 describe("parseServerEnv", () => {
   it("parses required server env vars", () => {
@@ -23,4 +23,24 @@ describe("parseServerEnv", () => {
       }),
     ).toThrow();
   });
+
+  it("parses DATABASE_URL independently for runtime database selection", () => {
+    expect(
+      parseDatabaseUrl({ DATABASE_URL: "postgres://localhost/mike" }),
+    ).toBe("postgres://localhost/mike");
+    expect(() => parseDatabaseUrl({})).toThrow();
+  });
+
+  it.each(["contains spaces", "bad!character", "a".repeat(257)])(
+    "rejects an invalid webhook secret: %s",
+    (secret) => {
+      expect(() =>
+        parseServerEnv({
+          BOT_TOKEN: "123:ABC",
+          BOT_WEBHOOK_SECRET: secret,
+          DATABASE_URL: "postgres://localhost/mike",
+        }),
+      ).toThrow(/BOT_WEBHOOK_SECRET/);
+    },
+  );
 });

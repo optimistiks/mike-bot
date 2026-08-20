@@ -86,10 +86,7 @@ async function openDatabase(): Promise<{
       "DATABASE_URL is required (set DATABASE_URL or DATABASE_URL_UNPOOLED in .env.local or the shell)",
     );
   }
-  return {
-    db: createScriptDb(databaseUrl),
-    close: async () => Promise.resolve(),
-  };
+  return createScriptDb(databaseUrl);
 }
 
 async function main(): Promise<void> {
@@ -108,7 +105,7 @@ async function main(): Promise<void> {
     console.log(
       `  events skipped (legacy_id conflict): ${String(stats.eventsSkipped)}`,
     );
-    console.log(`  chat_members upserts: ${String(stats.membersUpserted)}`);
+    console.log(`  chat_members inserted: ${String(stats.membersInserted)}`);
 
     const dumpDir = process.env.IMPORT_DUMP_DIR?.trim();
     if (dumpDir) {

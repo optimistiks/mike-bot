@@ -20,7 +20,13 @@ export function getProductionDb(connectionString: string): Database {
 }
 
 /** Local scripts (import, webhook setup): plain Pool without Vercel lifecycle hooks. */
-export function createScriptDb(connectionString: string): Database {
+export function createScriptDb(connectionString: string): {
+  db: Database;
+  close: () => Promise<void>;
+} {
   const pool = new Pool({ connectionString });
-  return drizzleNodePostgres({ client: pool, schema });
+  return {
+    db: drizzleNodePostgres({ client: pool, schema }),
+    close: async () => pool.end(),
+  };
 }

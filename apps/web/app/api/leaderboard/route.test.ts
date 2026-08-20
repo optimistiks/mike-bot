@@ -45,7 +45,7 @@ describe("GET /api/leaderboard", () => {
 
     const response = await GET(
       leaderboardRequest(
-        `chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
       ),
     );
 
@@ -60,7 +60,7 @@ describe("GET /api/leaderboard", () => {
     const db = await getRuntimeDb();
     const response = await GET(
       leaderboardRequest(
-        `chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
       ),
     );
 
@@ -76,7 +76,7 @@ describe("GET /api/leaderboard", () => {
 
     const response = await GET(
       leaderboardRequest(
-        `chatId=${String(SECONDARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `chat_id=${String(SECONDARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
       ),
     );
 
@@ -94,7 +94,7 @@ describe("GET /api/leaderboard", () => {
 
     const response = await GET(
       leaderboardRequest(
-        `chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
         `tma ${String(initDataRaw)}`,
       ),
     );
@@ -105,7 +105,9 @@ describe("GET /api/leaderboard", () => {
 
   it("returns 400 for malformed query parameters after authentication", async () => {
     const response = await GET(
-      leaderboardRequest(`chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026`),
+      leaderboardRequest(
+        `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026`,
+      ),
     );
 
     expect(response.status).toBe(400);
@@ -135,7 +137,7 @@ describe("GET /api/leaderboard", () => {
   ])("returns the stable 401 response for %s init data", async (_, header) => {
     const response = await GET(
       new Request(
-        `http://localhost/api/leaderboard?chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `http://localhost/api/leaderboard?chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
         { headers: header ? { authorization: header } : undefined },
       ),
     );
