@@ -3,6 +3,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "BOT_TOKEN",
+        "BOT_WEBHOOK_SECRET",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**"]
     },
     "dev": {
