@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@typescript/native':
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
       eslint:
         specifier: 9.39.3
         version: 9.39.3(supports-color@7.2.0)

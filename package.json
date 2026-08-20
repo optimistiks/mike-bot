@@ -22,7 +22,6 @@
     ]
   },
   "devDependencies": {
-    "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
