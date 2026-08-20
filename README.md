@@ -8,10 +8,11 @@ Telegram scoring bot and Mini App on Vercel (Next.js + Neon Postgres).
 pnpm install
 pnpm browser:install
 pnpm dev
+pnpm fmt:check
+pnpm lint
+pnpm typecheck
 pnpm test
 pnpm build
-pnpm lint
-pnpm fmt
 ```
 
 Local database tests use PGlite — no Neon or AWS credentials required.
@@ -44,6 +45,8 @@ Everything you need to run v2 in a real Telegram group. Work through the steps i
 v1 (`master`, AWS Lambda) stays live until a separate cutover — v2 is a **new BotFather bot** on Vercel. You can run v2 alongside v1 in the same group only if you use the new bot (do not point both bots at the same webhook URL).
 
 **Prerequisites:** Vercel account, repo cloned (`pnpm install`), and group admin rights in each target supergroup. You do **not** need a separate Neon account — provision Postgres through Vercel (Vercel-managed integration; billing on your Vercel invoice).
+
+Before publishing `v2`, run `pnpm fmt:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm test` from the repository root. All five commands must pass on the exact commit deployed to Vercel.
 
 ### 1. Vercel project and Vercel-managed Neon Postgres
 
@@ -130,9 +133,9 @@ In the Vercel project → **Settings → Environment Variables**, add (server-si
 
 Deploy (or redeploy after adding env vars). Note the production HTTPS origin, e.g. `https://your-project.vercel.app`. This URL is the Mini App, webhook host, and BotFather Menu Button target.
 
-### 5. Import v1 history (optional)
+### 5. Import v1 history
 
-Skip if you do not need DynamoDB history in leaderboards. Run **locally** — not on Vercel. Safe to re-run (`legacy_id` skips duplicates).
+The Wayfinder Destination includes v1 history. Run the import **locally** — not on Vercel — and verify its output before enabling the group flow. It is safe to re-run (`legacy_id` skips duplicates). If the source contains no applicable rows, retain the empty verification dump as evidence.
 
 Use the direct connection from `.env.local` (`DATABASE_URL_UNPOOLED` is picked up automatically after `vercel env pull`):
 
@@ -222,9 +225,9 @@ Repeat for every supergroup that should use v2.
 1. **Add the bot** to the group.
 2. **Promote to administrator** — required for `message_reaction` updates. Without admin, reactions work in the client but the bot receives nothing.
 3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
-4. A **group admin** sends `/register` in the group. The bot posts a registration pin (Russian text).
-5. **Members** react to the pin with any emoji → `chat_memberships` row → chat appears in the Mini App picker.
-6. **Scoring:** members use 👍 👎 🤣 on others' messages. The bot stays silent. Marks work even for unregistered members; only Mini App access requires the pin reaction.
+4. A **group admin** sends `/register` in the group. The bot posts a Registration message in Russian.
+5. **Members** react to the Registration message with any reaction → `chat_memberships` row → Chat appears in the Mini App picker.
+6. **Scoring:** Members use 👍 👎 🤣 on others' messages. The bot stays silent. Marks work even for unregistered Members; only Mini App access requires reacting to a Registration message.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).
 
@@ -234,14 +237,14 @@ When a member leaves or is kicked, their registration row is removed automatical
 | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Webhook       | `set-webhook` printed success; or Telegram `getWebhookInfo` shows your URL and `message_reaction` in `allowed_updates`      |
 | Message cache | Send a normal message in the group after the bot joined, then add 👍 on that message — subject should appear on leaderboard |
-| Mini App      | Menu Button → Russian UI → chat picker (empty until pin reaction)                                                           |
-| Registration  | React to pin → chat appears in picker → five leaderboard sections, Current Season default                                   |
+| Mini App      | Menu Button → Russian UI → Chat picker (empty until Registration-message reaction)                                          |
+| Registration  | React to a Registration message → Chat appears in picker → five leaderboard sections, Current Season default                |
 | v1 history    | If imported, older Seasons show imported rows in the Mini App                                                               |
 
 **Common failures**
 
 - Reactions ignored → bot not admin, or webhook missing `message_reaction`, or reaction on a message sent before the bot could cache it.
-- Mini App empty chat list → member has not reacted to the registration pin.
+- Mini App empty Chat list → Member has not reacted to a Registration message.
 - Webhook 401 → `BOT_WEBHOOK_SECRET` mismatch between Vercel and `set-webhook`.
 - DB errors on Vercel → Neon integration not connected to the project, or `DATABASE_URL` was overwritten manually (should be the pooled URL from the integration).
 

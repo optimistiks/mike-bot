@@ -1,5 +1,7 @@
 # 32 — Move fixtures behind deterministic `db:seed`
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Give developers one explicit command that resets and populates a useful local database while making every ordinary Chat-picker and leaderboard request read-only. Repeated seed runs must produce the same registered, unregistered, and forbidden Member scenarios with Events in currently useful Moscow Seasons.

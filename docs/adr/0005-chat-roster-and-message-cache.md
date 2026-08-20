@@ -1,8 +1,6 @@
-# Chat roster sync and message author cache
+# Message author cache and webhook idempotency
 
-> **Chat roster:** Superseded for Mini App access by [ADR-0006](./0006-explicit-registration.md) (explicit registration via `/register` pin reactions). The `chat_memberships` table remains; population model changed.
-
-**Chat roster (`chat_memberships`):** ~~When the bot joins a chat (`my_chat_member`) or a member joins/leaves (`chat_member`), sync `chat_id` + `user_id` membership.~~ See ADR-0006. Leave cleanup via `chat_member` (`left`/`kicked`) remains.
+Chat membership is explicit and defined by [ADR-0006](./0006-explicit-registration.md). This ADR defines the message-author cache required for scoring and the update claim that protects webhook database effects.
 
 **Message authors (`message_authors`):** `MessageReactionUpdated` includes `chat`, `message_id`, and `user` (who reacted). It does **not** include who wrote the message. Bot API has no `getMessage` — cache on `message` updates (privacy mode off).
 

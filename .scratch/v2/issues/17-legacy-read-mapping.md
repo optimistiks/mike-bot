@@ -1,5 +1,7 @@
 # How does legacy_marks map to leaderboards?
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 Type: grilling
 Status: resolved
 

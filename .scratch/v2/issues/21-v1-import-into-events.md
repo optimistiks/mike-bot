@@ -1,12 +1,14 @@
 # How does v1 DynamoDB import into events?
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 Type: grilling
 Status: resolved
 Blocked by: 17
 
 ## Question
 
-[Legacy read mapping](17-legacy-read-mapping.md) decided: one-shot Scan, convert each v1 row to an `events` row (`plus`→`karma.plus`, etc.). What still needs pinning down?
+[Legacy read mapping](17-legacy-read-mapping.md) decided: one-shot Scan, convert each v1 row to an `events` row (`plus`→`karma.plus`, etc.). What still needs deciding?
 
 - Idempotency — re-run safe? (e.g. store v1 `id` on the event row, or deterministic import batch)
 - `chat_members` seeding — still from import, but from converted events or a side pass over DynamoDB users?

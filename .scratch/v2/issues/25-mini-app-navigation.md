@@ -1,5 +1,7 @@
 # 25 — Mini App navigation (memberships, chat picker, season drill-down)
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Sync `chat_memberships` on `my_chat_member` and `chat_member` updates so the Mini App can list Chats where the opener is a member and the bot is present. A chats list API parses `user.id` from Telegram initData naively (no HMAC). Full Mini App flow in Russian: chat picker with empty state («Нет общих чатов с ботом» plus hint to add the bot to a group), season selector (Current Season default and clearly marked, year/month drill-down), navigation to five leaderboard sections for the selected `chat_id` with crown/chicken rendered in the UI. Request/response shapes validated with Zod where applicable.

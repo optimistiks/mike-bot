@@ -1,5 +1,7 @@
 # 23 — Leaderboard read path (scoring, API, minimal UI)
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** The shared scoring module with full unit tests — the primary test seam. Given Event records, it buckets by Season in `Europe/Moscow`, applies the bucket matrix (including undo types and net Karma for «Уважаемые люди»), and returns five ranked Russian leaderboard sections with crown/chicken metadata. A thin leaderboard API Route Handler queries `events` for a `chat_id` and Season via Drizzle, runs aggregation, joins `chat_members` for display names, and returns JSON validated with Zod. A minimal Mini App page renders the five sections from seeded fixture data (hardcoded or test chat — no chat picker yet). Verifiable locally end-to-end: seed Events in PGlite → API or page shows «Уважаемые люди», «Юмористы», «Поставили +», «Поставили −», «Поставили лол».

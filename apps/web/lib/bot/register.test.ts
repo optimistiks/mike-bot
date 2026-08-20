@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
+import type { Update, UserFromGetMe } from "grammy/types";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import { registrationMessages } from "@/lib/db/schema";
@@ -15,9 +16,40 @@ import {
   REGISTRATION_MESSAGE_TEXT,
 } from "./register";
 import { getMessageAuthor } from "./handle-update";
+import { createBot } from "./bot";
 
 const TEST_CHAT_ID = -100_111_222;
 const BOT_USER_ID = 777;
+
+const BOT_INFO: UserFromGetMe = {
+  id: BOT_USER_ID,
+  is_bot: true,
+  first_name: "Mike",
+  username: "mike_bot",
+  can_join_groups: true,
+  can_read_all_group_messages: true,
+  supports_inline_queries: false,
+  can_connect_to_business: false,
+  has_main_web_app: false,
+  has_topics_enabled: false,
+  allows_users_to_create_topics: false,
+  can_manage_bots: false,
+  supports_join_request_queries: false,
+};
+
+function registerUpdate(updateId: number): Update {
+  return {
+    update_id: updateId,
+    message: {
+      message_id: 400,
+      date: 1_722_513_600,
+      chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+      from: { id: 900, is_bot: false, first_name: "Admin" },
+      text: "/register",
+      entities: [{ offset: 0, length: 9, type: "bot_command" }],
+    },
+  };
+}
 
 function mockRegisterContext(options: {
   chatType: "private" | "supergroup";
@@ -117,6 +149,57 @@ describe("register command guards", () => {
         authorId: BOT_USER_ID,
         authorIsBot: true,
       });
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("handles a retried /register update only once", async () => {
+    const pglite = await createPgliteDb();
+    const bot = createBot({ db: pglite.db, token: "test-token" });
+    bot.botInfo = BOT_INFO;
+
+    const apiCalls: string[] = [];
+    bot.api.config.use(async (previous, method, payload, signal) => {
+      apiCalls.push(method);
+      if (method === "getChatMember") {
+        return {
+          ok: true,
+          result: {
+            status: "administrator",
+            user: { id: 900, is_bot: false, first_name: "Admin" },
+          },
+        } as never;
+      }
+      if (method === "sendMessage") {
+        return {
+          ok: true,
+          result: {
+            message_id: 500,
+            date: 1_722_513_600,
+            chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+            from: BOT_INFO,
+            text: REGISTRATION_MESSAGE_TEXT,
+          },
+        } as never;
+      }
+      return previous(method, payload, signal);
+    });
+
+    try {
+      const update = registerUpdate(123);
+      await bot.handleUpdate(update);
+      await bot.handleUpdate(update);
+
+      expect(
+        apiCalls.filter((method) => method === "getChatMember"),
+      ).toHaveLength(1);
+      expect(
+        apiCalls.filter((method) => method === "sendMessage"),
+      ).toHaveLength(1);
+      await expect(
+        pglite.db.select().from(registrationMessages),
+      ).resolves.toHaveLength(1);
     } finally {
       await closePgliteDb(pglite);
     }

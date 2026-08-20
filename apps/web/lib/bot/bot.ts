@@ -1,4 +1,4 @@
-import { Bot } from "grammy";
+import { Bot, Context } from "grammy";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 
@@ -12,14 +12,14 @@ export interface BotDependencies {
 
 export function createBot({ db, token }: BotDependencies): Bot {
   const bot = new Bot(token);
+  const isRegisterCommand = Context.has.command("register");
 
-  bot.command("register", async (ctx) => {
-    await handleRegisterCommand(db, ctx);
-  });
-
-  bot.use(async (ctx, next) => {
-    await handleTelegramUpdate(db, ctx.update);
-    await next();
+  bot.use(async (ctx) => {
+    await handleTelegramUpdate(db, ctx.update, async (transactionDb) => {
+      if (isRegisterCommand(ctx)) {
+        await handleRegisterCommand(transactionDb, ctx);
+      }
+    });
   });
 
   return bot;

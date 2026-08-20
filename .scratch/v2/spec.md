@@ -1,20 +1,20 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # v2: production-ready Telegram Mini App
 
 ## Problem Statement
 
-The v2 bot and leaderboard are functionally implemented, but the current branch still contains development shortcuts and stale decisions that make it unsafe or misleading to take live. The Mini App reads Telegram's native browser global directly instead of using the TMA React SDK, API authentication trusts unsigned user data, the leaderboard can be read without proving Chat registration, and fixture data is inserted during ordinary requests. Local development does not reproduce a real TMA launch closely enough to exercise authenticated behavior. Tooling still permits lint warnings and duplicates environment-file discovery behind a custom abstraction. The map, specification, resolved tickets, domain documentation, and go-live guide also disagree with the intended behavior.
+The agent-side v2 implementation is complete and locally verified: Telegram identity is validated, Chat access is enforced, production data is never silently seeded, local development is realistic and deterministic, and the canonical documentation describes the implemented system. The Wayfinder Destination is not yet reached because publishing and configuring the real Vercel, Neon, BotFather, and Telegram environments requires a human operator with the relevant accounts and credentials.
 
-The result must be a small, friend-only system that is still internally honest: Telegram identity is validated, Chat access is enforced, production data is never silently seeded, local development is realistic and deterministic, and current documentation describes what the code actually does.
+The remaining problem is operational rather than architectural. The current `v2` branch must be published, deployed, migrated, connected to Telegram, populated with v1 history, and exercised in a real group before v2 can truthfully be called operational.
 
 ## Solution
 
-Adopt `@tma.js/sdk-react` as the Mini App platform boundary and `@tma.js/init-data-node` as the server authentication boundary. The client will initialize the supported TMA lifecycle, forward untouched launch init data as `Authorization: tma …`, use Telegram theme and viewport values, and expose Telegram's native Back Button on the leaderboard. Protected APIs will validate the init-data signature and a one-year age limit before resolving the Member. Chat data will be returned only when that Member has explicitly registered in the requested Chat.
+The Mini App uses `@tma.js/sdk-react` as its platform boundary and `@tma.js/init-data-node` as its server authentication boundary. It forwards untouched launch init data as `Authorization: tma …`, adopts Telegram theme and viewport values, and uses Telegram's native Back Button. Protected APIs validate the signature and a one-year age limit, then authorize each requested Chat through explicit membership.
 
-Development will use the TMA SDK's environment mocking pattern with valid init data signed by a fixed, non-secret development token for known deterministic personas. Fixture creation will move out of request handling into an explicit `db:seed` command built on official Drizzle Seed reset-and-seed behavior. Local PGlite is the safe default; resetting a remote PostgreSQL database requires explicit opt-in.
+Development uses valid init data signed with a fixed, non-secret development token for deterministic personas. Fixture creation is an explicit `db:seed` operation built on Drizzle Seed; local PGlite is the safe default and remote reset requires explicit opt-in. Karma plus, Karma minus, and Humor remain independent append-only Marks. Registration uses ordinary bot-posted Registration messages.
 
-Karma plus and Karma minus remain independent append-only Marks. Registration uses ordinary bot-posted Registration messages and does not use Telegram pinning. Obsolete code, warnings, and contradictory historical artifacts will be removed rather than preserved as amendments. Human go-live work remains a concise README checklist and is not represented as unfinished agent work.
+A `ready-for-human` go-live ticket now represents the remaining frontier. Its operator follows the README as the authoritative detailed checklist, records successful production verification, and closes the gap between a locally ready branch and the Wayfinder Destination.
 
 ## User Stories
 
@@ -46,7 +46,7 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 26. As a Member, I want removing 👍 to append one Karma plus undo Event, so that history is preserved while the contribution is reversed.
 27. As a Member, I want removing 👎 to append one Karma minus undo Event, so that history is preserved while the contribution is reversed.
 28. As a Member, I want Humor to remain independent of both Karma reactions, so that all three supported Marks follow the same append-only model.
-29. As a group admin, I want `/register` to post an ordinary Registration message, so that Members can opt in without changing Telegram's pinned messages.
+29. As a group admin, I want `/register` to post an ordinary Registration message, so that Members can opt in with a simple reaction.
 30. As a group admin, I want multiple Registration messages to remain valid, so that rerunning `/register` does not invalidate previous registration entry points.
 31. As a Member, I want reacting to a Registration message to register me without creating a Scoring Event, so that access and scoring remain separate concepts.
 32. As a developer, I want ordinary API requests never to create fixture records, so that reads are free of hidden writes.
@@ -68,7 +68,7 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 48. As a maintainer, I want v1 source absent from the `v2` branch, so that this branch contains only the current system.
 49. As a bot operator, I want the one-shot v1 import capability to remain available, so that historical Events can still be loaded before cutover without retaining the v1 runtime source.
 50. As a bot operator, I want all human go-live steps collected in the README, so that deployment and Telegram configuration can be completed without searching tickets.
-51. As a bot operator, I do not want a human-only go-live ticket, so that the tracker represents agent-executable work rather than my personal checklist.
+51. As a bot operator, I want the remaining go-live work represented by a `ready-for-human` ticket, so that the map has an explicit frontier all the way to its Destination.
 52. As a maintainer, I want package manifests, the lockfile, generated database artifacts, and documentation to agree after the change, so that the branch contains no artifact drift.
 53. As a maintainer, I want formatting, zero-warning lint, type checking, build, and all tests to pass together, so that the hardened branch is ready for the human go-live steps.
 
@@ -119,7 +119,7 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 ### Registration vocabulary and behavior
 
 - `/register` posts a **Registration message** and records it in `registration_messages`.
-- Telegram pinning is not used. User-visible copy, logs, comments, tests, documentation, map entries, and ticket text must not describe Registration messages as pins.
+- Registration uses an ordinary bot-posted message. User-visible copy, logs, comments, tests, documentation, map entries, and ticket text use the term **Registration message** consistently.
 - Multiple Registration messages per Chat remain valid.
 - Any supported added reaction on a Registration message registers the Actor in that Chat. Registration reactions do not create Scoring Events; reaction removal does not unregister the Member.
 - Registration continues to gate Mini App visibility only. Marks accumulate for Members regardless of registration.
@@ -152,12 +152,12 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 
 ### Documentation and tracker reconciliation
 
-- Rewrite current canonical artifacts to state the final behavior directly. Remove superseded mutual-exclusion, unsigned-authentication, Registration-message pinning, automatic-seeding, retained-v1-source, and completed-deployment claims.
+- Rewrite current canonical artifacts to state the final behavior directly. Remove superseded mutual-exclusion, unsigned-authentication, obsolete Registration-message terminology, automatic-seeding, retained-v1-source, and completed-deployment claims.
 - Prune irrelevant historical explanations and amendments aggressively. Do not retain contradictory acceptance text merely as a record of how the decision evolved.
 - Domain terminology is authoritative: Chat, Member, Actor, Subject, Mark, Event, Season, Current Season, Registration message, and Mini App.
 - Keep an ADR for the TMA SDK and authentication boundary because it is a durable cross-cutting decision. Existing registration and Event-storage ADRs must agree with the final vocabulary and behavior.
-- The README is the only human go-live checklist. It covers environment placement, database migration and optional v1 import, Vercel variables, deployment, webhook registration, BotFather Menu Button setup, group administrator/privacy requirements, `/register`, Member registration, verification, and common failures.
-- Human go-live work is not represented by a new ticket and is not claimed as completed by agent-side verification.
+- The README is the authoritative detailed human go-live checklist. It covers environment placement, database migration and v1 import, Vercel variables, deployment, webhook registration, BotFather Menu Button setup, group administrator/privacy requirements, `/register`, Member registration, verification, and common failures.
+- A `ready-for-human` tracker ticket references that checklist and remains open until the operator records successful production verification. Agent-side verification never claims that external work is complete.
 - v1 runtime source remains absent from `v2`. The one-shot import implementation and instructions remain because they are still relevant to go-live.
 
 ## Testing Decisions
@@ -200,8 +200,8 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 
 ## Out of Scope
 
-- Performing the human Vercel, Neon, BotFather, Telegram group, v1 cutover, or `master` branch steps.
-- Creating a human-only deployment ticket or claiming production is live.
+- Automating or performing credentialed Vercel, Neon, BotFather, Telegram group, v1 cutover, or `master` branch actions on the operator's behalf. The go-live actions remain required human work and are tracked explicitly.
+- Claiming production is live before the human go-live ticket is completed.
 - Changing `master` or restoring v1 runtime source to `v2`.
 - Adding direct-link, Main Mini App, inline-keyboard, or command-based Mini App launch paths.
 - Fullscreen mode.
@@ -218,4 +218,4 @@ Karma plus and Karma minus remain independent append-only Marks. Registration us
 - The project is friend-only, which is why a one-year init-data lifetime is accepted. Signature validation and Chat authorization are still required because they are simple invariants and prevent accidental cross-Chat access.
 - The official TMA template's mock environment is the behavioral starting point, but its sample init-data signature is intentionally not valid for server authentication. Development therefore adds valid signing with a non-secret dummy token while keeping production validation tied to the real bot token.
 - Drizzle Seed's PostgreSQL reset uses cascading truncation. `db:seed` must be documented as destructive, even though its safe default is local PGlite.
-- Completing this specification makes the branch ready for the user's separate go-live checklist; it does not itself make the deployment live.
+- Completing the agent-side implementation makes the branch ready for the human go-live ticket; only completing that ticket reaches the Wayfinder Destination.

@@ -1,5 +1,7 @@
 # 34 — Adopt the TMA React SDK in the production Mini App
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Make the production Mini App behave as a native Telegram surface through the TMA React SDK. A Telegram launch initializes the platform lifecycle, authenticates API requests with untouched launch data, renders within Telegram's theme and safe viewport, and uses the native Back Button for leaderboard navigation; a direct production browser visit stops at clear Russian guidance.

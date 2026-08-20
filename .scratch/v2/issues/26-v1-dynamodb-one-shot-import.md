@@ -1,5 +1,7 @@
 # 26 — v1 DynamoDB one-shot import
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** A local-only `import-v1.ts` script that Scans v1 DynamoDB `lolTable` with temporary AWS credentials, converts each row to an Event (`plus`→`karma.plus`, `minus`→`karma.minus`, `lol`→`humor.add`), maps actor/subject/chat/message/timestamp fields, sets `legacy_id` for idempotency (`ON CONFLICT DO NOTHING`), and upserts `chat_members` from v1 `fromUser`/`toUser`. Re-run is safe. Imported Events appear in seasonal leaderboard views via the ticket 23 API. Script is not invoked on Vercel runtime.

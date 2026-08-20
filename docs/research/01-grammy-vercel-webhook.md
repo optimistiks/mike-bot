@@ -30,7 +30,7 @@ app/
       route.ts          # webhook endpoint
 lib/
   bot/
-    bot.ts              # Bot singleton + handler registration
+    bot.ts              # Stateless Bot factory + handler registration
 scripts/
   set-webhook.ts        # one-time / deploy hook to call setWebhook
 ```
@@ -84,7 +84,7 @@ bot.on("message_reaction", async (ctx) => {
 });
 ```
 
-**Module-level bot singleton:** Instantiate `Bot` and register handlers once at import time, not inside `POST`. Re-instantiating per request loses middleware state and adds cold-start cost.
+**Bot lifetime:** A module-level Bot can reduce construction work, but correctness must not depend on in-memory middleware state in a serverless runtime. Current v2 creates a stateless Bot for each Route Handler invocation after resolving its database and keeps update claims and all durable state in Postgres.
 
 **Pages Router alternative (legacy Grammy Vercel guide):** `api/bot.ts` with `export default webhookCallback(bot, 'https')` ([grammy.dev/hosting/vercel](https://grammy.dev/hosting/vercel)). That path is documented for the older `api/` directory layout, not App Router.
 

@@ -1,5 +1,7 @@
 # 22 — Monorepo scaffold and Postgres foundation
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** A Turborepo monorepo on the `v2` branch with a Next.js App Router app as the Vercel deploy target. All five Postgres tables (`events`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`) are defined in Drizzle schema with migrations applied. Production connects to Neon over **standard Postgres TCP with connection pooling** on Vercel Fluid compute — the recommended “new way” per [Neon’s Vercel connection guide](https://neon.com/docs/guides/vercel-connection-methods): `pg` `Pool` + `attachDatabasePool` from `@vercel/functions` + Drizzle (`drizzle-orm/node-postgres`). Local dev and tests use PGlite so no Neon credentials, AWS keys, or Vercel secrets are required to build. Zod validates env vars and shared API/event shapes at boundaries. v1 `src/` remains in the repo but is excluded from the v2 Turborepo build graph.

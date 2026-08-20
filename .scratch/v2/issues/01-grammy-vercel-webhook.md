@@ -1,5 +1,7 @@
 # How does Grammy receive reaction Marks on Vercel?
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 Type: research
 Status: resolved
 

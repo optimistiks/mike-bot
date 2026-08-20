@@ -93,8 +93,8 @@ function diffReactions(old: ReactionType[], now: ReactionType[]) {
 | Remove humor, keep karma+  | —             | humor         | **Undo** humor Mark only                          |
 | Clear all                  | —             | all scoring   | **Undo** each removed scoring Mark                |
 
-**Apply:** For each emoji in `added` that maps to a Scoring reaction, persist a Mark `(chat, message_id, marker=user, author=…, type, season)`.  
-**Undo:** For each emoji in `removed` that maps to a Scoring reaction, delete/reverse the corresponding Mark for `(chat, message_id, marker=user, type)`.
+**Apply:** For each emoji in `added` that maps to a Scoring reaction, append the corresponding add Event.
+**Undo:** For each emoji in `removed` that maps to a Scoring reaction, append the corresponding undo Event. Existing Events are never changed or deleted.
 
 Grammy computes the same split via `ctx.reactions()`:
 
@@ -179,24 +179,17 @@ Bot API `setMessageReaction` note: bots (non-premium) may set **up to one** reac
 
 Rules from `CONTEXT.md` and ADR-0002:
 
-| Rule                                   | Telegram behavior                                                                                   | v2 handling                                                               |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **No self**                            | API does not block self-reaction                                                                    | After author lookup: if `marker.id === author.id`, ignore (no apply/undo) |
-| **No bots**                            | Bot reactions don't emit updates; author may be a bot                                               | Ignore if `user.is_bot` or cached `author.is_bot`                         |
-| **Karma+ / Karma− mutually exclusive** | Telegram **allows** multiple emojis; does **not** enforce exclusivity                               | Enforce in app logic on `new_reaction` / `emoji` after diff               |
-| **Switching karma ± allowed**          | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Undo old karma Mark, apply new — matches ADR "undo by removing"           |
-| **Humor independent**                  | Humor emoji can coexist with karma emoji in `new_reaction`                                          | Apply/undo humor Marks independently via `emojiAdded` / `emojiRemoved`    |
+| Rule                                       | Telegram behavior                                                                                   | v2 handling                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **No self**                                | API does not block self-reaction                                                                    | After author lookup: if `marker.id === author.id`, ignore (no apply/undo)                                 |
+| **No bots**                                | Bot reactions don't emit updates; author may be a bot                                               | Ignore if `user.is_bot` or cached `author.is_bot`                                                         |
+| **Karma plus and Karma minus independent** | Telegram allows multiple emojis at once                                                             | Apply or undo each changed Scoring reaction independently; simultaneous contributions cancel in net Karma |
+| **Switching karma ± allowed**              | Appears as `removed: [karma+]`, `added: [karma−]` in one update (or remove then add as two updates) | Undo old karma Mark, apply new — matches ADR "undo by removing"                                           |
+| **Humor independent**                      | Humor emoji can coexist with karma emoji in `new_reaction`                                          | Apply/undo humor Marks independently via `emojiAdded` / `emojiRemoved`                                    |
 
-### Karma mutual exclusion — implementation note
+### Independent Karma reactions — implementation note
 
-Telegram will **not** prevent a member from having both Karma plus and Karma minus on the same message if they add both without removing. Example problematic state: `new_reaction: [karma+, karma−]`.
-
-Recommended handling (product decision, not API-enforced):
-
-- **On apply:** If adding karma+ while karma− is in `emoji` (current), treat as switch — undo karma−, apply karma+ (or reject the add).
-- **On any update:** After diff, if both karma types appear in `emoji`, normalize to the most recently **added** one in this update, or reject the whole update.
-
-Humor is unaffected: karma+ and humor in `new_reaction` is valid and should create two independent Marks.
+Telegram may report Karma plus and Karma minus together in `new_reaction`. This is valid v2 state: append an add or undo Event only for each reaction present in the diff. Do not normalize the state or synthesize removal Events. Karma plus contributes `+1`, Karma minus contributes `-1`, and simultaneous contributions cancel in net Karma. Humor follows the same independent diff behavior.
 
 ---
 
@@ -221,7 +214,7 @@ Grammy API reference (`Composer.reaction`):
 
 1. Reads `ctx.reactions()` or manual diff.
 2. Resolves message author from cache.
-3. Applies domain guards (no self, no bots, karma exclusivity).
+3. Applies domain guards (no self and no bot Subject).
 4. Applies Marks for `emojiAdded` ∩ scoring emojis; undoes for `emojiRemoved` ∩ scoring emojis.
 
 Optional: `bot.reaction([karmaPlus, karmaMinus, humor], …)` for logging or fast-path **only if** a parent `message_reaction` handler still handles removes — using `bot.reaction()` alone is **insufficient** for scoring.
@@ -289,4 +282,4 @@ Also subscribe to `message` (or equivalent) so author cache is populated before 
 
 - **Which three emojis** map to Karma plus, Karma minus, Humor — ticket #05.
 - **Author cache storage** — ticket #07 (Marks DB may also store author on apply).
-- **Exact karma exclusivity policy** when both appear in `new_reaction` — product call if Telegram clients ever allow it.
+- **Karma reaction relationship:** resolved as independent; both may appear in `new_reaction`.

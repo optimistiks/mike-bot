@@ -1,5 +1,7 @@
 # 35 — Provide faithful signed TMA development personas
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Let a developer open the Mini App in an ordinary local browser and exercise the same authenticated TMA flow as production. The local environment supplies realistic Telegram platform events and valid signed init data for deterministic seeded personas, while production contains no usable development init-data signing or identity bypass.

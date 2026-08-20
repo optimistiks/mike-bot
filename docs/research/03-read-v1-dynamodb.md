@@ -17,7 +17,7 @@ v1 stores Marks in DynamoDB table `lolTable`. From Vercel or a one-off script, w
 | DynamoDB export to S3                      | Large table, audit trail, repeat exports | Overkill unless table is huge or PITR already on |
 | Live Scan/Query from Vercel                | Ongoing reads                            | **Reject** — keeps v1 AWS on the hot path        |
 
-**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Marks tagged `source: v1`, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats ([issue 08](../../.scratch/v2/issues/08-v1-history-path.md)).
+**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Events with `legacy_id` set, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats ([issue 08](../../.scratch/v2/issues/08-v1-history-path.md)).
 
 ---
 

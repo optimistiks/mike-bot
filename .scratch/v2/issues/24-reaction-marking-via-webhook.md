@@ -1,5 +1,7 @@
 # 24 — Reaction Marking via webhook
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** A Grammy bot wired to a POST webhook Route Handler (`webhookCallback` with `std/http` and `secretToken`). On `message` updates, upsert `message_authors` (author id, bot flag, date only — no text/media). On `message_reaction`, diff old/new reactions to append the correct Event type (👍👎🤣 add and undo types); enforce no self-Marking, no bot subjects, Karma plus/minus mutual exclusivity, Humor independent; upsert `chat_members` for Actor and Subject; dedupe via `processed_updates`. The bot stays silent in the group. Table-driven adapter tests cover reaction diff → event type and skip conditions; one PGlite integration test sends a synthetic Telegram update and asserts an Event row appears. That Event shows up on the ticket 23 leaderboard API/page.

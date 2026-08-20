@@ -1,5 +1,7 @@
 # 31 — Simplify script environment loading and enforce warning-free lint
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Make every developer and operator command use one obvious environment convention and make a successful lint run guarantee zero warnings. Migration, import, and webhook setup must keep their existing behavior without a custom environment-loading abstraction.

@@ -1,5 +1,7 @@
 # 33 — Authenticate TMA Members and authorize Chat access
 
+> Historical record: this resolved ticket is not canonical current-state documentation. Its question, answer, and acceptance criteria may now be false; use the Wayfinder map and specification for current behavior.
+
 **Parent:** [v2 spec](../spec.md)
 
 **What to build:** Treat Telegram launch data as the sole identity presented to protected APIs. A Member with valid, recent init data can list their registered Chats and read only a leaderboard for a Chat where they registered; forged, expired, or cross-Chat requests receive stable errors without data disclosure.

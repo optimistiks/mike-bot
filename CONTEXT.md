@@ -53,7 +53,7 @@ A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Mem
 _Avoid_: conflating with `chat_members` (display names); conflating with Telegram group membership
 
 **Registration message**:
-A bot-posted message in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any reaction on a Registration message registers the actor for Mini App access in that Chat. Registration messages are not pinned.
+A bot-posted ordinary message in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any added reaction on a Registration message registers the actor for Mini App access in that Chat.
 _Avoid_: treating registration reactions as Marks (no `events` row)
 
 **Member**:

@@ -173,16 +173,17 @@ async function handleMessageReactionUpdate(
   );
 }
 
-/** Process one Telegram update (dedup, cache, scoring). Used by webhook and tests. */
+/** Process one Telegram update atomically and report whether this call claimed it. */
 export async function handleTelegramUpdate(
   db: AppDatabase,
   update: Update,
-): Promise<void> {
-  await db.transaction(async (transaction) => {
+  onClaimedUpdate?: (db: AppDatabase) => Promise<void>,
+): Promise<boolean> {
+  return db.transaction(async (transaction) => {
     const transactionDb = transaction as unknown as AppDatabase;
     const isNew = await tryClaimUpdate(transactionDb, update.update_id);
     if (!isNew) {
-      return;
+      return false;
     }
 
     if (update.message) {
@@ -196,6 +197,9 @@ export async function handleTelegramUpdate(
     if (update.message_reaction) {
       await handleMessageReactionUpdate(transactionDb, update.message_reaction);
     }
+
+    await onClaimedUpdate?.(transactionDb);
+    return true;
   });
 }
 
