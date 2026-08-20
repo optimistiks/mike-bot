@@ -19,7 +19,7 @@ Other columns: `chat_id`, `actor_id`, `subject_id`, `message_id`, `created_at`, 
 
 Leaderboards aggregate by counting or weighting event types in `lib/scoring/`. Event types are enforced by the application rather than a database constraint, so adding an Event type does not require a schema migration.
 
-v1 DynamoDB rows are converted to `events` on import (`plus`→`karma.plus`, etc.); see `.scratch/v2/issues/17-legacy-read-mapping.md` and `21-v1-import-into-events.md`. No separate legacy table.
+v1 DynamoDB rows are converted to Events on a one-shot import (`plus`→`karma.plus`, `minus`→`karma.minus`, `lol`→`humor.add`). Their source IDs populate `legacy_id` so retries are idempotent; there is no separate legacy table or live DynamoDB read path.
 
 Display names live in `chat_members`. Chat roster for the Mini App picker lives in `chat_memberships` (ADR-0005).
 

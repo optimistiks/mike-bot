@@ -1,6 +1,5 @@
 # Research: How do we read v1 DynamoDB Marks?
 
-**Ticket:** [How do we read v1 DynamoDB Marks?](../../.scratch/v2/issues/03-read-v1-dynamodb.md)  
 **Status:** Research complete  
 **Date:** 2026-08-18
 
@@ -17,7 +16,7 @@ v1 stores Marks in DynamoDB table `lolTable`. From Vercel or a one-off script, w
 | DynamoDB export to S3                      | Large table, audit trail, repeat exports | Overkill unless table is huge or PITR already on |
 | Live Scan/Query from Vercel                | Ongoing reads                            | **Reject** — keeps v1 AWS on the hot path        |
 
-**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Events with `legacy_id` set, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats ([issue 08](../../.scratch/v2/issues/08-v1-history-path.md)).
+**Recommendation:** Run a **one-shot import** from a local machine or CI job (not the Vercel runtime). Scan `lolTable`, transform rows into v2 Postgres Events with `legacy_id` set, then **delete the IAM user** (or revoke keys). Do not live-query DynamoDB from Vercel for Mini App stats (see [ADR 0003](../adr/0003-honest-seasonal-stats.md) and [ADR 0004](../adr/0004-event-storage.md)).
 
 ---
 
@@ -86,18 +85,18 @@ Source: dynamo-easy `dateToNumberMapper` ([`date-to-number.mapper.js`](https://u
 
 ### v1 → v2 field mapping
 
-| v1                 | v2 concept                   | Notes                                                                                                                           |
-| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `lolType: "plus"`  | Karma plus Mark              | +1 Karma to `toUser`                                                                                                            |
-| `lolType: "minus"` | Karma minus Mark             | −1 Karma to `toUser`                                                                                                            |
-| `lolType: "lol"`   | Humor Mark                   | +1 Humor to `toUser`                                                                                                            |
-| `fromUser.id`      | Mark author (Member)         | For “given” leaderboards                                                                                                        |
-| `toUser.id`        | Mark target (Member)         | For “received” leaderboards                                                                                                     |
-| `createdAt`        | Season bucket                | Calendar month in a **single configured timezone** (open decision — [issue 10](../../.scratch/v2/issues/10-season-timezone.md)) |
-| `chatId`           | Chat filter                  | v1 `/stats` already filters by `ctx.chat.id`; import should filter to the target group if v2 is single-chat                     |
-| `id`               | Import dedup key             | Stable v1 primary key → idempotent upsert                                                                                       |
-| `toMessageId`      | Not needed for Season totals | Useful for audit/debug only                                                                                                     |
-| `*.username`       | Display / PII                | Optional at import; can refresh from Telegram later                                                                             |
+| v1                 | v2 concept                   | Notes                                                                                                       |
+| ------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `lolType: "plus"`  | Karma plus Mark              | +1 Karma to `toUser`                                                                                        |
+| `lolType: "minus"` | Karma minus Mark             | −1 Karma to `toUser`                                                                                        |
+| `lolType: "lol"`   | Humor Mark                   | +1 Humor to `toUser`                                                                                        |
+| `fromUser.id`      | Mark author (Member)         | For “given” leaderboards                                                                                    |
+| `toUser.id`        | Mark target (Member)         | For “received” leaderboards                                                                                 |
+| `createdAt`        | Season bucket                | Calendar month in `Europe/Moscow`                                                                           |
+| `chatId`           | Chat filter                  | v1 `/stats` already filters by `ctx.chat.id`; import should filter to the target group if v2 is single-chat |
+| `id`               | Import dedup key             | Stable v1 primary key → idempotent upsert                                                                   |
+| `toMessageId`      | Not needed for Season totals | Useful for audit/debug only                                                                                 |
+| `*.username`       | Display / PII                | Optional at import; can refresh from Telegram later                                                         |
 
 ### Fields required for honest Seasonal bucketing
 
@@ -106,7 +105,7 @@ Source: dynamo-easy `dateToNumberMapper` ([`date-to-number.mapper.js`](https://u
 1. **`createdAt`** — assign Mark to Season (`YYYY-MM` in chosen timezone).
 2. **`lolType`** — split Karma plus / Karma minus / Humor counts.
 3. **`fromUser.id`** and **`toUser.id`** — per-Member received and given stats.
-4. **`chatId`** — if importing only one group’s history (recommended until [issue 09](../../.scratch/v2/issues/09-chats-and-language.md) decides otherwise).
+4. **`chatId`** — preserve each Mark's Chat scope.
 
 **Strongly recommended for import integrity:**
 
@@ -214,7 +213,7 @@ Good **ad-hoc inspection** or **backup before import**; for production import, p
 
 **Verdict: Reject.**
 
-- Keeps v1 AWS infrastructure on the **hot path** for v2 ([issue 08](../../.scratch/v2/issues/08-v1-history-path.md)).
+- Keeps v1 AWS infrastructure on the **hot path** for v2, contrary to the one-store decision in [ADR 0003](../adr/0003-honest-seasonal-stats.md).
 - v1 table has **no GSI on `chatId` or `createdAt`** — every stats request is a full Scan (same as v1 `/stats`, but now from serverless at scale).
 - Adds latency, cost, and failure domain to every Mini App load.
 - Forces long-lived AWS credentials (or OIDC plumbing) in Vercel for data that is **immutable history**.
@@ -314,7 +313,7 @@ Additional actions per [AWS export docs](https://docs.aws.amazon.com/amazondynam
 
 ### Other
 
-- **Timezone:** Season boundaries for v1 `createdAt` must match v2 config ([issue 10](../../.scratch/v2/issues/10-season-timezone.md)) — wrong TZ shifts Marks across month boundaries.
+- **Timezone:** Season boundaries for v1 `createdAt` must use `Europe/Moscow`, like v2 — a different timezone shifts Marks across month boundaries.
 - **Table name / region:** Confirm deployed region and exact table name in the v1 AWS account (CodeStar stack).
 - **Transition window:** If v1 and v2 run in parallel, either re-import delta before cutover or accept a gap in v1 history.
 
@@ -342,5 +341,5 @@ Additional actions per [AWS export docs](https://docs.aws.amazon.com/amazondynam
 | Scan RCU / filter behavior             | [DynamoDB Scan](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html)                                         |
 | Export requires PITR                   | [Export to S3](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataExport_Requesting.html)                       |
 | Vercel OIDC vs static keys             | [Vercel AWS OIDC](https://vercel.com/docs/oidc/aws)                                                                                 |
-| One-shot import preference             | [issue 08](../../.scratch/v2/issues/08-v1-history-path.md), [ADR 0003](../adr/0003-honest-seasonal-stats.md)                        |
-| Season timezone open decision          | [issue 10](../../.scratch/v2/issues/10-season-timezone.md)                                                                          |
+| One-shot import preference             | [ADR 0003](../adr/0003-honest-seasonal-stats.md), [ADR 0004](../adr/0004-event-storage.md)                                          |
+| Season timezone decision               | [ADR 0003](../adr/0003-honest-seasonal-stats.md)                                                                                    |

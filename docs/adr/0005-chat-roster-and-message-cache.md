@@ -16,8 +16,10 @@ Columns:
 
 **Do not store:** text, caption, entities, media, replies, forwards, edits. Not needed for scoring; adds privacy surface and churn.
 
-**Upsert:** first write wins for `author_id` (author of a message doesn't change). Update `author_is_bot` / `message_date` only if missing.
+**Insert:** first write wins for the complete cached record because a message's author and original metadata do not change.
 
 **No row → skip scoring** on reaction for that message (bot never saw it).
 
 **Webhook idempotency:** Store processed `update_id`; ignore duplicates before appending events.
+
+**Display identity:** Keep each Member's latest known display name per Chat outside Event history. New v2 observations replace older names; the v1 import only fills identities that v2 has not observed.

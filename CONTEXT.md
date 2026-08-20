@@ -5,89 +5,89 @@ A Telegram group scoring bot: members mark each other's messages, and a Mini App
 ## Language
 
 **Karma**:
-A member's net score from Karma plus minus Karma minus. Karma plus and Karma minus are independent and may both be active on the same message; their contributions are summed. An integer, no decay, derived in application code from karma-related event types where the member is `subject_id`.
+A Member's net score: Karma plus minus Karma minus. Karma plus and Karma minus are independent and may both be active on the same message.
 _Avoid_: carma, score, уважение
 
 **Karma plus**:
-The scoring reaction that adds 1 Karma to the message author. Persisted as event type `karma.plus`.
+The Scoring reaction that adds one Karma to a message's author.
 _Avoid_: plus, +, ➕ as the concept name (those are v1 triggers)
 
 **Karma minus**:
-The scoring reaction that subtracts 1 Karma from the message author. Persisted as event type `karma.minus`.
+The Scoring reaction that subtracts one Karma from a message's author.
 _Avoid_: minus, −, ➖ as the concept name
 
 **Humor**:
-Points a member receives when someone puts the Humor scoring reaction on their message. An integer, no decay. Derived from humor-related event types.
-_Avoid_: lol, лол, humor points as a separate type from Humor
+The count a Member receives when others apply the Humor Scoring reaction to their messages. Humor has no decay.
+_Avoid_: lol, лол, humor points as a separate concept
 
 **Event**:
-An append-only row in `events` with a `type` string (e.g. `karma.plus`, `karma.undo.minus`, `humor.add`). No numeric value column — how each type affects scores is defined in application code, not the schema. Events are never updated or deleted.
-_Avoid_: mark row, lol record, hardcoded score deltas in the database
+An immutable record that a Mark was applied or removed. Its Event type determines its scoring effect; Events are never rewritten or deleted.
+_Avoid_: mark row, lol record, mutable score
 
 **Event type**:
-The `type` field on an Event. Closed vocabulary for v2 reactions: `karma.plus`, `karma.minus`, `karma.undo.plus`, `karma.undo.minus`, `humor.add`, `humor.undo.add`.
-_Avoid_: encoding scores as numbers in the type name; `karma.add` / `karma.remove` (superseded naming)
+The closed vocabulary describing an Event: `karma.plus`, `karma.minus`, `karma.undo.plus`, `karma.undo.minus`, `humor.add`, or `humor.undo.add`.
+_Avoid_: encoding numeric weights in the name; `karma.add` / `karma.remove`
 
 **Actor**:
-The Member who applied or removed a Scoring reaction. Maps to Telegram `MessageReactionUpdated.user` → `actor_id` on the Event.
-_Avoid_: confusing actor with subject
+The Member who applies or removes a Scoring reaction.
+_Avoid_: confusing Actor with Subject
 
 **Subject**:
-The Member who wrote the message being reacted to — who receives the score. Maps to `subject_id` on the Event. **Not** present on the reaction update; resolved via `message_authors` cache.
-_Avoid_: assuming `reaction.user` is the subject
+The Member who wrote the marked message and receives the scoring effect.
+_Avoid_: assuming the reacting Member is the Subject
 
 **Mark**:
-The user-facing act of applying or removing a Scoring reaction. Each change appends one Event with the matching event type.
-_Avoid_: conflating Mark with a single DB row; deleting on undo
+The user-facing act of applying or removing a Scoring reaction. Each change produces one Event.
+_Avoid_: treating removal as deletion of an earlier Event
 
 **Scoring reaction**:
-One of the three configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), 🤣 (Humor). Standard emoji only. The v2 adapter maps these to event types.
+One of the configured Telegram reactions: 👍 (Karma plus), 👎 (Karma minus), or 🤣 (Humor).
 _Avoid_: vote, emoji (too vague), лол
 
 **Chat**:
-A conversation scoped by `chat_id`. The bot may serve many Chats; leaderboards are scoped per Chat.
-_Avoid_: assuming a single group
+A Telegram conversation with its own Members, Marks, registration, and leaderboards. Mike-bot may serve many Chats without sharing their data.
+_Avoid_: assuming one fixed group
 
 **Chat membership**:
-A row in `chat_memberships` keyed by (`chat_id`, `user_id`) recording that a Member has **explicitly registered** for Mini App access in that Chat (by reacting to a registration message). Removed on `chat_member` leave/kick. Used by the Mini App chat picker. Marks in `events` are recorded regardless of registration.
-_Avoid_: conflating with `chat_members` (display names); conflating with Telegram group membership
+A Member's explicit registration for Mini App access in one Chat. It is independent of whether the Member may receive Marks or currently belongs to the Telegram group.
+_Avoid_: Telegram group membership, Chat member
 
 **Registration message**:
-A bot-posted ordinary message in a Chat, created when an admin runs `/register`. Its `message_id` is stored in `registration_messages`. Any added reaction on a Registration message registers the actor for Mini App access in that Chat.
-_Avoid_: treating registration reactions as Marks (no `events` row)
+An ordinary bot message posted after a Chat administrator runs `/register`. Reacting to it registers that Actor for Mini App access in that Chat.
+_Avoid_: treating its reactions as Marks
 
 **Member**:
-A non-bot user in a Chat, identified by `user_id`. Members cannot Mark themselves or bots. Display name comes from `chat_members`, not from Event rows.
-_Avoid_: user, account (prefer Member in this domain)
+A non-bot participant identified by their stable Telegram identity. Members cannot Mark themselves or bots.
+_Avoid_: account; user when discussing this domain role
 
 **Chat member**:
-A row in `chat_members` keyed by (`chat_id`, `user_id`) holding the latest known `@username` (or first name). Updated when a Member appears in a v2 Event. Seeded from v1 import (`fromUser`/`toUser` in `scripts/import-v1.ts`) for v1-only Members.
-_Avoid_: storing display names only on Event rows; conflating with chat membership roster
+The latest known display identity for a Member in one Chat. It is presentation data, not proof of Chat membership.
+_Avoid_: Chat membership
 
 **Message author**:
-A row in `message_authors` keyed by (`chat_id`, `message_id`) → `author_id`, plus `author_is_bot` and `message_date`. Populated when the bot receives `message` updates. Used to resolve `subject_id` on reaction events. Do not store message text or media.
-_Avoid_: reading subject from `MessageReactionUpdated.user`; caching full message bodies
+The cached identity of a message's Subject, used because Telegram reaction updates identify the Actor but not the Subject. Message content is not part of this concept.
+_Avoid_: storing message bodies; inferring the Subject from the Actor
 
 **Season**:
-A calendar month inside a calendar year (e.g. 2026-08). Events belong to the Season in which they were created.
-_Avoid_: period, window
+A calendar month within a calendar year, interpreted in `Europe/Moscow`. Events belong to the Season in which they occurred.
+_Avoid_: period, rolling window
 
 **Current Season**:
-The Season for today's year and month in `Europe/Moscow`. The Mini App must show it as the live season (UI copy may say "Ongoing season").
-_Avoid_: treating "ongoing" as a different kind of Season
+The Season containing the present date in `Europe/Moscow`.
+_Avoid_: treating ongoing as a different kind of Season
 
 **Mini App**:
-The Telegram Mini App that shows honest Karma and Humor leaderboards by Season, including v1 history. Opens from the Bot Menu Button. Opener picks a Chat from registered memberships (`chat_memberships`), then sees that Chat's boards. Unregistered openers see a prompt to complete registration first.
-_Avoid_: stats command, /stats
+The Telegram app that shows a registered Member the seasonal Karma and Humor leaderboards for a selected Chat. It opens from the bot's Menu Button.
+_Avoid_: stats command, `/stats`
 
 **v1**:
-The AWS Lambda Telegraf bot on `master`. It scored via reply text (`+`, `-`, `лол`) and stored rows in DynamoDB `lolTable`. v1 history is one-shot imported into `events` (converted to v2 event types, `legacy_id` set) — see [v1 import into events](.scratch/v2/issues/21-v1-import-into-events.md).
-_Avoid_: old bot, legacy bot as glossary terms (say v1)
+The previous AWS-hosted bot on `master`, whose reply-based Marks are imported once into v2 history.
+_Avoid_: old bot, legacy bot as glossary terms
 
 **Crown**:
-Flair on the #1 entry in a leaderboard section (👑).
+Flair on the first entry in a leaderboard section (👑).
 _Avoid_: winner badge as a separate concept
 
 **Chicken**:
-Flair on the last-place entry in a leaderboard section (🐔), matching v1 `/stats` tone.
+Flair on the last entry in a leaderboard section (🐔), preserving v1's tone.
 _Avoid_: loser badge as a separate concept

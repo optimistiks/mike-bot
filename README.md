@@ -34,7 +34,6 @@ accepts only Telegram data signed by `BOT_TOKEN`.
 - `apps/web` — Next.js App Router app (webhook, Mini App, API)
 - `packages/eslint-config` — shared framework-agnostic ESLint config
 - `docs/` — ADRs and research
-- `.scratch/v2/` — spec and implementation tickets
 
 Branch policy: all v2 work on `v2`. Do not commit to `master` (live v1 until cutover).
 
