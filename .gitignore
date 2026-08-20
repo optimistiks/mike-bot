@@ -13,3 +13,4 @@ tmp/
 .data/
 .vitest-attachments/
 **/__screenshots__/
+.vercel
