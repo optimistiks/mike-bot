@@ -7,6 +7,7 @@ out
 build
 coverage
 .turbo
+.vercel
 apps/web/drizzle
 apps/web/public/mockServiceWorker.js
 .agents

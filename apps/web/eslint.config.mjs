@@ -1,9 +1,9 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import { baseConfig } from "@mike-bot/eslint-config/base";
-import nextVitals from "eslint-config-next/core-web-vitals";
+import { nextConfig } from "@mike-bot/eslint-config/next";
 
 export default defineConfig(
-  ...nextVitals,
+  ...nextConfig,
   {
     settings: {
       react: { version: "19.2.8" },
