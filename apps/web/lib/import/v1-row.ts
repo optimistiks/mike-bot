@@ -31,7 +31,7 @@ export interface ImportedEventRow {
   legacyId: string;
 }
 
-export interface ImportedMemberRow {
+export interface ImportedDisplayIdentityRow {
   chatId: number;
   userId: number;
   displayName: string;
@@ -39,7 +39,7 @@ export interface ImportedMemberRow {
 
 export interface ConvertedV1Row {
   event: ImportedEventRow;
-  members: ImportedMemberRow[];
+  displayIdentities: ImportedDisplayIdentityRow[];
 }
 
 export function v1DisplayName(user: { id: number; username?: string }): string {
@@ -70,7 +70,7 @@ export function convertV1Row(row: V1LolRow): ConvertedV1Row {
       createdAt: new Date(row.createdAt),
       legacyId: row.id,
     },
-    members: [
+    displayIdentities: [
       {
         chatId,
         userId: row.fromUser.id,

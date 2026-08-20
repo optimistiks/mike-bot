@@ -5,7 +5,12 @@ import type { EventType } from "@/lib/domain/event";
 import { aggregateLeaderboard } from "./aggregate";
 import { eventTypeToContributions } from "./contributions";
 import { EVENT_TYPES } from "./types";
-import { getCurrentSeason, isEventInSeason, seasonDateRange } from "./season";
+import {
+  creditedSeasonForReaction,
+  getCurrentSeason,
+  seasonDateRange,
+  seasonForDate,
+} from "./season";
 import type { ScoringEvent } from "./types";
 
 describe("eventTypeToContributions", () => {
@@ -88,14 +93,14 @@ describe("season bucketing", () => {
     const augustSeason = { year: 2026, month: 8 };
 
     // 2026-07-31T20:59:59.999Z = 2026-07-31 23:59:59 Moscow
-    expect(
-      isEventInSeason(new Date("2026-07-31T20:59:59.999Z"), augustSeason),
-    ).toBe(false);
+    expect(seasonForDate(new Date("2026-07-31T20:59:59.999Z"))).not.toEqual(
+      augustSeason,
+    );
 
     // 2026-07-31T21:00:00.000Z = 2026-08-01 00:00:00 Moscow
-    expect(
-      isEventInSeason(new Date("2026-07-31T21:00:00.000Z"), augustSeason),
-    ).toBe(true);
+    expect(seasonForDate(new Date("2026-07-31T21:00:00.000Z"))).toEqual(
+      augustSeason,
+    );
   });
 
   it("derives Current Season from today in Moscow", () => {
@@ -109,6 +114,23 @@ describe("season bucketing", () => {
       end: new Date("2026-12-31T21:00:00.000Z"),
     });
   });
+
+  it("keeps a message Season open for exactly ten minutes", () => {
+    const messageDate = new Date("2026-01-31T20:00:00.000Z");
+
+    expect(
+      creditedSeasonForReaction(
+        messageDate,
+        new Date("2026-01-31T21:09:59.999Z"),
+      ),
+    ).toEqual({ year: 2026, month: 1 });
+    expect(
+      creditedSeasonForReaction(
+        messageDate,
+        new Date("2026-01-31T21:10:00.000Z"),
+      ),
+    ).toBeNull();
+  });
 });
 
 function event(
@@ -117,7 +139,12 @@ function event(
   subjectId: number,
   createdAt: string,
 ): ScoringEvent {
-  return { type, actorId, subjectId, createdAt: new Date(createdAt) };
+  return {
+    type,
+    actorId,
+    subjectId,
+    season: seasonForDate(new Date(createdAt)),
+  };
 }
 
 describe("aggregateLeaderboard", () => {
@@ -151,7 +178,7 @@ describe("aggregateLeaderboard", () => {
 
     expect(result.sections[2]?.entries).toEqual([
       { userId: 10, score: 1, isCrown: true, isChicken: false },
-      { userId: 20, score: 1, isCrown: false, isChicken: true },
+      { userId: 20, score: 1, isCrown: true, isChicken: false },
     ]);
 
     expect(result.sections[3]?.entries).toEqual([
@@ -176,7 +203,7 @@ describe("aggregateLeaderboard", () => {
 
     expect(karmaReceived).toEqual([
       { userId: 50, score: 1, isCrown: true, isChicken: false },
-      { userId: 60, score: 1, isCrown: false, isChicken: true },
+      { userId: 60, score: 1, isCrown: true, isChicken: false },
     ]);
   });
 
@@ -209,7 +236,7 @@ describe("aggregateLeaderboard", () => {
     ]);
   });
 
-  it("marks crown on #1 and chicken on last in each section", () => {
+  it("gives all tied entries a Crown and no Chicken", () => {
     const events: ScoringEvent[] = [
       event("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
       event("karma.plus", 2, 101, "2026-08-02T12:00:00.000Z"),
@@ -228,15 +255,36 @@ describe("aggregateLeaderboard", () => {
     expect(entries[1]).toMatchObject({
       userId: 101,
       score: 1,
-      isCrown: false,
+      isCrown: true,
       isChicken: false,
     });
     expect(entries[2]).toMatchObject({
       userId: 102,
       score: 1,
-      isCrown: false,
-      isChicken: true,
+      isCrown: true,
+      isChicken: false,
     });
+  });
+
+  it("gives flair to every tied highest and tied lowest score", () => {
+    const events: ScoringEvent[] = [
+      event("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
+      event("karma.plus", 2, 100, "2026-08-01T12:00:00.000Z"),
+      event("karma.plus", 1, 101, "2026-08-01T12:00:00.000Z"),
+      event("karma.plus", 2, 101, "2026-08-01T12:00:00.000Z"),
+      event("karma.plus", 1, 102, "2026-08-01T12:00:00.000Z"),
+      event("karma.plus", 1, 103, "2026-08-01T12:00:00.000Z"),
+    ];
+
+    const entries = aggregateLeaderboard(events, august2026).sections[0]
+      ?.entries;
+
+    expect(entries).toEqual([
+      { userId: 100, score: 2, isCrown: true, isChicken: false },
+      { userId: 101, score: 2, isCrown: true, isChicken: false },
+      { userId: 102, score: 1, isCrown: false, isChicken: true },
+      { userId: 103, score: 1, isCrown: false, isChicken: true },
+    ]);
   });
 
   it("flags Current Season when the requested Season matches today in Moscow", () => {

@@ -15,7 +15,7 @@
  * Optional env:
  *   IMPORT_TARGET=pglite — use PGlite instead of DATABASE_URL
  *   PGLITE_DATA_DIR — persist PGlite files (default: in-memory)
- *   IMPORT_DUMP_DIR — write events/chat_members/leaderboards JSON after import
+ *   IMPORT_DUMP_DIR — write Events/Display identities/leaderboards JSON after import
  *   LOL_TABLE_NAME (default: lolTable)
  *   IMPORT_CHAT_ID (numeric Telegram chat id filter)
  */
@@ -105,7 +105,9 @@ async function main(): Promise<void> {
     console.log(
       `  events skipped (legacy_id conflict): ${String(stats.eventsSkipped)}`,
     );
-    console.log(`  chat_members inserted: ${String(stats.membersInserted)}`);
+    console.log(
+      `  display identities inserted: ${String(stats.displayIdentitiesInserted)}`,
+    );
 
     const dumpDir = process.env.IMPORT_DUMP_DIR?.trim();
     if (dumpDir) {

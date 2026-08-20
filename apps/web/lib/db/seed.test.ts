@@ -14,27 +14,27 @@ import {
   resetAndSeedDatabase,
 } from "./seed";
 import {
-  chatMembers,
-  chatMemberships,
+  displayIdentities,
   events,
   processedUpdates,
   registrationMessages,
+  registrations,
 } from "./schema";
 
 async function fixtureSnapshot(
   db: Awaited<ReturnType<typeof createPgliteDb>>["db"],
 ) {
   return {
-    members: await db
+    displayIdentities: await db
       .select()
-      .from(chatMembers)
-      .orderBy(asc(chatMembers.chatId), asc(chatMembers.userId)),
-    memberships: await db
-      .select()
-      .from(chatMemberships)
-      .orderBy(asc(chatMemberships.chatId), asc(chatMemberships.userId)),
-    events: await db.select().from(events).orderBy(asc(events.id)),
+      .from(displayIdentities)
+      .orderBy(asc(displayIdentities.chatId), asc(displayIdentities.userId)),
     registrations: await db
+      .select()
+      .from(registrations)
+      .orderBy(asc(registrations.chatId), asc(registrations.userId)),
+    events: await db.select().from(events).orderBy(asc(events.id)),
+    registrationMessages: await db
       .select()
       .from(registrationMessages)
       .orderBy(asc(registrationMessages.chatId)),
@@ -127,13 +127,13 @@ describe("resetAndSeedDatabase", () => {
           ],
         },
       ]);
-      expect(second.members).toHaveLength(5);
-      expect(second.memberships).toEqual([
+      expect(second.displayIdentities).toHaveLength(5);
+      expect(second.registrations).toEqual([
         { chatId: SECONDARY_FIXTURE_CHAT_ID, userId: FORBIDDEN_PERSONA_ID },
         { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: REGISTERED_PERSONA_ID },
       ]);
       expect(
-        second.members.some(
+        second.displayIdentities.some(
           (member) => member.userId === UNREGISTERED_PERSONA_ID,
         ),
       ).toBe(true);

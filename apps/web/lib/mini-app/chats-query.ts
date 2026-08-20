@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { chatMemberships } from "@/lib/db/schema";
+import { registrations } from "@/lib/db/schema";
 
 export function formatChatLabel(chatId: number): string {
   return `Чат ${String(chatId)}`;
@@ -12,9 +12,9 @@ export async function listChatsForUser(
   userId: number,
 ): Promise<{ chatId: number; label: string }[]> {
   const rows = await db
-    .select({ chatId: chatMemberships.chatId })
-    .from(chatMemberships)
-    .where(eq(chatMemberships.userId, userId));
+    .select({ chatId: registrations.chatId })
+    .from(registrations)
+    .where(eq(registrations.userId, userId));
 
   return rows
     .map((row) => ({

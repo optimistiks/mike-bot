@@ -6,10 +6,10 @@ import type { Update, UserFromGetMe } from "grammy/types";
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import { registrationMessages } from "@/lib/db/schema";
 
+import { isGroupChat } from "./chat";
 import {
   handleRegisterCommand,
   isChatAdminStatus,
-  isGroupChat,
   recordRegistrationMessage,
   REGISTER_ADMIN_ONLY_MESSAGE,
   REGISTER_GROUP_ONLY_MESSAGE,
@@ -76,6 +76,11 @@ function mockRegisterContext(options: {
 }
 
 describe("register command guards", () => {
+  it("describes access rather than leaderboard participation", () => {
+    expect(REGISTRATION_MESSAGE_TEXT).toContain("получить доступ");
+    expect(REGISTRATION_MESSAGE_TEXT).not.toContain("участвовать");
+  });
+
   it.each([
     ["group", true],
     ["supergroup", true],

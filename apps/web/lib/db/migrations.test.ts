@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "./pglite";
 import {
-  chatMembers,
-  chatMemberships,
+  displayIdentities,
   events,
   messageAuthors,
   processedUpdates,
   registrationMessages,
+  registrations,
 } from "./schema";
 
 describe("Drizzle migrations on PGlite", () => {
@@ -24,13 +24,13 @@ describe("Drizzle migrations on PGlite", () => {
         createdAt: new Date("2026-08-01T09:00:00.000Z"),
       });
 
-      await pglite.db.insert(chatMembers).values({
+      await pglite.db.insert(displayIdentities).values({
         chatId: -100123,
         userId: 2,
         displayName: "@alice",
       });
 
-      await pglite.db.insert(chatMemberships).values({
+      await pglite.db.insert(registrations).values({
         chatId: -100123,
         userId: 1,
       });
@@ -59,12 +59,12 @@ describe("Drizzle migrations on PGlite", () => {
       );
 
       expect(tables.rows.map((row) => row.tablename)).toEqual([
-        "chat_members",
-        "chat_memberships",
+        "display_identities",
         "events",
         "message_authors",
         "processed_updates",
         "registration_messages",
+        "registrations",
       ]);
     } finally {
       await closePgliteDb(pglite);

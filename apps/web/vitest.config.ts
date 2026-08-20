@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "node",
     include: ["**/*.test.ts"],
     exclude: [...configDefaults.exclude, "**/*.browser.test.*"],
+    maxWorkers: 4,
     testTimeout: 10_000,
   },
   resolve: {

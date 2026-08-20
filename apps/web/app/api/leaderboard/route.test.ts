@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
-import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
+import { displayIdentities, events, registrations } from "@/lib/db/schema";
 import {
   PRIMARY_FIXTURE_CHAT_ID,
   REGISTERED_PERSONA_ID,
@@ -66,11 +66,11 @@ describe("GET /api/leaderboard", () => {
 
     expect(response.status).toBe(403);
     await expect(db.select().from(events)).resolves.toEqual([]);
-    await expect(db.select().from(chatMembers)).resolves.toEqual([]);
-    await expect(db.select().from(chatMemberships)).resolves.toEqual([]);
+    await expect(db.select().from(displayIdentities)).resolves.toEqual([]);
+    await expect(db.select().from(registrations)).resolves.toEqual([]);
   });
 
-  it("returns the stable 403 response for a Chat without membership", async () => {
+  it("returns the stable 403 response for a Chat without Registration", async () => {
     const db = await getRuntimeDb();
     await resetAndSeedDatabase(db, FIXTURE_NOW);
 

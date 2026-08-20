@@ -105,7 +105,7 @@ vercel env pull .env.local
 pnpm db:migrate
 ```
 
-Tables: `events`, `chat_members`, `chat_memberships`, `message_authors`, `processed_updates`, `registration_messages`.
+Tables: `events`, `display_identities`, `registrations`, `message_authors`, `processed_updates`, `registration_messages`.
 
 Production runtime uses `pg` `Pool` + `attachDatabasePool` on Vercel Fluid compute — see `apps/web/lib/db/README.md`.
 
@@ -146,17 +146,17 @@ AWS_SECRET_ACCESS_KEY="..." \
 pnpm import:v1
 ```
 
-| Variable                | Required | Purpose                                                       |
-| ----------------------- | -------- | ------------------------------------------------------------- |
-| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`) |
-| `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                    |
-| `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                     |
-| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                               |
-| `LOL_TABLE_NAME`        | no       | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)        |
-| `IMPORT_CHAT_ID`        | no       | Import one chat only (still scans full table)                 |
-| `IMPORT_TARGET`         | no       | `pglite` = local PGlite instead of Neon                       |
-| `PGLITE_DATA_DIR`       | no       | Persist PGlite files between runs                             |
-| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `chat_members.json`, `leaderboards.json` |
+| Variable                | Required | Purpose                                                             |
+| ----------------------- | -------- | ------------------------------------------------------------------- |
+| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`)       |
+| `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                          |
+| `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                           |
+| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                                     |
+| `LOL_TABLE_NAME`        | no       | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)              |
+| `IMPORT_CHAT_ID`        | no       | Import one chat only (still scans full table)                       |
+| `IMPORT_TARGET`         | no       | `pglite` = local PGlite instead of Neon                             |
+| `PGLITE_DATA_DIR`       | no       | Persist PGlite files between runs                                   |
+| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `display_identities.json`, `leaderboards.json` |
 
 \* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`. † Not required when `IMPORT_TARGET=pglite`.
 
@@ -225,7 +225,7 @@ Repeat for every supergroup that should use v2.
 2. **Promote to administrator** — required for `message_reaction` updates. Without admin, reactions work in the client but the bot receives nothing.
 3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
 4. A **group admin** sends `/register` in the group. The bot posts a Registration message in Russian.
-5. **Members** react to the Registration message with any reaction → `chat_memberships` row → Chat appears in the Mini App picker.
+5. **Members** react to the Registration message with any reaction → `registrations` row → Chat appears in the Mini App picker.
 6. **Scoring:** Members use 👍 👎 🤣 on others' messages. The bot stays silent. Marks work even for unregistered Members; only Mini App access requires reacting to a Registration message.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).

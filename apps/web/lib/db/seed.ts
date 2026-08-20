@@ -12,9 +12,10 @@ import {
   UNREGISTERED_PERSONA_ID,
 } from "./seed-personas";
 import {
-  chatMembers,
-  chatMemberships,
+  displayIdentities,
   events,
+  messageAuthors,
+  registrations,
   registrationMessages,
   schema,
 } from "./schema";
@@ -29,7 +30,7 @@ export {
 
 const FIXTURE_GENERATOR_SEED = 42_424;
 
-const MEMBERS = [
+const DISPLAY_IDENTITIES = [
   {
     chatId: PRIMARY_FIXTURE_CHAT_ID,
     userId: REGISTERED_PERSONA_ID,
@@ -49,7 +50,7 @@ const MEMBERS = [
   },
 ] as const;
 
-const MEMBERSHIPS = [
+const REGISTRATIONS = [
   { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: REGISTERED_PERSONA_ID },
   { chatId: SECONDARY_FIXTURE_CHAT_ID, userId: FORBIDDEN_PERSONA_ID },
 ] as const;
@@ -147,18 +148,36 @@ function moscowSeasonStart(now: Date, monthOffset: number): Date {
   );
 }
 
-async function seedMembers(db: AppDatabase): Promise<void> {
-  for (const member of MEMBERS) {
-    await seed(db, { chatMembers }, { seed: FIXTURE_GENERATOR_SEED }).refine(
+async function seedDisplayIdentities(db: AppDatabase): Promise<void> {
+  for (const identity of DISPLAY_IDENTITIES) {
+    await seed(
+      db,
+      { displayIdentities },
+      { seed: FIXTURE_GENERATOR_SEED },
+    ).refine((generators) => ({
+      displayIdentities: {
+        count: 1,
+        columns: {
+          chatId: generators.default({ defaultValue: identity.chatId }),
+          userId: generators.default({ defaultValue: identity.userId }),
+          displayName: generators.default({
+            defaultValue: identity.displayName,
+          }),
+        },
+      },
+    }));
+  }
+}
+
+async function seedRegistrations(db: AppDatabase): Promise<void> {
+  for (const registration of REGISTRATIONS) {
+    await seed(db, { registrations }, { seed: FIXTURE_GENERATOR_SEED }).refine(
       (generators) => ({
-        chatMembers: {
+        registrations: {
           count: 1,
           columns: {
-            chatId: generators.default({ defaultValue: member.chatId }),
-            userId: generators.default({ defaultValue: member.userId }),
-            displayName: generators.default({
-              defaultValue: member.displayName,
-            }),
+            chatId: generators.default({ defaultValue: registration.chatId }),
+            userId: generators.default({ defaultValue: registration.userId }),
           },
         },
       }),
@@ -166,26 +185,9 @@ async function seedMembers(db: AppDatabase): Promise<void> {
   }
 }
 
-async function seedMemberships(db: AppDatabase): Promise<void> {
-  for (const membership of MEMBERSHIPS) {
-    await seed(
-      db,
-      { chatMemberships },
-      { seed: FIXTURE_GENERATOR_SEED },
-    ).refine((generators) => ({
-      chatMemberships: {
-        count: 1,
-        columns: {
-          chatId: generators.default({ defaultValue: membership.chatId }),
-          userId: generators.default({ defaultValue: membership.userId }),
-        },
-      },
-    }));
-  }
-}
-
 async function seedEvents(db: AppDatabase, now: Date): Promise<void> {
   for (const [index, event] of FIXTURE_EVENTS.entries()) {
+    const messageDate = moscowSeasonStart(now, event.seasonOffset);
     await seed(db, { events }, { seed: FIXTURE_GENERATOR_SEED }).refine(
       (generators) => ({
         events: {
@@ -200,13 +202,24 @@ async function seedEvents(db: AppDatabase, now: Date): Promise<void> {
             subjectId: generators.default({ defaultValue: event.subjectId }),
             messageId: generators.default({ defaultValue: event.messageId }),
             createdAt: generators.default({
-              defaultValue: moscowSeasonStart(now, event.seasonOffset),
+              defaultValue: messageDate,
             }),
             legacyId: generators.default({ defaultValue: undefined }),
           },
         },
       }),
     );
+
+    await db
+      .insert(messageAuthors)
+      .values({
+        chatId: PRIMARY_FIXTURE_CHAT_ID,
+        messageId: event.messageId,
+        authorId: event.subjectId,
+        authorIsBot: false,
+        messageDate: Math.floor(messageDate.getTime() / 1000),
+      })
+      .onConflictDoNothing();
   }
 
   await db.execute(
@@ -236,6 +249,14 @@ async function seedRegistrationMessage(
       },
     },
   }));
+
+  await db.insert(messageAuthors).values({
+    chatId: PRIMARY_FIXTURE_CHAT_ID,
+    messageId: 9_001,
+    authorId: 777,
+    authorIsBot: true,
+    messageDate: Math.floor(moscowSeasonStart(now, 0).getTime() / 1000),
+  });
 }
 
 export async function resetAndSeedDatabase(
@@ -243,8 +264,8 @@ export async function resetAndSeedDatabase(
   now = new Date(),
 ): Promise<void> {
   await reset(db, schema);
-  await seedMembers(db);
-  await seedMemberships(db);
+  await seedDisplayIdentities(db);
+  await seedRegistrations(db);
   await seedEvents(db, now);
   await seedRegistrationMessage(db, now);
 }

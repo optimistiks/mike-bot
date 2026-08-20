@@ -1,4 +1,4 @@
-/** Latest display name for chat_members (ticket #15). */
+/** Latest known display name for a Member in a Chat. */
 export function memberDisplayName(user: {
   username?: string;
   first_name: string;

@@ -1,5 +1,5 @@
 import type { AppDatabase } from "@/lib/db/runtime";
-import { chatMembers, events } from "@/lib/db/schema";
+import { displayIdentities, events } from "@/lib/db/schema";
 
 import { convertV1Row, type V1LolRow } from "./v1-row";
 
@@ -7,31 +7,33 @@ export interface ImportV1Stats {
   rowsProcessed: number;
   eventsInserted: number;
   eventsSkipped: number;
-  membersInserted: number;
+  displayIdentitiesInserted: number;
 }
 
-interface ImportedMemberCandidate {
+interface ImportedDisplayIdentityCandidate {
   chatId: number;
   userId: number;
   displayName: string;
   createdAt: number;
 }
 
-function latestImportedMembers(rows: V1LolRow[]): ImportedMemberCandidate[] {
-  const candidates = new Map<string, ImportedMemberCandidate>();
+function latestDisplayIdentities(
+  rows: V1LolRow[],
+): ImportedDisplayIdentityCandidate[] {
+  const candidates = new Map<string, ImportedDisplayIdentityCandidate>();
 
   for (const row of rows) {
-    const { members } = convertV1Row(row);
-    for (const member of members) {
-      const key = `${String(member.chatId)}:${String(member.userId)}`;
+    const { displayIdentities: identities } = convertV1Row(row);
+    for (const identity of identities) {
+      const key = `${String(identity.chatId)}:${String(identity.userId)}`;
       const existing = candidates.get(key);
       if (
         !existing ||
         row.createdAt > existing.createdAt ||
         (row.createdAt === existing.createdAt &&
-          member.displayName.localeCompare(existing.displayName) > 0)
+          identity.displayName.localeCompare(existing.displayName) > 0)
       ) {
-        candidates.set(key, { ...member, createdAt: row.createdAt });
+        candidates.set(key, { ...identity, createdAt: row.createdAt });
       }
     }
   }
@@ -45,22 +47,22 @@ export async function importV1Rows(
 ): Promise<ImportV1Stats> {
   let eventsInserted = 0;
   let eventsSkipped = 0;
-  let membersInserted = 0;
+  let displayIdentitiesInserted = 0;
 
-  const memberCandidates = latestImportedMembers(rows);
-  if (memberCandidates.length > 0) {
+  const identityCandidates = latestDisplayIdentities(rows);
+  if (identityCandidates.length > 0) {
     const inserted = await db
-      .insert(chatMembers)
+      .insert(displayIdentities)
       .values(
-        memberCandidates.map((member) => ({
-          chatId: member.chatId,
-          userId: member.userId,
-          displayName: member.displayName,
+        identityCandidates.map((identity) => ({
+          chatId: identity.chatId,
+          userId: identity.userId,
+          displayName: identity.displayName,
         })),
       )
       .onConflictDoNothing()
       .returning();
-    membersInserted = inserted.length;
+    displayIdentitiesInserted = inserted.length;
   }
 
   for (const row of rows) {
@@ -83,6 +85,6 @@ export async function importV1Rows(
     rowsProcessed: rows.length,
     eventsInserted,
     eventsSkipped,
-    membersInserted,
+    displayIdentitiesInserted,
   };
 }

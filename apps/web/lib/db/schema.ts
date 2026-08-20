@@ -30,8 +30,8 @@ export const events = pgTable(
 );
 
 /** Latest known display name per Member in a Chat. */
-export const chatMembers = pgTable(
-  "chat_members",
+export const displayIdentities = pgTable(
+  "display_identities",
   {
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     userId: bigint("user_id", { mode: "number" }).notNull(),
@@ -41,8 +41,8 @@ export const chatMembers = pgTable(
 );
 
 /** Members explicitly registered for Mini App access in each Chat. */
-export const chatMemberships = pgTable(
-  "chat_memberships",
+export const registrations = pgTable(
+  "registrations",
   {
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     userId: bigint("user_id", { mode: "number" }).notNull(),
@@ -81,8 +81,8 @@ export const processedUpdates = pgTable("processed_updates", {
 
 export const schema = {
   events,
-  chatMembers,
-  chatMemberships,
+  displayIdentities,
+  registrations,
   messageAuthors,
   registrationMessages,
   processedUpdates,

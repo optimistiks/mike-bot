@@ -16,7 +16,7 @@ const SAMPLE_ROW = {
 };
 
 describe("dumpImportResults", () => {
-  it("writes events, chat_members, and leaderboards JSON files", async () => {
+  it("writes Events, Display identities, and leaderboards JSON files", async () => {
     const pglite = await createPgliteDb();
     const outDir = "/tmp/mike-bot-import-dump-test";
 
@@ -26,7 +26,7 @@ describe("dumpImportResults", () => {
 
       expect(files).toEqual([
         `${outDir}/events.json`,
-        `${outDir}/chat_members.json`,
+        `${outDir}/display_identities.json`,
         `${outDir}/leaderboards.json`,
       ]);
 

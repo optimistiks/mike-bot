@@ -26,7 +26,7 @@ describe("v1DisplayName", () => {
 });
 
 describe("convertV1Row", () => {
-  it("maps v1 fields to event and chat_members rows", () => {
+  it("maps v1 fields to Event and Display identity rows", () => {
     const converted = convertV1Row({
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       createdAt: 1_690_000_000_123,
@@ -47,7 +47,7 @@ describe("convertV1Row", () => {
       legacyId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     });
 
-    expect(converted.members).toEqual([
+    expect(converted.displayIdentities).toEqual([
       {
         chatId: -1001234567890,
         userId: 111,

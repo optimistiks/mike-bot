@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { hasChatMembership } from "@/lib/db/memberships";
+import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
 import { queryLeaderboard, resolveSeason } from "@/lib/leaderboard/query";
 import {
@@ -34,7 +34,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const db = await getRuntimeDb();
 
-  if (!(await hasChatMembership(db, parsed.data.chatId, member.userId))) {
+  if (!(await hasRegistration(db, parsed.data.chatId, member.userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

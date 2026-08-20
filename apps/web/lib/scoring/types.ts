@@ -9,7 +9,7 @@ export interface ScoringEvent {
   type: EventType;
   actorId: number;
   subjectId: number;
-  createdAt: Date;
+  season: Season;
 }
 
 export interface BucketContributions {

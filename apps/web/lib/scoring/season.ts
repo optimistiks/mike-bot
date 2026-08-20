@@ -6,6 +6,7 @@ export interface Season {
 
 export const SEASON_TIMEZONE = "Europe/Moscow";
 export const MOSCOW_UTC_OFFSET_HOURS = 3;
+export const SEASON_GRACE_PERIOD_MS = 10 * 60 * 1000;
 
 function readMoscowParts(date: Date): { year: number; month: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -28,9 +29,19 @@ export function getCurrentSeason(now = new Date()): Season {
   return seasonForDate(now);
 }
 
-export function isEventInSeason(createdAt: Date, season: Season): boolean {
-  const eventSeason = seasonForDate(createdAt);
-  return eventSeason.year === season.year && eventSeason.month === season.month;
+export function creditedSeasonForReaction(
+  messageDate: Date,
+  actionDate: Date,
+): Season | null {
+  const season = seasonForDate(messageDate);
+  const { end } = seasonDateRange(season);
+  const closesAt = end.getTime() + SEASON_GRACE_PERIOD_MS;
+
+  return actionDate.getTime() < closesAt ? season : null;
+}
+
+export function seasonsEqual(left: Season, right: Season): boolean {
+  return left.year === right.year && left.month === right.month;
 }
 
 export function seasonDateRange(season: Season): {

@@ -1,16 +1,18 @@
 import { and, eq } from "drizzle-orm";
 import type { Update } from "grammy/types";
 
+import { addRegistration, removeRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
-import { addChatMembership, removeChatMembership } from "@/lib/db/memberships";
 import {
-  chatMembers,
+  displayIdentities,
   events,
   messageAuthors,
   processedUpdates,
 } from "@/lib/db/schema";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
+import { creditedSeasonForReaction } from "@/lib/scoring";
 
+import { isGroupChat } from "./chat";
 import { memberDisplayName } from "./display-name";
 import { isRegistrationMessage } from "./register";
 import {
@@ -43,20 +45,20 @@ async function upsertMessageAuthor(
   await db.insert(messageAuthors).values(row).onConflictDoNothing();
 }
 
-async function upsertChatMember(
+async function upsertDisplayIdentity(
   db: AppDatabase,
   chatId: number,
   user: { id: number; username?: string; first_name: string },
 ): Promise<void> {
   await db
-    .insert(chatMembers)
+    .insert(displayIdentities)
     .values({
       chatId,
       userId: user.id,
       displayName: memberDisplayName(user),
     })
     .onConflictDoUpdate({
-      target: [chatMembers.chatId, chatMembers.userId],
+      target: [displayIdentities.chatId, displayIdentities.userId],
       set: { displayName: memberDisplayName(user) },
     });
 }
@@ -65,6 +67,10 @@ async function handleMessageUpdate(
   db: AppDatabase,
   message: NonNullable<Update["message"]>,
 ): Promise<void> {
+  if (!isGroupChat(message.chat.type)) {
+    return;
+  }
+
   const chatId = message.chat.id;
   const messageId = message.message_id;
   const from = message.from;
@@ -77,30 +83,42 @@ async function handleMessageUpdate(
     messageDate: message.date,
   });
 
-  await upsertChatMember(db, chatId, from);
+  if (!from.is_bot) {
+    await upsertDisplayIdentity(db, chatId, from);
+  }
 }
 
 async function handleChatMemberUpdate(
   db: AppDatabase,
   update: NonNullable<Update["chat_member"]>,
 ): Promise<void> {
+  if (!isGroupChat(update.chat.type)) {
+    return;
+  }
+
   const chatId = update.chat.id;
   const member = update.new_chat_member;
   const userId = member.user.id;
 
-  await upsertChatMember(db, chatId, member.user);
+  if (!member.user.is_bot) {
+    await upsertDisplayIdentity(db, chatId, member.user);
+  }
 
   if (isActiveChatMemberStatus(member.status)) {
     return;
   }
 
-  await removeChatMembership(db, chatId, userId);
+  await removeRegistration(db, chatId, userId);
 }
 
 async function handleMessageReactionUpdate(
   db: AppDatabase,
   reaction: NonNullable<Update["message_reaction"]>,
 ): Promise<void> {
+  if (!isGroupChat(reaction.chat.type)) {
+    return;
+  }
+
   const actor = reaction.user;
   if (!actor || actor.is_bot) {
     return;
@@ -141,8 +159,8 @@ async function handleMessageReactionUpdate(
       return;
     }
 
-    await upsertChatMember(db, chatId, actor);
-    await addChatMembership(db, chatId, actor.id);
+    await upsertDisplayIdentity(db, chatId, actor);
+    await addRegistration(db, chatId, actor.id);
     return;
   }
 
@@ -158,8 +176,16 @@ async function handleMessageReactionUpdate(
   }
 
   const createdAt = new Date(reaction.date * 1000);
+  if (Number.isNaN(createdAt.getTime())) {
+    throw new RangeError("Telegram reaction date is invalid");
+  }
 
-  await upsertChatMember(db, chatId, actor);
+  const messageDate = new Date(author.messageDate * 1000);
+  if (creditedSeasonForReaction(messageDate, createdAt) === null) {
+    return;
+  }
+
+  await upsertDisplayIdentity(db, chatId, actor);
 
   await db.insert(events).values(
     mapped.eventTypes.map((type) => ({

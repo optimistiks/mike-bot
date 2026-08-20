@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
-import { chatMembers, events } from "@/lib/db/schema";
+import { displayIdentities, events } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
 import { importV1Rows } from "./import-events";
@@ -20,7 +20,7 @@ const SAMPLE_ROW = {
 };
 
 describe("importV1Rows", () => {
-  it("inserts events and chat_members from v1 rows", async () => {
+  it("inserts Events and Display identities from v1 rows", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -30,7 +30,7 @@ describe("importV1Rows", () => {
         rowsProcessed: 1,
         eventsInserted: 1,
         eventsSkipped: 0,
-        membersInserted: 2,
+        displayIdentitiesInserted: 2,
       });
 
       const storedEvents = await pglite.db
@@ -49,8 +49,8 @@ describe("importV1Rows", () => {
 
       const storedMembers = await pglite.db
         .select()
-        .from(chatMembers)
-        .where(eq(chatMembers.chatId, IMPORT_CHAT_ID));
+        .from(displayIdentities)
+        .where(eq(displayIdentities.chatId, IMPORT_CHAT_ID));
 
       expect(storedMembers).toEqual(
         expect.arrayContaining([
@@ -79,7 +79,7 @@ describe("importV1Rows", () => {
       expect(first.eventsInserted).toBe(1);
       expect(second.eventsInserted).toBe(0);
       expect(second.eventsSkipped).toBe(1);
-      expect(second.membersInserted).toBe(0);
+      expect(second.displayIdentitiesInserted).toBe(0);
 
       const storedEvents = await pglite.db
         .select({ id: events.id })
@@ -96,7 +96,7 @@ describe("importV1Rows", () => {
     const pglite = await createPgliteDb();
 
     try {
-      await pglite.db.insert(chatMembers).values({
+      await pglite.db.insert(displayIdentities).values({
         chatId: IMPORT_CHAT_ID,
         userId: 501,
         displayName: "@current-giver",
@@ -117,8 +117,8 @@ describe("importV1Rows", () => {
 
       const storedMembers = await pglite.db
         .select()
-        .from(chatMembers)
-        .where(eq(chatMembers.chatId, IMPORT_CHAT_ID));
+        .from(displayIdentities)
+        .where(eq(displayIdentities.chatId, IMPORT_CHAT_ID));
       expect(storedMembers).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

@@ -55,8 +55,8 @@ run. Tests continue to use isolated in-memory PGlite through `createPgliteDb()`.
 | Table                   | Purpose                                                    |
 | ----------------------- | ---------------------------------------------------------- |
 | `events`                | Append-only scoring log (`type` string, no `value` column) |
-| `chat_members`          | Display names per (`chat_id`, `user_id`)                   |
-| `chat_memberships`      | Mini App chat picker roster (explicit registration)        |
+| `display_identities`    | Display names per (`chat_id`, `user_id`)                   |
+| `registrations`         | Explicit Mini App access for a Member in a Chat            |
 | `message_authors`       | Message author cache for reaction Subject lookup           |
 | `registration_messages` | Bot-posted Registration messages (`/register`)             |
 | `processed_updates`     | Webhook `update_id` deduplication                          |

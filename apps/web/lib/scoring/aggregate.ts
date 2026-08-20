@@ -1,4 +1,4 @@
-import { getCurrentSeason, isEventInSeason } from "./season";
+import { getCurrentSeason, seasonsEqual } from "./season";
 import { eventTypeToContributions } from "./contributions";
 import type {
   AggregatedLeaderboard,
@@ -31,7 +31,7 @@ function accumulateScores(
   };
 
   for (const scoringEvent of events) {
-    if (!isEventInSeason(scoringEvent.createdAt, season)) {
+    if (!seasonsEqual(scoringEvent.season, season)) {
       continue;
     }
 
@@ -95,10 +95,13 @@ function rankBucket(bucket: Map<number, number>): LeaderboardEntry[] {
     return [];
   }
 
-  return ranked.map((entry, index) => ({
+  const highestScore = ranked[0]?.score;
+  const lowestScore = ranked.at(-1)?.score;
+
+  return ranked.map((entry) => ({
     ...entry,
-    isCrown: index === 0,
-    isChicken: index === ranked.length - 1 && ranked.length > 1,
+    isCrown: entry.score === highestScore,
+    isChicken: highestScore !== lowestScore && entry.score === lowestScore,
   }));
 }
 

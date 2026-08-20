@@ -4,7 +4,7 @@ import type { ReactionType, Update } from "grammy/types";
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
 import { recordRegistrationMessage } from "@/lib/bot/register";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
-import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
+import { displayIdentities, events, registrations } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
 import { signDevelopmentInitDataForPersona } from "@/lib/mini-app/development-init-data.server";
 import {
@@ -65,8 +65,8 @@ describe("GET /api/chats", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ chats: [] });
     await expect(db.select().from(events)).resolves.toEqual([]);
-    await expect(db.select().from(chatMembers)).resolves.toEqual([]);
-    await expect(db.select().from(chatMemberships)).resolves.toEqual([]);
+    await expect(db.select().from(displayIdentities)).resolves.toEqual([]);
+    await expect(db.select().from(registrations)).resolves.toEqual([]);
   });
 
   it("returns a registered Chat after a Registration-message reaction", async () => {

@@ -1,11 +1,12 @@
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { chatMembers, events } from "@/lib/db/schema";
+import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
 import { eventTypeSchema } from "@/lib/domain/event";
 import {
   aggregateLeaderboard,
   getCurrentSeason,
+  SEASON_GRACE_PERIOD_MS,
   seasonDateRange,
   type Season,
 } from "@/lib/scoring";
@@ -18,22 +19,50 @@ export async function queryLeaderboard(
   season: Season,
 ): Promise<LeaderboardResponse> {
   const range = seasonDateRange(season);
-  const [eventRows, memberRows] = await Promise.all([
+  const startSeconds = Math.floor(range.start.getTime() / 1000);
+  const endSeconds = Math.floor(range.end.getTime() / 1000);
+  const closesAt = new Date(range.end.getTime() + SEASON_GRACE_PERIOD_MS);
+  const [eventRows, identityRows] = await Promise.all([
     db
-      .select()
+      .select({
+        type: events.type,
+        actorId: events.actorId,
+        subjectId: events.subjectId,
+      })
       .from(events)
+      .leftJoin(
+        messageAuthors,
+        and(
+          eq(events.chatId, messageAuthors.chatId),
+          eq(events.messageId, messageAuthors.messageId),
+        ),
+      )
       .where(
         and(
           eq(events.chatId, chatId),
-          gte(events.createdAt, range.start),
-          lt(events.createdAt, range.end),
+          or(
+            and(
+              isNotNull(events.legacyId),
+              gte(events.createdAt, range.start),
+              lt(events.createdAt, range.end),
+            ),
+            and(
+              isNull(events.legacyId),
+              gte(messageAuthors.messageDate, startSeconds),
+              lt(messageAuthors.messageDate, endSeconds),
+              lt(events.createdAt, closesAt),
+            ),
+          ),
         ),
       ),
-    db.select().from(chatMembers).where(eq(chatMembers.chatId, chatId)),
+    db
+      .select()
+      .from(displayIdentities)
+      .where(eq(displayIdentities.chatId, chatId)),
   ]);
 
   const displayNames = new Map(
-    memberRows.map((member) => [member.userId, member.displayName]),
+    identityRows.map((identity) => [identity.userId, identity.displayName]),
   );
 
   const aggregated = aggregateLeaderboard(
@@ -41,7 +70,7 @@ export async function queryLeaderboard(
       type: eventTypeSchema.parse(row.type),
       actorId: row.actorId,
       subjectId: row.subjectId,
-      createdAt: row.createdAt,
+      season,
     })),
     season,
   );

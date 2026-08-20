@@ -4,18 +4,16 @@ import type { Context } from "grammy";
 import type { AppDatabase } from "@/lib/db/runtime";
 import { messageAuthors, registrationMessages } from "@/lib/db/schema";
 
+import { isGroupChat } from "./chat";
+
 export const REGISTRATION_MESSAGE_TEXT =
-  "Поставьте реакцию на это сообщение, чтобы участвовать в таблице лидеров";
+  "Поставьте реакцию на это сообщение, чтобы получить доступ к таблицам лидеров этой группы.";
 
 export const REGISTER_GROUP_ONLY_MESSAGE =
   "Команда /register работает только в группах.";
 
 export const REGISTER_ADMIN_ONLY_MESSAGE =
   "Только администраторы группы могут использовать /register.";
-
-export function isGroupChat(chatType: string): boolean {
-  return chatType === "group" || chatType === "supergroup";
-}
 
 export function isChatAdminStatus(status: string): boolean {
   return status === "creator" || status === "administrator";

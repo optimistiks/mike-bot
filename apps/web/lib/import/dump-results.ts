@@ -1,10 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { and, eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { chatMembers, events } from "@/lib/db/schema";
+import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
-import { seasonForDate } from "@/lib/scoring/season";
+import { creditedSeasonForReaction, seasonForDate } from "@/lib/scoring/season";
 
 export interface DumpImportResultsOptions {
   outDir: string;
@@ -32,15 +33,30 @@ export async function dumpImportResults(
   db: AppDatabase,
   options: DumpImportResultsOptions,
 ): Promise<string[]> {
-  const eventRows = await db.select().from(events);
-  const memberRows = await db.select().from(chatMembers);
+  const eventRows = await db
+    .select({ event: events, messageDate: messageAuthors.messageDate })
+    .from(events)
+    .leftJoin(
+      messageAuthors,
+      and(
+        eq(events.chatId, messageAuthors.chatId),
+        eq(events.messageId, messageAuthors.messageId),
+      ),
+    );
+  const identityRows = await db.select().from(displayIdentities);
 
-  await writeJsonFile(options.outDir, "events.json", eventRows);
-  await writeJsonFile(options.outDir, "chat_members.json", memberRows);
+  await writeJsonFile(
+    options.outDir,
+    "events.json",
+    eventRows.map((row) => row.event),
+  );
+  await writeJsonFile(options.outDir, "display_identities.json", identityRows);
 
   const chatIds =
     options.chatIds ??
-    [...new Set(eventRows.map((row) => row.chatId))].toSorted((a, b) => a - b);
+    [...new Set(eventRows.map((row) => row.event.chatId))].toSorted(
+      (a, b) => a - b,
+    );
 
   const leaderboards: {
     chatId: number;
@@ -52,11 +68,22 @@ export async function dumpImportResults(
     const seasons = new Map<string, { year: number; month: number }>();
 
     for (const row of eventRows) {
-      if (row.chatId !== chatId) {
+      if (row.event.chatId !== chatId) {
         continue;
       }
 
-      const season = seasonForDate(row.createdAt);
+      const season =
+        row.event.legacyId !== null
+          ? seasonForDate(row.event.createdAt)
+          : row.messageDate === null
+            ? null
+            : creditedSeasonForReaction(
+                new Date(row.messageDate * 1000),
+                row.event.createdAt,
+              );
+      if (season === null) {
+        continue;
+      }
       seasons.set(seasonKey(season), season);
     }
 
@@ -73,7 +100,7 @@ export async function dumpImportResults(
 
   return [
     path.join(options.outDir, "events.json"),
-    path.join(options.outDir, "chat_members.json"),
+    path.join(options.outDir, "display_identities.json"),
     path.join(options.outDir, "leaderboards.json"),
   ];
 }
