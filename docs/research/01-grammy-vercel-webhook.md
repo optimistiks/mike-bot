@@ -51,10 +51,6 @@ For **App Router**, use the `std/http` adapter: it accepts a standard `Request` 
 import { webhookCallback } from "grammy";
 import { bot } from "@/lib/bot/bot";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs"; // default; use for DB/Node-only plugins
-export const maxDuration = 10; // align with Grammy webhook timeout (see below)
-
 export const POST = webhookCallback(bot, "std/http", {
   secretToken: process.env.BOT_WEBHOOK_SECRET,
 });
@@ -84,7 +80,7 @@ bot.on("message_reaction", async (ctx) => {
 });
 ```
 
-**Bot lifetime:** A module-level Bot can reduce construction work, but correctness must not depend on in-memory middleware state in a serverless runtime. Current v2 creates a stateless Bot for each Route Handler invocation after resolving its database and keeps update claims and all durable state in Postgres.
+**Bot lifetime:** Create one Bot and webhook callback per warm module instance, as in Grammy's Vercel example. Different Vercel instances still create independent Bot objects, so correctness must not depend on in-memory middleware state; update claims and all durable state remain in Postgres.
 
 **Pages Router alternative (legacy Grammy Vercel guide):** `api/bot.ts` with `export default webhookCallback(bot, 'https')` ([grammy.dev/hosting/vercel](https://grammy.dev/hosting/vercel)). That path is documented for the older `api/` directory layout, not App Router.
 
@@ -183,7 +179,7 @@ From [deployment types — webhook timeouts](https://grammy.dev/guide/deployment
 - `webhookCallback` default `timeoutMilliseconds: 10_000`.
 - If middleware exceeds this, default `onTimeout: 'throw'` → unhandled error → likely **non-2xx** → Telegram **retries the same update** (possibly many times, causing duplicate side effects).
 
-Grammy’s Vercel hosting guide recommends `maxDuration: 10` in `vercel.json` for the bot function ([hosting/vercel](https://grammy.dev/hosting/vercel)). For App Router, export `maxDuration` from the route segment ([Next.js maxDuration](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/maxDuration)).
+Grammy’s Vercel hosting guide shows `maxDuration: 10` for its standalone bot example ([hosting/vercel](https://grammy.dev/hosting/vercel)). Do not copy that limit into this app: its shared Postgres pool uses Vercel's post-response lifecycle management, so the route should use the platform's configured duration instead of imposing a competing ten-second cap.
 
 ### Telegram delivery & retry behavior
 

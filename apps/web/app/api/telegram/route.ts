@@ -7,17 +7,21 @@ import { parseServerEnv } from "@/lib/env.server";
 
 import { createBot } from "@/lib/bot/bot";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-export const maxDuration = 10;
+let handlerPromise: ReturnType<typeof createWebhookHandler> | undefined;
 
-export async function POST(request: Request): Promise<Response> {
+async function createWebhookHandler() {
   const env = parseServerEnv();
   const db = await getRuntimeDb();
   const bot = createBot({ db, token: env.BOT_TOKEN });
-  const handler = webhookCallback(bot, "std/http", {
+
+  return webhookCallback(bot, "std/http", {
     secretToken: env.BOT_WEBHOOK_SECRET,
   });
+}
+
+export async function POST(request: Request): Promise<Response> {
+  handlerPromise ??= createWebhookHandler();
+  const handler = await handlerPromise;
 
   return handler(request);
 }
