@@ -2,18 +2,16 @@ import { NextResponse } from "next/server";
 
 import { hasChatMembership } from "@/lib/db/memberships";
 import { getRuntimeDb } from "@/lib/db/runtime";
-import { parseBotToken } from "@/lib/env.server";
 import { queryLeaderboard, resolveSeason } from "@/lib/leaderboard/query";
 import {
   leaderboardQuerySchema,
   leaderboardResponseSchema,
 } from "@/lib/leaderboard/schema";
-import { authenticateTmaMember } from "@/lib/mini-app/init-data";
+import { authenticateTmaRequestMember } from "@/lib/mini-app/request-auth.server";
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const member = authenticateTmaMember(
+  const member = await authenticateTmaRequestMember(
     request.headers.get("authorization"),
-    parseBotToken(),
   );
 
   if (member === null) {

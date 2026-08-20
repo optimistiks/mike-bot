@@ -1,6 +1,8 @@
 import { sign } from "@tma.js/init-data-node";
 
 export const TEST_BOT_TOKEN = "123456789:TEST_BOT_TOKEN";
+export const TEST_DEVELOPMENT_BOT_TOKEN =
+  "987654321:TEST_DEVELOPMENT_BOT_TOKEN";
 
 export function signedTmaAuthorization(
   userId: number,

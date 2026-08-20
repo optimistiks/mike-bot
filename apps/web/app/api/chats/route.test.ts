@@ -1,11 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactionType, Update } from "grammy/types";
 
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
 import { recordRegistrationPin } from "@/lib/bot/register";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
 import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
-import { signedTmaAuthorization, TEST_BOT_TOKEN } from "@/test/tma-init-data";
+import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
+import { signDevelopmentInitDataForPersona } from "@/lib/mini-app/development-init-data.server";
+import {
+  signedTmaAuthorization,
+  TEST_BOT_TOKEN,
+  TEST_DEVELOPMENT_BOT_TOKEN,
+} from "@/test/tma-init-data";
 
 import { GET } from "./route";
 
@@ -43,6 +49,7 @@ describe("GET /api/chats", () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     delete process.env.BOT_TOKEN;
     await resetRuntimeDbForTests();
   });
@@ -88,6 +95,33 @@ describe("GET /api/chats", () => {
       chats: [{ chatId: TEST_CHAT_ID, label: "Чат -100111222" }],
     });
   });
+
+  it.each([
+    [
+      "registered",
+      [{ chatId: PRIMARY_FIXTURE_CHAT_ID, label: "Чат -100456789" }],
+    ],
+    ["unregistered", []],
+  ] as const)(
+    "uses the signed development %s persona through the protected API",
+    async (persona, expectedChats) => {
+      const db = await getRuntimeDb();
+      await resetAndSeedDatabase(db);
+      const initDataRaw = signDevelopmentInitDataForPersona(persona, {
+        env: { TMA_DEVELOPMENT_BOT_TOKEN: TEST_DEVELOPMENT_BOT_TOKEN },
+      });
+      vi.stubEnv("TMA_DEVELOPMENT_BOT_TOKEN", TEST_DEVELOPMENT_BOT_TOKEN);
+
+      const response = await GET(
+        new Request("http://localhost/api/chats", {
+          headers: { authorization: `tma ${String(initDataRaw)}` },
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ chats: expectedChats });
+    },
+  );
 
   it.each([
     ["missing", undefined],

@@ -20,14 +20,24 @@ export type MiniAppLaunch =
   | { kind: "outside-telegram" }
   | { kind: "initialization-error" };
 
-export type LaunchMiniApp = () => Promise<MiniAppLaunch>;
+export type LaunchMiniApp = (
+  developmentInitDataRaw?: string | null,
+) => Promise<MiniAppLaunch>;
 
 let launchPromise: Promise<MiniAppLaunch> | undefined;
 
-async function launchTma(): Promise<MiniAppLaunch> {
+async function launchTma(
+  developmentInitDataRaw?: string | null,
+): Promise<MiniAppLaunch> {
   let isTelegramMiniApp = false;
 
   try {
+    if (process.env.NODE_ENV !== "production") {
+      const { mockDevelopmentTmaEnvironment } =
+        await import("./tma-development");
+      await mockDevelopmentTmaEnvironment(developmentInitDataRaw);
+    }
+
     isTelegramMiniApp = await isTMA("complete");
   } catch {
     return { kind: "initialization-error" };
@@ -105,7 +115,9 @@ async function launchTma(): Promise<MiniAppLaunch> {
   }
 }
 
-export function initializeTmaPlatform(): Promise<MiniAppLaunch> {
-  launchPromise ??= launchTma();
+export function initializeTmaPlatform(
+  developmentInitDataRaw?: string | null,
+): Promise<MiniAppLaunch> {
+  launchPromise ??= launchTma(developmentInitDataRaw);
   return launchPromise;
 }

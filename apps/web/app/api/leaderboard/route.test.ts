@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
 import { chatMembers, chatMemberships, events } from "@/lib/db/schema";
@@ -8,7 +8,12 @@ import {
   resetAndSeedDatabase,
   SECONDARY_FIXTURE_CHAT_ID,
 } from "@/lib/db/seed";
-import { signedTmaAuthorization, TEST_BOT_TOKEN } from "@/test/tma-init-data";
+import { signDevelopmentInitDataForPersona } from "@/lib/mini-app/development-init-data.server";
+import {
+  signedTmaAuthorization,
+  TEST_BOT_TOKEN,
+  TEST_DEVELOPMENT_BOT_TOKEN,
+} from "@/test/tma-init-data";
 
 import { GET } from "./route";
 
@@ -29,6 +34,7 @@ describe("GET /api/leaderboard", () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     delete process.env.BOT_TOKEN;
     await resetRuntimeDbForTests();
   });
@@ -71,6 +77,25 @@ describe("GET /api/leaderboard", () => {
     const response = await GET(
       leaderboardRequest(
         `chatId=${String(SECONDARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+      ),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
+  });
+
+  it("forbids the signed development persona from a different seeded Chat", async () => {
+    const db = await getRuntimeDb();
+    await resetAndSeedDatabase(db, FIXTURE_NOW);
+    const initDataRaw = signDevelopmentInitDataForPersona("forbidden", {
+      env: { TMA_DEVELOPMENT_BOT_TOKEN: TEST_DEVELOPMENT_BOT_TOKEN },
+    });
+    vi.stubEnv("TMA_DEVELOPMENT_BOT_TOKEN", TEST_DEVELOPMENT_BOT_TOKEN);
+
+    const response = await GET(
+      leaderboardRequest(
+        `chatId=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        `tma ${String(initDataRaw)}`,
       ),
     );
 

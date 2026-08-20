@@ -7,7 +7,7 @@ export default defineConfig({
     include: ["@tma.js/sdk-react"],
   },
   test: {
-    include: ["**/*.browser.test.tsx"],
+    include: ["**/*.browser.test.{ts,tsx}"],
     testTimeout: 10_000,
     browser: {
       enabled: true,

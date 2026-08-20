@@ -16,7 +16,7 @@ v2 is live on Vercel: a new Grammy bot scores group messages via three Scoring r
 - Events: append-only typed strings (`karma.plus`, `karma.undo.plus`, …) — no `value` column; scoring in `lib/scoring/`.
 - Postgres (Neon): `events` (+ `legacy_id` for import), `chat_members`, `chat_memberships`, `registration_messages`, `message_authors`, `processed_updates`.
 - Mini App: Menu Button → validate Telegram-signed init data → chat picker from **registered** `chat_memberships` → membership-authorized leaderboard for chosen `chat_id`. Explicit registration via `/register` pin reaction. Russian UI; `Europe/Moscow` seasons.
-- **Original build tickets [22–30](issues/22-monorepo-scaffold-and-postgres-foundation.md) are done.** Production-hardening frontier: [35](issues/35-signed-tma-development-personas.md).
+- **Original build tickets [22–30](issues/22-monorepo-scaffold-and-postgres-foundation.md) are done.** Production-hardening frontier: [36](issues/36-artifact-and-go-live-reconciliation.md).
 - [26 v1 DynamoDB one-shot import](issues/26-v1-dynamodb-one-shot-import.md) — `scripts/import-v1.ts` scans `lolTable`, converts to events + chat_members; idempotent on `legacy_id`.
 - [30 Mini App go-register empty state](issues/30-mini-app-go-register-empty-state.md) — Russian «go register» prompt for unregistered openers; fixture seed registers default dev opener only.
 - [31 Script env and warning-free lint](issues/31-simple-script-env-and-warning-free-lint.md) → [32 deterministic `db:seed`](issues/32-deterministic-database-seed.md) → [33 TMA identity and Chat authorization](issues/33-tma-identity-and-chat-authorization.md) → [34 TMA React SDK](issues/34-tma-react-sdk.md) → [35 signed development personas](issues/35-signed-tma-development-personas.md) → [36 artifact and go-live reconciliation](issues/36-artifact-and-go-live-reconciliation.md).
@@ -36,6 +36,7 @@ Human steps before production works in a real group. Non-blocking for developmen
 
 ## Decisions so far
 
+- [35 signed development personas](issues/35-signed-tma-development-personas.md) — local browsers use the official `mockTelegramEnv` lifecycle with a server-signed allowlist of deterministic seed personas; development init-data signing and validation are gated by `NODE_ENV`, while production accepts only `BOT_TOKEN`.
 - [34 TMA React SDK](issues/34-tma-react-sdk.md) — the production client uses a single `@tma.js/sdk-react` lifecycle adapter, Telegram theme/safe viewport CSS variables, raw init-data forwarding, and native leaderboard back navigation; Vitest Browser Mode covers the application boundary in headless Chromium with MSW.
 - [33 TMA identity and Chat authorization](issues/33-tma-identity-and-chat-authorization.md) — protected APIs validate Telegram-signed init data for at most one year, return stable authentication errors, and require the authenticated Member's Chat membership before exposing leaderboard data.
 - [32 Deterministic database seed](issues/32-deterministic-database-seed.md) — explicit Drizzle Seed reset populates shared local PGlite with deterministic personas and relative Moscow Seasons; remote reset requires `--remote` plus `ALLOW_REMOTE_DATABASE_SEED=1`; API reads never seed.

@@ -19,6 +19,15 @@ The browser install provisions Chromium for Vitest Browser Mode.
 For persistent local Mini App data, run `cd apps/web && pnpm db:seed`; this
 resets and populates the same `.data/pglite` database used by local development.
 
+After seeding, `pnpm dev` mocks a complete Telegram launch in an ordinary local
+browser with signed deterministic personas. Open `/?persona=registered` (the
+default) for the seeded Chat, `/?persona=unregistered` for the registration
+empty state, or `/?persona=forbidden` for a Member limited to the secondary
+seeded Chat (requests for the primary Chat return 403). The non-secret dummy
+token comes from `apps/web/.env.development` as
+`TMA_DEVELOPMENT_BOT_TOKEN`. Next.js loads it only for development; production
+accepts only Telegram data signed by `BOT_TOKEN`.
+
 ## Layout
 
 - `apps/web` — Next.js App Router app (webhook, Mini App, API)

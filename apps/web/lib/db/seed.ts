@@ -5,6 +5,12 @@ import type { EventType } from "@/lib/domain/event";
 
 import type { AppDatabase } from "./runtime";
 import {
+  FORBIDDEN_PERSONA_ID,
+  REGISTERED_PERSONA_ID,
+  SEED_PERSONAS,
+  UNREGISTERED_PERSONA_ID,
+} from "./seed-personas";
+import {
   chatMembers,
   chatMemberships,
   events,
@@ -14,26 +20,32 @@ import {
 
 export const PRIMARY_FIXTURE_CHAT_ID = -100_456_789;
 export const SECONDARY_FIXTURE_CHAT_ID = -100_987_654;
-export const REGISTERED_PERSONA_ID = 101;
-export const UNREGISTERED_PERSONA_ID = 104;
-export const FORBIDDEN_PERSONA_ID = 105;
+export {
+  FORBIDDEN_PERSONA_ID,
+  REGISTERED_PERSONA_ID,
+  UNREGISTERED_PERSONA_ID,
+} from "./seed-personas";
 
 const FIXTURE_GENERATOR_SEED = 42_424;
 const MOSCOW_UTC_OFFSET_HOURS = 3;
 
 const MEMBERS = [
-  { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: 101, displayName: "@alice" },
+  {
+    chatId: PRIMARY_FIXTURE_CHAT_ID,
+    userId: REGISTERED_PERSONA_ID,
+    displayName: SEED_PERSONAS.registered.displayName,
+  },
   { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: 102, displayName: "@bob" },
   { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: 103, displayName: "@carol" },
   {
     chatId: PRIMARY_FIXTURE_CHAT_ID,
     userId: UNREGISTERED_PERSONA_ID,
-    displayName: "@unregistered",
+    displayName: SEED_PERSONAS.unregistered.displayName,
   },
   {
     chatId: SECONDARY_FIXTURE_CHAT_ID,
     userId: FORBIDDEN_PERSONA_ID,
-    displayName: "@forbidden",
+    displayName: SEED_PERSONAS.forbidden.displayName,
   },
 ] as const;
 

@@ -71,10 +71,12 @@ function seasonsEqual(left: Season, right: Season): boolean {
 }
 
 interface MiniAppClientProps {
+  developmentInitDataRaw?: string | null;
   launchMiniApp?: LaunchMiniApp;
 }
 
 export function MiniAppClient({
+  developmentInitDataRaw,
   launchMiniApp = initializeTmaPlatform,
 }: MiniAppClientProps = {}) {
   const [launch, setLaunch] = useState<MiniAppLaunch | null>(null);
@@ -96,7 +98,7 @@ export function MiniAppClient({
   useEffect(() => {
     let cancelled = false;
 
-    void launchMiniApp().then((result) => {
+    void launchMiniApp(developmentInitDataRaw).then((result) => {
       if (!cancelled) {
         setLaunch(result);
       }
@@ -105,7 +107,7 @@ export function MiniAppClient({
     return () => {
       cancelled = true;
     };
-  }, [launchMiniApp]);
+  }, [developmentInitDataRaw, launchMiniApp]);
 
   useEffect(() => {
     platform?.ready();
