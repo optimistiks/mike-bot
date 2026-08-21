@@ -69,3 +69,40 @@
   flex-direction: column;
   min-height: 0;
 }
+
+/* Standings ------------------------------------------------------------- */
+
+/* The pixel borders 8bitcn's Item and Badge draw sit outside their boxes, so
+   entries need room between and around them rather than a flush stack. */
+.arcade-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 6px;
+}
+
+/* Line 2 exists precisely so a 30-character handle can wrap. `anywhere` rather
+   than `break-word` because a handle is one unbroken token between its dots and
+   underscores, and Press Start 2P is wide enough that the difference shows. */
+.arcade-entry-name {
+  display: block;
+  width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  color: var(--arcade-ink);
+}
+
+/* Line 3's number is fixed-width so the bars all start at the same x. */
+.arcade-entry-score {
+  flex: none;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Crown and Chicken close out line 1, whatever else is on it. */
+.arcade-flair {
+  margin-left: auto;
+  font-size: 18px;
+  line-height: 1;
+}
