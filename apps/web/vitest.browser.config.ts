@@ -3,9 +3,6 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  optimizeDeps: {
-    include: ["@tma.js/sdk-react"],
-  },
   test: {
     include: ["**/*.browser.test.{ts,tsx}"],
     testTimeout: 10_000,

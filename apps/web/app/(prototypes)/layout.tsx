@@ -1,6 +1,14 @@
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
+import { Press_Start_2P } from "next/font/google";
+
+const font = Press_Start_2P({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-press-start",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -21,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body>{children}</body>
+    <html lang="ru" className={`${font.variable} antialiased`}>
+      <body className="dark">{children}</body>
     </html>
   );
 }
