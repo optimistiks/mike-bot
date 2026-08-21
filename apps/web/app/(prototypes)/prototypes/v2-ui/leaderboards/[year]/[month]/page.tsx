@@ -7,12 +7,5 @@ export default async function MonthLeaderboardsPrototypePage({
 }) {
   const { year, month } = await params;
 
-  return (
-    <LeaderboardsPage
-      caption="Бесполезные Шуруповерты"
-      title={`Сезон ${month}.${year}`}
-      year={year}
-      month={month}
-    />
-  );
+  return <LeaderboardsPage title={`Сезон ${month}.${year}`} />;
 }

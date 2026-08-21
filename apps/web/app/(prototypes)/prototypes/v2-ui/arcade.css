@@ -1,0 +1,71 @@
+/*
+ * The v2 Mini App prototype's entire bespoke visual system.
+ *
+ * Everything hand-written for this prototype lives here and nowhere else: no
+ * styles in the prototype group's global stylesheet, none scattered across
+ * component files. Deleting this file and its single import in `layout.tsx`
+ * removes the prototype's look in one action.
+ */
+
+.arcade {
+  /* Arcade palette, drawn from the group's committed tokens so the prototype
+     and the 8bitcn primitives it composes never disagree on a colour. */
+  --arcade-ink: var(--foreground);
+  --arcade-void: var(--background);
+  --arcade-neon: var(--primary);
+  --arcade-neon-alt: var(--secondary);
+  --arcade-glow: var(--ring);
+  --arcade-dim: var(--muted-foreground);
+  --arcade-rule: var(--border);
+
+  /* Press Start 2P has no small sizes to fall back on, so the whole app is
+     built from one deliberate step scale rather than Tailwind's. */
+  --arcade-text-xs: 7px;
+  --arcade-text-sm: 8px;
+  --arcade-text-md: 10px;
+  --arcade-text-lg: 13px;
+  --arcade-text-xl: 16px;
+
+  /* Telegram fills these in when the Mini App runs inside the client; the
+     fallbacks keep the prototype usable as a plain web page. */
+  --arcade-inset-top: var(--tg-viewport-safe-area-inset-top, 0px);
+  --arcade-inset-bottom: var(--tg-viewport-safe-area-inset-bottom, 0px);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--arcade-void);
+  color: var(--arcade-ink);
+  font-size: var(--arcade-text-md);
+  line-height: 1.6;
+  letter-spacing: 0.03em;
+  padding-top: var(--arcade-inset-top);
+  padding-bottom: var(--arcade-inset-bottom);
+}
+
+/* Press Start 2P's glyphs are square and unhinted; anything below ~7px turns
+   to mud, so sizes are named rather than computed. */
+.arcade-text-xs {
+  font-size: var(--arcade-text-xs);
+}
+.arcade-text-sm {
+  font-size: var(--arcade-text-sm);
+}
+.arcade-text-md {
+  font-size: var(--arcade-text-md);
+}
+.arcade-text-lg {
+  font-size: var(--arcade-text-lg);
+}
+.arcade-text-xl {
+  font-size: var(--arcade-text-xl);
+}
+
+.arcade-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}

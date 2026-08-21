@@ -30,8 +30,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.2",
+    "embla-carousel-react": "^8.6.0",
     "grammy": "^1.45.1",
     "lucide-react": "^1.33.0",
+    "motion": "^13.1.1",
     "next": "16.3.1",
     "pg": "^8.16.3",
     "react": "19.2.8",
@@ -46,6 +48,7 @@
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.876.0",
     "@aws-sdk/lib-dynamodb": "^3.876.0",
+    "@faker-js/faker": "^10.6.0",
     "@mike-bot/eslint-config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.17.1",

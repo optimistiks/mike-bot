@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className={`${font.variable} antialiased dark`}>
-      <body className="typeset typeset-docs">{children}</body>
+      <body className={font.className}>{children}</body>
     </html>
   );
 }
