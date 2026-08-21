@@ -9,7 +9,7 @@ This is prefactoring: "make the change easy, then make the easy change."
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] The typeset stylesheet is deleted outright: the file itself, its import from the prototype group's
       global stylesheet, and its classes on `<body>`

@@ -11,7 +11,7 @@ to the Current Season.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Fixture data is generated **on the server** and passed to client components as plain arrays; faker
       never appears in the browser bundle
