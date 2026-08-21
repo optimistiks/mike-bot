@@ -29,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${font.variable} antialiased`}>
-      <body className="dark">{children}</body>
+    <html lang="ru" className={`${font.variable} antialiased dark`}>
+      <body className="typeset typeset-docs">{children}</body>
     </html>
   );
 }
