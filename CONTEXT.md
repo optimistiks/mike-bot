@@ -80,6 +80,14 @@ _Avoid_: Ongoing season
 A seasonal ranking of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
 _Avoid_: Stats, scoreboard
 
+**Stats question**:
+Free-form text following the `/stats` command through which a Member asks for Chat-scoped scoring information.
+_Avoid_: Prompt, query
+
+**Stats report**:
+A Chat-scoped answer to a Stats question over a resolved set of Members, scoring categories, and time range.
+_Avoid_: Leaderboard, analysis
+
 **Crown**:
 Flair awarded to every Member tied for the highest total in a Leaderboard section.
 _Avoid_: Winner badge
