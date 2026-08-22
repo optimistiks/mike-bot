@@ -1,6 +1,6 @@
 # Spec: v2 Mini App leaderboards prototype
 
-Status: ready-for-agent
+Status: implemented
 
 ## Problem Statement
 
