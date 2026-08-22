@@ -15,13 +15,13 @@ database.
 - Use the root domain glossary and ADRs as the domain authority. New application code may copy from
   `apps/web`, but this effort does not introduce shared packages.
 - The new Hono app must retain the current app's PGlite-powered local/test database experience; automated
-  tests must not require a live Neon database.
+  tests must not require a live Neon database. Each Stats invocation also uses a fresh in-memory PGlite
+  instance containing only the invoking Chat's raw scoring rows.
 - Development must expose a direct HTTP Stats harness that can be called from Postman without Telegram. It
   must invoke the same agent pipeline as `/stats`, not a second implementation. Its exact request, response,
   environment exposure, and database choice remain to be specified.
-- Deployment requires two human-supplied database connections: the operational database URL used by bot
-  ingestion/import/migrations and a separate direct, unpooled primary URL used exclusively by the agent SQL
-  tool's transaction-local staging. The Neon project may be new or existing.
+- Deployment requires one human-supplied operational database URL for ingestion, imports, migrations, and
+  trusted Chat projection. Generated SQL never connects to Neon.
 - The final implementation plan must identify every dashboard, credential, environment-variable, migration,
   webhook, and BotFather action that only the human can perform, with explicit handoff and verification steps.
 - Agents and automated tests must never call a real language model or spend Vercel AI Gateway credit. Prompt,
@@ -44,9 +44,9 @@ database.
 - [Normalize imported message metadata](issues/09-normalize-imported-message-authors.md): importing one new
   v1 row always creates one Event and creates its `message_authors` row only when absent; reruns can backfill
   missing message metadata without duplicating the Event.
-- [Prove the SQL and Chat-isolation boundary](issues/04-prove-sql-boundary.md): generated SQL runs as one
-  limited function owner against a Chat-scoped temporary table; base-table grants, role-reset protection,
-  timeout, row cap, and commit cleanup complete the boundary.
+- [Prove the SQL and Chat-isolation boundary](issues/04-prove-sql-boundary.md): generated SQL runs
+  unrestricted against a disposable in-memory PGlite snapshot containing only the invoking Chat's raw
+  scoring rows; it never connects to Neon.
 
 ## Not yet specified
 

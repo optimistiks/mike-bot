@@ -7,8 +7,9 @@ Blocked by: 04, 05, 06, 10, 12
 ## Question
 
 Define proportionate verification for this experiment. Automated tests should cover deterministic contracts:
-reaction ingestion parity, SQL-tool validation and isolation, prompt/tool schema assembly, Telegram escaping and
-chunking, and update routing. They must not require an exact SQL string or prose response from a live model.
+reaction ingestion parity, disposable SQL-snapshot isolation, prompt/tool schema assembly, Telegram escaping
+and chunking, and update routing. They must not require an exact SQL string or prose response from a live
+model.
 
 The new Hono app must copy the current app's PGlite-backed testing machinery closely enough that database,
 import, ingestion, stats-tool, and direct-development-endpoint tests run locally without Neon credentials.
@@ -25,7 +26,8 @@ and an implementation agent must not execute it or otherwise spend the human's A
 ## Done when
 
 - The answer maps each risk to a deterministic automated check or an explicitly optional observation.
-- Cross-Chat reads and database mutation attempts are covered at the tool boundary.
+- Cross-Chat queries return no rows because only the invoking Chat was projected; mutations affect only the
+  disposable PGlite copy and leave the source database unchanged.
 - PGlite-backed tests cover the retained database behavior and the direct Hono development endpoint without
   requiring Telegram or Neon.
 - The automated suite fails closed if it would contact a real model, and needs no `AI_GATEWAY_API_KEY` or

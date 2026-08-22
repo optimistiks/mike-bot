@@ -1,482 +1,272 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Temporary-table boundary walkthrough</title>
+    <title>Disposable Chat snapshot</title>
     <style>
       :root {
         color-scheme: light;
-        --ink: #202725;
-        --muted: #65706c;
-        --paper: #f3f0e8;
-        --panel: #fffdf8;
-        --line: #d8d1c4;
-        --accent: #176b5b;
-        --accent-soft: #dceee9;
-        --blocked: #a03c38;
-      }
-
-      * {
-        box-sizing: border-box;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        color: #17211b;
+        background: #f4f6f2;
       }
 
       body {
-        margin: 0;
-        background: var(--paper);
-        color: var(--ink);
-        font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
-        line-height: 1.5;
-      }
-
-      main {
-        width: min(1040px, calc(100% - 32px));
-        margin: 48px auto 72px;
+        margin: 0 auto;
+        max-width: 880px;
+        padding: 48px 24px 80px;
       }
 
       h1,
-      h2,
-      h3,
-      p {
-        margin-top: 0;
+      h2 {
+        letter-spacing: -0.025em;
       }
 
       h1 {
-        max-width: 760px;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(2.4rem, 7vw, 5rem);
-        font-weight: 500;
-        letter-spacing: -0.045em;
-        line-height: 0.95;
-      }
-
-      .lede {
-        max-width: 760px;
-        color: var(--muted);
-        font-size: 1.08rem;
-      }
-
-      .eyebrow {
         margin-bottom: 8px;
-        color: var(--accent);
-        font-size: 0.76rem;
-        font-weight: 750;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
       }
 
-      .flow,
-      .grid {
-        display: grid;
-        gap: 16px;
+      p {
+        color: #536058;
+        line-height: 1.55;
       }
 
-      .flow {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        margin: 30px 0;
-      }
-
-      .step,
-      .panel {
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: var(--panel);
-      }
-
-      .step {
-        min-height: 160px;
-        padding: 18px;
-      }
-
-      .number {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        margin-bottom: 18px;
-        place-items: center;
-        border-radius: 50%;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-weight: 800;
-      }
-
-      .step p {
-        margin-bottom: 0;
-        color: var(--muted);
-        font-size: 0.92rem;
+      section {
+        margin-top: 28px;
+        padding: 24px;
+        border: 1px solid #d7ddd8;
+        border-radius: 14px;
+        background: white;
       }
 
       .grid {
-        grid-template-columns: 0.85fr 1.15fr;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
       }
 
-      .panel {
-        padding: 22px;
+      .fact {
+        padding: 14px;
+        border-radius: 10px;
+        background: #f4f6f2;
       }
 
-      .controls,
-      .tabs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+      .fact strong,
+      .fact span {
+        display: block;
+      }
+
+      .fact span {
+        margin-top: 5px;
+        color: #536058;
       }
 
       button {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 9px 13px;
-        background: #fff;
-        color: var(--ink);
+        margin: 6px 6px 0 0;
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 9px;
+        color: white;
+        background: #226b48;
         cursor: pointer;
         font: inherit;
-        font-size: 0.9rem;
       }
 
-      button:hover,
-      button:focus-visible,
-      button[aria-selected="true"] {
-        border-color: var(--accent);
-        outline: none;
-        background: var(--accent-soft);
-      }
-
-      dl {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin: 20px 0 0;
-      }
-
-      dt {
-        color: var(--muted);
-        font-size: 0.78rem;
-      }
-
-      dd {
-        margin: 3px 0 0;
-        font-weight: 650;
-      }
-
-      .allowed {
-        color: var(--accent);
-      }
-
-      .blocked {
-        color: var(--blocked);
+      button.secondary {
+        color: #28352d;
+        background: #e5ebe6;
       }
 
       pre {
-        overflow: auto;
-        margin: 18px 0 0;
+        overflow-x: auto;
+        padding: 16px;
         border-radius: 10px;
-        padding: 14px;
-        background: #17211f;
-        color: #e8f1ee;
-        font-size: 0.82rem;
-        white-space: pre-wrap;
+        color: #dfe8e1;
+        background: #17211b;
+        line-height: 1.45;
       }
 
-      .walkthrough {
-        margin-top: 18px;
+      .tabs button[aria-selected="true"] {
+        background: #17211b;
       }
 
-      .tabs {
-        margin-bottom: 14px;
-      }
-
-      .walk-step {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18px;
-        border-top: 1px solid var(--line);
-        padding: 11px 0;
-      }
-
-      .walk-step p {
-        margin: 0;
-        color: var(--muted);
-      }
-
-      code {
-        border-radius: 4px;
-        padding: 2px 5px;
-        background: #ebe7de;
-      }
-
-      @media (max-width: 820px) {
-        .flow,
-        .grid {
-          grid-template-columns: 1fr;
-        }
-
-        .step {
-          min-height: auto;
-        }
+      .walkthrough[hidden] {
+        display: none;
       }
     </style>
   </head>
   <body>
-    <main>
-      <p class="eyebrow">Validated logic prototype</p>
-      <h1>Generated SQL only receives one Chat's copied rows.</h1>
-      <p class="lede">
-        Mike-bot uses fixed, trusted SQL to copy one Telegram Chat into a
-        transaction-local table. AI-generated SQL then runs through a function
-        owned by a role that can read that table and nothing persistent.
-      </p>
+    <h1>Disposable Chat snapshot</h1>
+    <p>
+      Question: can Mike give an agent unrestricted SQL while keeping other
+      Chats absent? Mike copies only one Chat's raw rows into a fresh in-memory
+      database, and throws that database away after the answer.
+    </p>
 
-      <section class="flow" aria-label="Query flow">
-        <article class="step">
-          <span class="number">1</span>
-          <h3>Trust Telegram</h3>
-          <p>Mike-bot reads Chat 100 from the incoming update.</p>
-        </article>
-        <article class="step">
-          <span class="number">2</span>
-          <h3>Stage the Chat</h3>
-          <p>Fixed SQL copies only Chat 100 into <code>scoring_events</code>.</p>
-        </article>
-        <article class="step">
-          <span class="number">3</span>
-          <h3>Enter the executor</h3>
-          <p>
-            A <code>stats_agent</code>-owned function runs the generated query
-            without persistent-table privileges.
-          </p>
-        </article>
-        <article class="step">
-          <span class="number">4</span>
-          <h3>Drop the copy</h3>
-          <p><code>ON COMMIT DROP</code> removes the scoped rows after every call.</p>
-        </article>
-      </section>
+    <section>
+      <h2>Current state</h2>
+      <div class="grid" id="state"></div>
+      <pre id="lastAction">Nothing has happened yet.</pre>
+    </section>
 
-      <div class="grid">
-        <section class="panel">
-          <p class="eyebrow">Free play</p>
-          <h2>Choose a query</h2>
-          <div class="controls" id="free-play"></div>
-        </section>
+    <section>
+      <h2>Free play</h2>
+      <button data-action="project100">Project Chat 100</button>
+      <button data-action="project200">Project Chat 200</button>
+      <button data-action="analyze">Run arbitrary analysis</button>
+      <button data-action="crossChat">Ask for the other Chat</button>
+      <button data-action="delete">Delete snapshot rows</button>
+      <button class="secondary" data-action="reset">Reset</button>
+    </section>
 
-        <section class="panel" aria-live="polite">
-          <p class="eyebrow">Current state</p>
-          <h2 id="scenario-title">Nothing run yet</h2>
-          <dl>
-            <div>
-              <dt>Trusted Chat</dt>
-              <dd>100</dd>
-            </div>
-            <div>
-              <dt>Active database role</dt>
-              <dd>stats_agent</dd>
-            </div>
-            <div>
-              <dt>Outcome</dt>
-              <dd id="outcome">—</dd>
-            </div>
-            <div>
-              <dt>Reason</dt>
-              <dd id="reason">Choose a query to see the boundary.</dd>
-            </div>
-          </dl>
-          <pre id="sql">SELECT * FROM scoring_events</pre>
-        </section>
+    <section>
+      <h2>Guided walkthroughs</h2>
+      <div class="tabs">
+        <button data-tab="scope" aria-selected="true">Chat isolation</button>
+        <button data-tab="disposable" aria-selected="false">Disposable copy</button>
       </div>
 
-      <section class="panel walkthrough">
-        <p class="eyebrow">Guided walkthroughs</p>
-        <h2>What the executable proof checks</h2>
-        <div class="tabs" id="tabs" role="tablist"></div>
-        <div id="walkthrough"></div>
-      </section>
-    </main>
+      <div class="walkthrough" data-panel="scope">
+        <p>
+          Copy Chat 100, analyze its raw Events, then deliberately ask for Chat
+          200. Watch the visible Chat IDs stay at 100.
+        </p>
+        <button data-action="project100">1. Project Chat 100</button>
+        <button data-action="analyze">2. Analyze likes</button>
+        <button data-action="crossChat">3. Ask for Chat 200</button>
+      </div>
+
+      <div class="walkthrough" data-panel="disposable" hidden>
+        <p>
+          The agent may damage its snapshot. The source stays unchanged, and a
+          fresh projection restores the rows.
+        </p>
+        <button data-action="project100">1. Project Chat 100</button>
+        <button data-action="delete">2. Delete snapshot rows</button>
+        <button data-action="project100">3. Create a fresh snapshot</button>
+      </div>
+    </section>
 
     <script>
-      const TempTablePrototype = (() => {
-        const scenarios = {
-          analytics: {
-            title: "Answer a normal Stats question",
-            sql: "SELECT subject_name, sum(humor_received_delta)\nFROM scoring_events GROUP BY subject_id, subject_name",
-            outcome: "Allowed",
-            reason: "Chat 100 rows are available for arbitrary analysis.",
+      const source = Object.freeze({
+        events: [
+          { type: "karma.plus", chatId: 100, actorId: 12, subjectId: 11 },
+          { type: "karma.plus", chatId: 100, actorId: 12, subjectId: 11 },
+          { type: "karma.plus", chatId: 100, actorId: 11, subjectId: 12 },
+          { type: "humor.add", chatId: 100, actorId: 11, subjectId: 12 },
+          { type: "karma.minus", chatId: 200, actorId: 22, subjectId: 21 },
+        ],
+        messages: [
+          { chatId: 100, messageId: 1 },
+          { chatId: 100, messageId: 2 },
+          { chatId: 200, messageId: 1 },
+        ],
+        members: [
+          { chatId: 100, userId: 11, name: "Alice" },
+          { chatId: 100, userId: 12, name: "Bob" },
+          { chatId: 200, userId: 21, name: "Mallory" },
+        ],
+      });
+
+      const initialState = () => ({
+        projectedChatId: null,
+        snapshot: { events: [], messages: [], members: [] },
+        lastAction: "Nothing has happened yet.",
+      });
+
+      let state = initialState();
+
+      function projectChat(current, chatId) {
+        return {
+          projectedChatId: chatId,
+          snapshot: {
+            events: source.events.filter((row) => row.chatId === chatId),
+            messages: source.messages.filter((row) => row.chatId === chatId),
+            members: source.members.filter((row) => row.chatId === chatId),
           },
-          otherChatScoped: {
-            title: "Look for another Chat in scoped data",
-            sql: "SELECT * FROM scoring_events WHERE subject_name = 'Mallory'",
-            outcome: "Allowed, zero rows",
-            reason: "Chat 200 was never copied into the temporary table.",
-          },
-          otherChatTable: {
-            title: "Query the underlying table directly",
-            sql: "SELECT * FROM private.events WHERE chat_id = 200",
-            outcome: "Blocked",
-            reason: "The function owner has no privilege on persistent tables.",
-          },
-          setConfig: {
-            title: "Change an irrelevant session setting",
-            sql: "SELECT set_config('app.chat_id', '200', true), count(*) FROM scoring_events WHERE subject_name = 'Mallory'",
-            outcome: "Allowed, zero rows",
-            reason: "Chat scope is copied data, not a mutable setting.",
-          },
-          resetRoleFunction: {
-            title: "Reset the role through set_config",
-            sql: "SELECT set_config('role', 'none', true)",
-            outcome: "Blocked",
-            reason: "PostgreSQL forbids role changes inside a security-definer function.",
-          },
-          resetRole: {
-            title: "Regain the default Neon role",
-            sql: "RESET ROLE",
-            outcome: "Blocked",
-            reason: "Generated SQL is nested inside SELECT, so RESET ROLE is invalid.",
-          },
-          mutate: {
-            title: "Delete an Event",
-            sql: "DELETE FROM private.events RETURNING *",
-            outcome: "Blocked",
-            reason: "The nested query rejects mutation and stats_agent has no write grants.",
-          },
-          rowCap: {
-            title: "Return too many rows",
-            sql: "SELECT * FROM scoring_events ORDER BY action_at",
-            outcome: "Allowed, truncated",
-            reason: "The outer query returns at most the configured row budget.",
-          },
-          timeout: {
-            title: "Inspect the execution budget",
-            sql: "SELECT current_user, current_setting('statement_timeout')",
-            outcome: "Allowed",
-            reason: "The proof runs as stats_agent with a server-side timeout.",
-          },
+          lastAction: `Created a fresh in-memory snapshot for Chat ${chatId}.`,
         };
+      }
 
-        const walks = {
-          useful: {
-            label: "Useful SQL",
-            description: "First confirm that ordinary analytics still work.",
-            steps: ["analytics", "rowCap", "timeout"],
-          },
-          isolation: {
-            label: "Chat isolation",
-            description: "Try the scoped copy and the underlying tables.",
-            steps: ["otherChatScoped", "otherChatTable", "setConfig"],
-          },
-          escape: {
-            label: "Escape attempts",
-            description: "Try to regain privilege or modify stored data.",
-            steps: ["resetRoleFunction", "resetRole", "mutate"],
-          },
-        };
+      function transition(current, action) {
+        if (action === "project100") return projectChat(current, 100);
+        if (action === "project200") return projectChat(current, 200);
+        if (action === "reset") return initialState();
 
-        const initialState = { scenario: null, walk: "useful" };
-
-        function reduce(state, action) {
-          if (action.type === "run") {
-            return { ...state, scenario: action.scenario };
-          }
-          if (action.type === "walk") {
-            return { scenario: null, walk: action.walk };
-          }
-          return state;
+        if (action === "delete") {
+          return {
+            ...current,
+            snapshot: { ...current.snapshot, events: [] },
+            lastAction: `The agent deleted its Event copy. Source Events: ${source.events.length}.`,
+          };
         }
 
-        return { scenarios, walks, initialState, reduce };
-      })();
-
-      let state = TempTablePrototype.initialState;
-
-      function dispatch(action) {
-        state = TempTablePrototype.reduce(state, action);
-        render();
-      }
-
-      function actionButton(key, label) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = label;
-        button.addEventListener("click", () =>
-          dispatch({ type: "run", scenario: key }),
-        );
-        return button;
-      }
-
-      function renderFreePlay() {
-        document
-          .querySelector("#free-play")
-          .replaceChildren(
-            ...Object.entries(TempTablePrototype.scenarios).map(([key, scenario]) =>
-              actionButton(key, scenario.title),
-            ),
+        if (action === "crossChat") {
+          const other = current.projectedChatId === 100 ? 200 : 100;
+          const matches = current.snapshot.events.filter(
+            (row) => row.chatId === other,
           );
-      }
+          return {
+            ...current,
+            lastAction: `SELECT * FROM events WHERE chat_id = ${other} → ${matches.length} rows`,
+          };
+        }
 
-      function renderTabs() {
-        document
-          .querySelector("#tabs")
-          .replaceChildren(
-            ...Object.entries(TempTablePrototype.walks).map(([key, walk]) => {
-              const button = document.createElement("button");
-              button.type = "button";
-              button.role = "tab";
-              button.textContent = walk.label;
-              button.setAttribute("aria-selected", String(state.walk === key));
-              button.addEventListener("click", () =>
-                dispatch({ type: "walk", walk: key }),
-              );
-              return button;
-            }),
-          );
-      }
+        if (action === "analyze") {
+          const totals = new Map();
+          for (const event of current.snapshot.events) {
+            if (event.type !== "karma.plus") continue;
+            totals.set(event.subjectId, (totals.get(event.subjectId) ?? 0) + 1);
+          }
+          return {
+            ...current,
+            lastAction: `Agent-written analysis result:\n${JSON.stringify(Object.fromEntries(totals), null, 2)}`,
+          };
+        }
 
-      function renderWalkthrough() {
-        const walk = TempTablePrototype.walks[state.walk];
-        const wrapper = document.createElement("div");
-        const description = document.createElement("p");
-        description.textContent = walk.description;
-        wrapper.append(description);
-
-        walk.steps.forEach((key, index) => {
-          const scenario = TempTablePrototype.scenarios[key];
-          const row = document.createElement("div");
-          const copy = document.createElement("p");
-          row.className = "walk-step";
-          copy.textContent = `${index + 1}. ${scenario.title}`;
-          row.append(copy, actionButton(key, "Run step"));
-          wrapper.append(row);
-        });
-
-        document.querySelector("#walkthrough").replaceChildren(wrapper);
-      }
-
-      function renderState() {
-        const scenario = state.scenario
-          ? TempTablePrototype.scenarios[state.scenario]
-          : null;
-        document.querySelector("#scenario-title").textContent =
-          scenario?.title ?? "Nothing run yet";
-        const outcome = document.querySelector("#outcome");
-        outcome.textContent = scenario?.outcome ?? "—";
-        outcome.className = scenario
-          ? scenario.outcome.startsWith("Blocked")
-            ? "blocked"
-            : "allowed"
-          : "";
-        document.querySelector("#reason").textContent =
-          scenario?.reason ?? "Choose a query to see the boundary.";
-        document.querySelector("#sql").textContent =
-          scenario?.sql ?? "SELECT * FROM scoring_events";
+        return current;
       }
 
       function render() {
-        renderTabs();
-        renderWalkthrough();
-        renderState();
+        const chatIds = [
+          ...new Set(state.snapshot.events.map((row) => row.chatId)),
+        ];
+        document.querySelector("#state").innerHTML = [
+          ["Projected Chat", state.projectedChatId ?? "None"],
+          ["Visible Chat IDs", chatIds.join(", ") || "None"],
+          ["Event rows", state.snapshot.events.length],
+          ["Source Event rows", source.events.length],
+        ]
+          .map(
+            ([label, value]) =>
+              `<div class="fact"><strong>${label}</strong><span>${value}</span></div>`,
+          )
+          .join("");
+        document.querySelector("#lastAction").textContent = state.lastAction;
       }
 
-      renderFreePlay();
+      document.addEventListener("click", (event) => {
+        const action = event.target.closest("[data-action]")?.dataset.action;
+        if (action) {
+          state = transition(state, action);
+          render();
+        }
+
+        const tab = event.target.closest("[data-tab]")?.dataset.tab;
+        if (tab) {
+          document.querySelectorAll("[data-tab]").forEach((button) => {
+            button.setAttribute(
+              "aria-selected",
+              String(button.dataset.tab === tab),
+            );
+          });
+          document.querySelectorAll("[data-panel]").forEach((panel) => {
+            panel.hidden = panel.dataset.panel !== tab;
+          });
+        }
+      });
+
       render();
     </script>
   </body>
