@@ -44,6 +44,9 @@ database.
 - [Normalize imported message metadata](issues/09-normalize-imported-message-authors.md): importing one new
   v1 row always creates one Event and creates its `message_authors` row only when absent; reruns can backfill
   missing message metadata without duplicating the Event.
+- [Prove the SQL and Chat-isolation boundary](issues/04-prove-sql-boundary.md): generated SQL runs as one
+  limited RLS role after trusted code injects the Chat; a read view, wrapper, timeout, and row cap complete the
+  boundary.
 
 ## Not yet specified
 

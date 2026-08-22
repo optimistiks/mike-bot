@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RLS boundary walkthrough</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #202725;
+        --muted: #65706c;
+        --paper: #f3f0e8;
+        --panel: #fffdf8;
+        --line: #d8d1c4;
+        --accent: #176b5b;
+        --accent-soft: #dceee9;
+        --blocked: #a03c38;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        width: min(1040px, calc(100% - 32px));
+        margin: 48px auto 72px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2.4rem, 7vw, 5rem);
+        font-weight: 500;
+        letter-spacing: -0.045em;
+        line-height: 0.95;
+      }
+
+      .lede {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 1.08rem;
+      }
+
+      .eyebrow {
+        margin-bottom: 8px;
+        color: var(--accent);
+        font-size: 0.76rem;
+        font-weight: 750;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .flow,
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .flow {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin: 30px 0;
+      }
+
+      .step,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+      }
+
+      .step {
+        min-height: 160px;
+        padding: 18px;
+      }
+
+      .number {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        margin-bottom: 18px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 800;
+      }
+
+      .step p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .grid {
+        grid-template-columns: 0.85fr 1.15fr;
+      }
+
+      .panel {
+        padding: 22px;
+      }
+
+      .controls,
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 9px 13px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.9rem;
+      }
+
+      button:hover,
+      button:focus-visible,
+      button[aria-selected="true"] {
+        border-color: var(--accent);
+        outline: none;
+        background: var(--accent-soft);
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 20px 0 0;
+      }
+
+      dt {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      dd {
+        margin: 3px 0 0;
+        font-weight: 650;
+      }
+
+      .allowed {
+        color: var(--accent);
+      }
+
+      .blocked {
+        color: var(--blocked);
+      }
+
+      pre {
+        overflow: auto;
+        margin: 18px 0 0;
+        border-radius: 10px;
+        padding: 14px;
+        background: #17211f;
+        color: #e8f1ee;
+        font-size: 0.82rem;
+        white-space: pre-wrap;
+      }
+
+      .walkthrough {
+        margin-top: 18px;
+      }
+
+      .tabs {
+        margin-bottom: 14px;
+      }
+
+      .walk-step {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border-top: 1px solid var(--line);
+        padding: 11px 0;
+      }
+
+      .walk-step p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      code {
+        border-radius: 4px;
+        padding: 2px 5px;
+        background: #ebe7de;
+      }
+
+      @media (max-width: 820px) {
+        .flow,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .step {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Validated logic prototype</p>
+      <h1>One new role locks generated SQL to one Chat.</h1>
+      <p class="lede">
+        Mike-bot keeps using the existing default Neon role. For each query it
+        writes the trusted Telegram Chat into the transaction, drops into a new
+        limited role, and only then executes the AI-generated SQL. PostgreSQL
+        Row-Level Security filters every scoring table.
+      </p>
+
+      <section class="flow" aria-label="Query flow">
+        <article class="step">
+          <span class="number">1</span>
+          <h3>Trust Telegram</h3>
+          <p>Mike-bot reads Chat 100 from the incoming update.</p>
+        </article>
+        <article class="step">
+          <span class="number">2</span>
+          <h3>Set the Chat</h3>
+          <p>The existing Neon role stores Chat 100 inside the transaction.</p>
+        </article>
+        <article class="step">
+          <span class="number">3</span>
+          <h3>Drop privileges</h3>
+          <p>
+            <code>SET ROLE stats_agent</code> removes the ability to change that
+            Chat or bypass RLS.
+          </p>
+        </article>
+        <article class="step">
+          <span class="number">4</span>
+          <h3>Run generated SQL</h3>
+          <p>Any number of tool calls repeat this boundary independently.</p>
+        </article>
+      </section>
+
+      <div class="grid">
+        <section class="panel">
+          <p class="eyebrow">Free play</p>
+          <h2>Choose a query</h2>
+          <div class="controls" id="free-play"></div>
+        </section>
+
+        <section class="panel" aria-live="polite">
+          <p class="eyebrow">Current state</p>
+          <h2 id="scenario-title">Nothing run yet</h2>
+          <dl>
+            <div>
+              <dt>Trusted Chat</dt>
+              <dd>100</dd>
+            </div>
+            <div>
+              <dt>Active database role</dt>
+              <dd>stats_agent</dd>
+            </div>
+            <div>
+              <dt>Outcome</dt>
+              <dd id="outcome">—</dd>
+            </div>
+            <div>
+              <dt>Reason</dt>
+              <dd id="reason">Choose a query to see the boundary.</dd>
+            </div>
+          </dl>
+          <pre id="sql">SELECT * FROM stats.scoring_events</pre>
+        </section>
+      </div>
+
+      <section class="panel walkthrough">
+        <p class="eyebrow">Guided walkthroughs</p>
+        <h2>What the executable proof checks</h2>
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <div id="walkthrough"></div>
+      </section>
+    </main>
+
+    <script>
+      const RlsPrototype = (() => {
+        const scenarios = {
+          analytics: {
+            title: "Answer a normal Stats question",
+            sql: "SELECT subject_name, sum(humor_received_delta)\nFROM stats.scoring_events GROUP BY subject_id, subject_name",
+            outcome: "Allowed",
+            reason: "Chat 100 rows are available for arbitrary analysis.",
+          },
+          otherChatView: {
+            title: "Look for another Chat in the scoring view",
+            sql: "SELECT * FROM stats.scoring_events WHERE subject_name = 'Mallory'",
+            outcome: "Allowed, zero rows",
+            reason: "RLS removed Chat 200 before the view returned rows.",
+          },
+          otherChatTable: {
+            title: "Query the underlying table directly",
+            sql: "SELECT * FROM private.events WHERE chat_id = 200",
+            outcome: "Allowed, zero rows",
+            reason: "RLS protects the base tables, not only the friendly view.",
+          },
+          setConfig: {
+            title: "Change the trusted Chat",
+            sql: "SELECT set_config('app.chat_id', '200', true)",
+            outcome: "Blocked",
+            reason: "stats_agent cannot execute set_config.",
+          },
+          resetRole: {
+            title: "Regain the default Neon role",
+            sql: "RESET ROLE",
+            outcome: "Blocked",
+            reason: "Generated SQL is nested inside SELECT, so RESET ROLE is invalid.",
+          },
+          mutate: {
+            title: "Delete an Event",
+            sql: "DELETE FROM private.events RETURNING *",
+            outcome: "Blocked",
+            reason: "The wrapper rejects mutation and the Neon endpoint is read-only.",
+          },
+          rowCap: {
+            title: "Return too many rows",
+            sql: "SELECT * FROM stats.scoring_events ORDER BY action_at",
+            outcome: "Allowed, truncated",
+            reason: "The outer query returns at most the configured row budget.",
+          },
+          timeout: {
+            title: "Inspect the execution budget",
+            sql: "SELECT current_user, current_setting('statement_timeout')",
+            outcome: "Allowed",
+            reason: "The proof runs as stats_agent with a server-side timeout.",
+          },
+        };
+
+        const walks = {
+          useful: {
+            label: "Useful SQL",
+            description: "First confirm that ordinary analytics still work.",
+            steps: ["analytics", "rowCap", "timeout"],
+          },
+          isolation: {
+            label: "Chat isolation",
+            description: "Try the friendly view and the underlying tables.",
+            steps: ["otherChatView", "otherChatTable", "setConfig"],
+          },
+          escape: {
+            label: "Escape attempts",
+            description: "Try to regain privilege or modify stored data.",
+            steps: ["resetRole", "mutate"],
+          },
+        };
+
+        const initialState = { scenario: null, walk: "useful" };
+
+        function reduce(state, action) {
+          if (action.type === "run") {
+            return { ...state, scenario: action.scenario };
+          }
+          if (action.type === "walk") {
+            return { scenario: null, walk: action.walk };
+          }
+          return state;
+        }
+
+        return { scenarios, walks, initialState, reduce };
+      })();
+
+      let state = RlsPrototype.initialState;
+
+      function dispatch(action) {
+        state = RlsPrototype.reduce(state, action);
+        render();
+      }
+
+      function actionButton(key, label) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", () =>
+          dispatch({ type: "run", scenario: key }),
+        );
+        return button;
+      }
+
+      function renderFreePlay() {
+        document
+          .querySelector("#free-play")
+          .replaceChildren(
+            ...Object.entries(RlsPrototype.scenarios).map(([key, scenario]) =>
+              actionButton(key, scenario.title),
+            ),
+          );
+      }
+
+      function renderTabs() {
+        document
+          .querySelector("#tabs")
+          .replaceChildren(
+            ...Object.entries(RlsPrototype.walks).map(([key, walk]) => {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.role = "tab";
+              button.textContent = walk.label;
+              button.setAttribute("aria-selected", String(state.walk === key));
+              button.addEventListener("click", () =>
+                dispatch({ type: "walk", walk: key }),
+              );
+              return button;
+            }),
+          );
+      }
+
+      function renderWalkthrough() {
+        const walk = RlsPrototype.walks[state.walk];
+        const wrapper = document.createElement("div");
+        const description = document.createElement("p");
+        description.textContent = walk.description;
+        wrapper.append(description);
+
+        walk.steps.forEach((key, index) => {
+          const scenario = RlsPrototype.scenarios[key];
+          const row = document.createElement("div");
+          const copy = document.createElement("p");
+          row.className = "walk-step";
+          copy.textContent = `${index + 1}. ${scenario.title}`;
+          row.append(copy, actionButton(key, "Run step"));
+          wrapper.append(row);
+        });
+
+        document.querySelector("#walkthrough").replaceChildren(wrapper);
+      }
+
+      function renderState() {
+        const scenario = state.scenario
+          ? RlsPrototype.scenarios[state.scenario]
+          : null;
+        document.querySelector("#scenario-title").textContent =
+          scenario?.title ?? "Nothing run yet";
+        const outcome = document.querySelector("#outcome");
+        outcome.textContent = scenario?.outcome ?? "—";
+        outcome.className = scenario
+          ? scenario.outcome.startsWith("Blocked")
+            ? "blocked"
+            : "allowed"
+          : "";
+        document.querySelector("#reason").textContent =
+          scenario?.reason ?? "Choose a query to see the boundary.";
+        document.querySelector("#sql").textContent =
+          scenario?.sql ?? "SELECT * FROM stats.scoring_events";
+      }
+
+      function render() {
+        renderTabs();
+        renderWalkthrough();
+        renderState();
+      }
+
+      renderFreePlay();
+      render();
+    </script>
+  </body>
+</html>
