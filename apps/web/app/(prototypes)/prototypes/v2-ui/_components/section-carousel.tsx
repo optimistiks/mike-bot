@@ -12,6 +12,7 @@ import {
 import type { LeaderboardSection } from "../_lib/leaderboard-shape";
 
 import { StandingsSection } from "./standings-section";
+import { useTelegramPlatform } from "./telegram-provider";
 
 /**
  * The five sections as a full-bleed filmstrip, one section per screen.
@@ -37,22 +38,30 @@ export function SectionCarousel({
   onSelect: (index: number) => void;
 }) {
   const [api, setApi] = useState<CarouselApi>();
+  const { hapticSelection } = useTelegramPlatform();
 
   useEffect(() => {
     if (!api) return;
 
-    const report = () => {
+    const reportSelection = () => {
+      const selectedIndex = api.selectedScrollSnap();
+      if (selectedIndex === activeIndex) return;
+
+      hapticSelection();
+      onSelect(selectedIndex);
+    };
+    const reportReinitialization = () => {
       onSelect(api.selectedScrollSnap());
     };
 
-    api.on("select", report);
-    api.on("reInit", report);
+    api.on("select", reportSelection);
+    api.on("reInit", reportReinitialization);
 
     return () => {
-      api.off("select", report);
-      api.off("reInit", report);
+      api.off("select", reportSelection);
+      api.off("reInit", reportReinitialization);
     };
-  }, [api, onSelect]);
+  }, [activeIndex, api, hapticSelection, onSelect]);
 
   return (
     <Carousel

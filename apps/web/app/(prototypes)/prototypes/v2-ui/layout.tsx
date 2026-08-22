@@ -2,6 +2,7 @@ import "./arcade.css";
 
 import { CrtBoot } from "./_components/crt-boot";
 import { SeasonGlitch } from "./_components/season-glitch";
+import { TelegramProvider } from "./_components/telegram-provider";
 
 /**
  * The prototype's shell, and the one thing in it that outlives a navigation.
@@ -14,10 +15,12 @@ export default function V2UIPrototypeLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="arcade">
-      {children}
-      <SeasonGlitch />
-      <CrtBoot />
-    </div>
+    <TelegramProvider>
+      <div className="arcade">
+        {children}
+        <SeasonGlitch />
+        <CrtBoot />
+      </div>
+    </TelegramProvider>
   );
 }

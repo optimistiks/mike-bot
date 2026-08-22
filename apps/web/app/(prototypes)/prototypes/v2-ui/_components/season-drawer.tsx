@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/8bit/button";
 import {
@@ -16,6 +16,7 @@ import type { PrototypeSeason } from "../_lib/seasons";
 
 import { leaderboardHref, seasonLabel } from "../_lib/seasons";
 import { SeasonPicker } from "./season-picker";
+import { useTelegramPlatform } from "./telegram-provider";
 
 /**
  * The header's Season chip and the drawer it opens.
@@ -39,6 +40,15 @@ export function SeasonDrawer({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const { hapticSelection, interceptBack } = useTelegramPlatform();
+
+  useEffect(() => {
+    if (!open) return;
+
+    return interceptBack(() => {
+      setOpen(false);
+    });
+  }, [interceptBack, open]);
 
   return (
     <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
@@ -59,6 +69,7 @@ export function SeasonDrawer({
           <SeasonPicker
             season={season}
             onSelect={(chosen) => {
+              hapticSelection();
               setOpen(false);
               router.replace(leaderboardHref(chatId, chosen));
             }}

@@ -38,8 +38,22 @@
 
   /* Telegram fills these in when the Mini App runs inside the client; the
      fallbacks keep the prototype usable as a plain web page. */
-  --arcade-inset-top: var(--tg-viewport-safe-area-inset-top, 0px);
-  --arcade-inset-bottom: var(--tg-viewport-safe-area-inset-bottom, 0px);
+  --arcade-inset-top: max(
+    var(--tg-viewport-safe-area-inset-top, 0px),
+    var(--tg-viewport-content-safe-area-inset-top, 0px)
+  );
+  --arcade-inset-right: max(
+    var(--tg-viewport-safe-area-inset-right, 0px),
+    var(--tg-viewport-content-safe-area-inset-right, 0px)
+  );
+  --arcade-inset-bottom: max(
+    var(--tg-viewport-safe-area-inset-bottom, 0px),
+    var(--tg-viewport-content-safe-area-inset-bottom, 0px)
+  );
+  --arcade-inset-left: max(
+    var(--tg-viewport-safe-area-inset-left, 0px),
+    var(--tg-viewport-content-safe-area-inset-left, 0px)
+  );
 }
 
 .arcade {
@@ -50,7 +64,7 @@
      slides size themselves as a percentage of this, and a `min-height` leaves
      that chain indefinite — every slide then grows to fit its standings and the
      whole document scrolls vertically, which is exactly what must not exist. */
-  height: 100dvh;
+  height: var(--tg-viewport-stable-height, 100dvh);
   overflow: hidden;
   background: var(--arcade-void);
   color: var(--arcade-ink);
@@ -58,7 +72,9 @@
   line-height: 1.6;
   letter-spacing: 0.03em;
   padding-top: var(--arcade-inset-top);
+  padding-right: var(--arcade-inset-right);
   padding-bottom: var(--arcade-inset-bottom);
+  padding-left: var(--arcade-inset-left);
 }
 
 /* CRT texture ------------------------------------------------------------ */
@@ -91,6 +107,9 @@
    every one of its children, which is the same "behind the text" placement the
    overlay achieves with a z-index sandwich, without needing one. */
 .arcade-drawer {
+  padding-right: var(--arcade-inset-right);
+  padding-bottom: var(--arcade-inset-bottom);
+  padding-left: var(--arcade-inset-left);
   background-image: repeating-linear-gradient(
     180deg,
     color-mix(in oklab, var(--arcade-ink) 4%, transparent) 0 1px,

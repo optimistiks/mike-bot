@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
 
 import { Avatar, AvatarFallback } from "@/components/ui/8bit/avatar";
 import { Item, ItemContent, ItemMedia } from "@/components/ui/8bit/item";
 
 import { ChatMorph } from "./chat-morph";
+import { useTelegramPlatform } from "./telegram-provider";
 
 export function ChatCard({
   chatId,
@@ -16,13 +19,15 @@ export function ChatCard({
   name: string;
   initials: string;
 }) {
+  const { hapticImpact } = useTelegramPlatform();
+
   return (
     // The other end of this morph is the Leaderboard header's first tier, so
     // tapping a Chat reads as that card travelling rather than the page being
     // replaced.
     <ChatMorph chatId={chatId}>
       <Item
-        render={<Link href={href} />}
+        render={<Link href={href} onClick={hapticImpact} />}
         className="items-start gap-3 px-3 py-4"
       >
         <ItemMedia>

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { LeaderboardEntry } from "../_lib/leaderboard-shape";
 
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/8bit/button";
 import { useChangeCounter } from "../_lib/use-change-counter";
 import { LAYOUT_SPRING } from "./motion-config";
 import { StandingsEntry } from "./standings-entry";
+import { useTelegramPlatform } from "./telegram-provider";
 
 /** Roughly a screenful, so a thirty-person Chat never buries first place. */
 const VISIBLE_ENTRIES = 6;
@@ -45,6 +46,33 @@ export function StandingsList({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const reveal = useChangeCounter(isActive, (from, to) => !from && to);
+  const { hapticNotificationSuccess, isInitialized } = useTelegramPlatform();
+  const crownEntries = entries.filter((entry) => entry.isCrown);
+  const hasCrown = crownEntries.length > 0;
+  const crownRevealId = `${String(reveal)}:${crownEntries
+    .map((entry) => `${String(entry.userId)}-${String(entry.score)}`)
+    .join(":")}`;
+  const notifiedCrownReveal = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      !isInitialized ||
+      !isActive ||
+      !hasCrown ||
+      notifiedCrownReveal.current === crownRevealId
+    ) {
+      return;
+    }
+
+    notifiedCrownReveal.current = crownRevealId;
+    hapticNotificationSuccess();
+  }, [
+    crownRevealId,
+    hasCrown,
+    hapticNotificationSuccess,
+    isActive,
+    isInitialized,
+  ]);
 
   // Entries arrive ranked, so the first one sets the scale every bar is drawn
   // against.
