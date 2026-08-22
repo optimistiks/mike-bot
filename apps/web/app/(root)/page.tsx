@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { chatIdFromStartParam } from "./_lib/start-param";
+
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
@@ -7,8 +9,11 @@ export default async function HomePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { persona } = await searchParams;
-  const destination = new URL("http://mini-app.local/chats");
+  const { persona, tgWebAppStartParam } = await searchParams;
+  const chatId = chatIdFromStartParam(tgWebAppStartParam);
+  const pathname =
+    chatId === null ? "/chats" : `/chats/${String(chatId)}/leaderboards`;
+  const destination = new URL(pathname, "http://mini-app.local");
   if (typeof persona === "string") {
     destination.searchParams.set("persona", persona);
   }

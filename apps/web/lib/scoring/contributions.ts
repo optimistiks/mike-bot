@@ -16,30 +16,15 @@ const CONTRIBUTIONS: Record<EventType, BucketContributions> = {
     karmaReceived: 1,
     karmaPlusGiven: 1,
   },
-  "karma.undo.plus": {
-    ...ZERO,
-    karmaReceived: -1,
-    karmaPlusGiven: -1,
-  },
   "karma.minus": {
     ...ZERO,
     karmaReceived: -1,
     karmaMinusGiven: 1,
   },
-  "karma.undo.minus": {
-    ...ZERO,
-    karmaReceived: 1,
-    karmaMinusGiven: -1,
-  },
   "humor.add": {
     ...ZERO,
     humorReceived: 1,
     humorGiven: 1,
-  },
-  "humor.undo.add": {
-    ...ZERO,
-    humorReceived: -1,
-    humorGiven: -1,
   },
 };
 

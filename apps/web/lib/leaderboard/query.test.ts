@@ -46,32 +46,18 @@ describe("queryLeaderboard", () => {
     }
   });
 
-  it("rejects Event types outside the application vocabulary", async () => {
+  it("rejects Event types outside the database vocabulary", async () => {
     const pglite = await createPgliteDb();
 
     try {
-      await pglite.db.insert(events).values({
-        type: "future.unknown",
-        chatId: PRIMARY_FIXTURE_CHAT_ID,
-        actorId: 1,
-        subjectId: 2,
-        messageId: 3,
-        createdAt: new Date("2026-08-15T12:00:00.000Z"),
-      });
-      await pglite.db.insert(messageAuthors).values({
-        chatId: PRIMARY_FIXTURE_CHAT_ID,
-        messageId: 3,
-        authorId: 2,
-        authorIsBot: false,
-        messageDate: Math.floor(
-          new Date("2026-08-15T11:00:00.000Z").getTime() / 1000,
-        ),
-      });
-
       await expect(
-        queryLeaderboard(pglite.db, PRIMARY_FIXTURE_CHAT_ID, {
-          year: 2026,
-          month: 8,
+        pglite.db.insert(events).values({
+          type: "future.unknown",
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          actorId: 1,
+          subjectId: 2,
+          messageId: 3,
+          createdAt: new Date("2026-08-15T12:00:00.000Z"),
         }),
       ).rejects.toThrow();
     } finally {

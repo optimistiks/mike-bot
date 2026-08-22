@@ -28,6 +28,8 @@ export interface ImportedEventRow {
   subjectId: number;
   messageId: number;
   createdAt: Date;
+  reversible: false;
+  reversesEventId: null;
   legacyId: string;
 }
 
@@ -68,6 +70,8 @@ export function convertV1Row(row: V1LolRow): ConvertedV1Row {
       subjectId: row.toUser.id,
       messageId: row.toMessageId,
       createdAt: new Date(row.createdAt),
+      reversible: false,
+      reversesEventId: null,
       legacyId: row.id,
     },
     displayIdentities: [

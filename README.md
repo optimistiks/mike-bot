@@ -150,7 +150,7 @@ Deploy (or redeploy after adding env vars). Note the production HTTPS origin, e.
 
 ### 5. Import v1 history
 
-The Wayfinder Destination includes v1 history. Run the import **locally** — not on Vercel — and verify its output before enabling the group flow. It is safe to re-run (`legacy_id` skips duplicates). If the source contains no applicable rows, retain the empty verification dump as evidence.
+The Wayfinder Destination includes v1 history. Run the import **locally** — not on Vercel — and verify its output before enabling the group flow. It is safe to re-run: rows are inserted or reconciled by `legacy_id`, and nothing is deleted. Malformed source rows and Message-author conflicts are logged and skipped without stopping the import. If the source contains no applicable rows, retain the empty verification dump as evidence.
 
 Use the direct connection from `.env.local` (`DATABASE_URL_UNPOOLED` is picked up automatically after `vercel env pull`):
 
@@ -162,17 +162,17 @@ AWS_SECRET_ACCESS_KEY="..." \
 pnpm import:v1
 ```
 
-| Variable                | Required | Purpose                                                             |
-| ----------------------- | -------- | ------------------------------------------------------------------- |
-| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`)       |
-| `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                          |
-| `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                           |
-| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                                     |
-| `LOL_TABLE_NAME`        | no       | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)              |
-| `IMPORT_CHAT_ID`        | no       | Import one chat only (still scans full table)                       |
-| `IMPORT_TARGET`         | no       | `pglite` = local PGlite instead of Neon                             |
-| `PGLITE_DATA_DIR`       | no       | Persist PGlite files between runs                                   |
-| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `display_identities.json`, `leaderboards.json` |
+| Variable                | Required | Purpose                                                            |
+| ----------------------- | -------- | ------------------------------------------------------------------ |
+| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`)      |
+| `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                         |
+| `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                          |
+| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                                    |
+| `LOL_TABLE_NAME`        | no       | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)             |
+| `IMPORT_CHAT_ID`        | no       | Import one chat only (still scans full table)                      |
+| `IMPORT_TARGET`         | no       | `pglite` = local PGlite instead of Neon                            |
+| `PGLITE_DATA_DIR`       | no       | Persist PGlite files between runs                                  |
+| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `messages.json`, identities, and leaderboards |
 
 \* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`. † Not required when `IMPORT_TARGET=pglite`.
 
@@ -220,16 +220,15 @@ WEBHOOK_URL="https://your-project.vercel.app/api/telegram" \
 pnpm set-webhook
 ```
 
-The script sets `secret_token` and `allowed_updates`: `message`, `message_reaction`, `chat_member` (not `my_chat_member`), then verifies via `getWebhookInfo`. Re-run safely after URL or secret changes.
+The script publishes `/stats` and `/register`, sets `secret_token` and `allowed_updates`: `message`, `message_reaction`, `chat_member` (not `my_chat_member`), then verifies via `getWebhookInfo`. Re-run safely after URL or secret changes.
 
-### 7. BotFather — Menu Button
+### 7. BotFather — Main Mini App
 
-Mini App opens only from the bot Menu Button (no `/stats`, no inline keyboard).
+Configure the production Vercel origin as the bot's **Main Mini App** so Telegram accepts `https://t.me/<bot>?startapp=...` links and supplies `tgWebAppStartParam`.
 
-1. `@BotFather` → `/setmenubutton`
-2. Select the v2 bot
-3. Button label (e.g. `Таблицы` or `Leaderboards`)
-4. URL: production Vercel HTTPS origin from step 4, e.g. `https://your-project.vercel.app`
+1. `@BotFather` → select the v2 bot → **Bot Settings** → **Configure Mini App**.
+2. Enable the Main Mini App and set its URL to the production Vercel HTTPS origin from step 4, e.g. `https://your-project.vercel.app`.
+3. Optionally configure the same URL as the Menu Button for an additional entry point.
 
 Use the **production** URL users will hit long-term — preview deployment URLs need their own BotFather entry or a stable alias.
 
@@ -240,9 +239,9 @@ Repeat for every supergroup that should use v2.
 1. **Add the bot** to the group.
 2. **Promote to administrator** — required for `message_reaction` updates. Without admin, reactions work in the client but the bot receives nothing.
 3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
-4. A **group admin** sends `/register` in the group. The bot posts a Registration message in Russian.
-5. **Members** react to the Registration message with any reaction → `registrations` row → Chat appears in the Mini App picker.
-6. **Scoring:** Members use 👍 👎 🤣 on others' messages. The bot stays silent. Marks work even for unregistered Members; only Mini App access requires reacting to a Registration message.
+4. A **group admin** may send `/register`; the bot posts a Registration message in Russian.
+5. **Members** either react to that message or send `/stats`. Group `/stats` creates Registration and links directly to that Chat's current Leaderboard; private `/stats` opens the Chat picker.
+6. **Scoring:** Members use 👍 👎 🤣 reactions, or exact `+`, `-`, `лол` replies, on others' messages. Accepted replies remain in Chat and receive a 👍 acknowledgement. Reaction Marks can be undone; reply and imported Marks cannot.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).
 
@@ -252,7 +251,7 @@ When a member leaves or is kicked, their registration row is removed automatical
 | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Webhook       | `set-webhook` printed success; or Telegram `getWebhookInfo` shows your URL and `message_reaction` in `allowed_updates`      |
 | Message cache | Send a normal message in the group after the bot joined, then add 👍 on that message — subject should appear on leaderboard |
-| Mini App      | Menu Button → arcade Chat picker → Chat photo/title → five Leaderboard sections                                             |
+| Mini App      | Main Mini App or `/stats` → Chat picker/deep link → Chat photo/title → five Leaderboard sections                            |
 | Registration  | React to a Registration message → Chat appears in picker → Current Season opens by default                                  |
 | Periods       | Season drawer → monthly and annual URLs; empty months remain selectable                                                     |
 | v1 history    | If imported, older Seasons and their annual totals show imported rows in the Mini App                                       |
@@ -260,7 +259,7 @@ When a member leaves or is kicked, their registration row is removed automatical
 **Common failures**
 
 - Reactions ignored → bot not admin, or webhook missing `message_reaction`, or reaction on a message sent before the bot could cache it.
-- Mini App empty Chat list → Member has not reacted to a Registration message.
+- Mini App empty Chat list → Member has not reacted to a Registration message or used `/stats` in that Chat.
 - Webhook 401 → `BOT_WEBHOOK_SECRET` mismatch between Vercel and `set-webhook`.
 - DB errors on Vercel → Neon integration not connected to the project, or `DATABASE_URL` was overwritten manually (should be the pooled URL from the integration).
 

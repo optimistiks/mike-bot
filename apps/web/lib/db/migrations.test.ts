@@ -58,7 +58,7 @@ describe("Drizzle migrations on PGlite", () => {
       });
 
       const [eventRow] = await pglite.db.select().from(events);
-      expect(eventRow.type).toBe("karma.plus");
+      expect(eventRow).toMatchObject({ type: "karma.plus", reversible: false });
 
       const tables = await pglite.client.query<{ tablename: string }>(
         `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
@@ -97,6 +97,49 @@ describe("Drizzle migrations on PGlite", () => {
       await expect(
         pglite.db.insert(events).values({ ...base, messageId: 12 }),
       ).rejects.toThrow();
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("enforces canonical types and one reversal per addition", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await expect(
+        pglite.db.insert(events).values({
+          type: "karma.undo.plus",
+          chatId: -100123,
+          actorId: 1,
+          subjectId: 2,
+          messageId: 11,
+          createdAt: new Date("2026-08-01T09:00:00.000Z"),
+        }),
+      ).rejects.toThrow();
+
+      const [addition] = await pglite.db
+        .insert(events)
+        .values({
+          type: "karma.plus",
+          chatId: -100123,
+          actorId: 1,
+          subjectId: 2,
+          messageId: 11,
+          createdAt: new Date("2026-08-01T09:00:00.000Z"),
+          reversible: true,
+        })
+        .returning();
+      const reversal = {
+        type: "karma.plus",
+        chatId: -100123,
+        actorId: 1,
+        subjectId: 2,
+        messageId: 11,
+        createdAt: new Date("2026-08-01T10:00:00.000Z"),
+        reversesEventId: addition.id,
+      };
+      await pglite.db.insert(events).values(reversal);
+      await expect(pglite.db.insert(events).values(reversal)).rejects.toThrow();
     } finally {
       await closePgliteDb(pglite);
     }

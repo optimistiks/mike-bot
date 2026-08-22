@@ -44,6 +44,8 @@ describe("convertV1Row", () => {
       subjectId: 222,
       messageId: 42,
       createdAt: new Date(1_690_000_000_123),
+      reversible: false,
+      reversesEventId: null,
       legacyId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     });
 

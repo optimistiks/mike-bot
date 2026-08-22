@@ -43,7 +43,15 @@ function accumulateScores(
       continue;
     }
 
-    const contributions = eventTypeToContributions(scoringEvent.type);
+    const baseContributions = eventTypeToContributions(scoringEvent.type);
+    const multiplier = scoringEvent.isReversal ? -1 : 1;
+    const contributions = {
+      karmaReceived: baseContributions.karmaReceived * multiplier,
+      humorReceived: baseContributions.humorReceived * multiplier,
+      karmaPlusGiven: baseContributions.karmaPlusGiven * multiplier,
+      karmaMinusGiven: baseContributions.karmaMinusGiven * multiplier,
+      humorGiven: baseContributions.humorGiven * multiplier,
+    };
 
     addToBucket(
       scores.karmaReceived,

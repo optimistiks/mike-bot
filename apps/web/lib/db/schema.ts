@@ -1,6 +1,8 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
+  check,
   index,
   integer,
   pgTable,
@@ -8,10 +10,12 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
-/** Append-only scoring log. Rows are never updated or deleted. */
+/** Append-only scoring log, except deterministic v1 reconciliation by legacyId. */
 export const events = pgTable(
   "events",
   {
@@ -22,10 +26,29 @@ export const events = pgTable(
     subjectId: bigint("subject_id", { mode: "number" }).notNull(),
     messageId: bigint("message_id", { mode: "number" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    reversible: boolean("reversible").notNull().default(false),
+    reversesEventId: integer("reverses_event_id").references(
+      (): AnyPgColumn => events.id,
+    ),
     legacyId: uuid("legacy_id").unique(),
   },
   (table) => [
     index("events_chat_id_created_at_idx").on(table.chatId, table.createdAt),
+    index("events_active_mark_lookup_idx").on(
+      table.chatId,
+      table.actorId,
+      table.messageId,
+      table.type,
+    ),
+    uniqueIndex("events_reverses_event_id_unique").on(table.reversesEventId),
+    check(
+      "events_type_check",
+      sql`${table.type} in ('karma.plus', 'karma.minus', 'humor.add')`,
+    ),
+    check(
+      "events_reversal_not_self_check",
+      sql`${table.reversesEventId} is null or ${table.reversesEventId} <> ${table.id}`,
+    ),
   ],
 );
 

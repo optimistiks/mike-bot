@@ -67,6 +67,7 @@ const FIXTURE_EVENTS: readonly {
   subjectId: number;
   messageId: number;
   seasonOffset: number;
+  reversesFixtureIndex?: number;
 }[] = [
   {
     type: "karma.plus",
@@ -111,11 +112,12 @@ const FIXTURE_EVENTS: readonly {
     seasonOffset: 0,
   },
   {
-    type: "karma.undo.plus",
+    type: "karma.plus",
     actorId: 101,
     subjectId: UNREGISTERED_PERSONA_ID,
     messageId: 1_006,
     seasonOffset: 0,
+    reversesFixtureIndex: 5,
   },
   {
     type: "karma.plus",
@@ -192,29 +194,30 @@ async function seedRegistrations(db: AppDatabase): Promise<void> {
 }
 
 async function seedEvents(db: AppDatabase, now: Date): Promise<void> {
+  const insertedIds: number[] = [];
+
   for (const [index, event] of FIXTURE_EVENTS.entries()) {
     const messageDate = moscowSeasonStart(now, event.seasonOffset);
-    await seed(db, { events }, { seed: FIXTURE_GENERATOR_SEED }).refine(
-      (generators) => ({
-        events: {
-          count: 1,
-          columns: {
-            id: generators.default({ defaultValue: index + 1 }),
-            type: generators.default({ defaultValue: event.type }),
-            chatId: generators.default({
-              defaultValue: PRIMARY_FIXTURE_CHAT_ID,
-            }),
-            actorId: generators.default({ defaultValue: event.actorId }),
-            subjectId: generators.default({ defaultValue: event.subjectId }),
-            messageId: generators.default({ defaultValue: event.messageId }),
-            createdAt: generators.default({
-              defaultValue: messageDate,
-            }),
-            legacyId: generators.default({ defaultValue: undefined }),
-          },
-        },
-      }),
-    );
+    const reversesEventId =
+      event.reversesFixtureIndex === undefined
+        ? null
+        : insertedIds[event.reversesFixtureIndex];
+    const [inserted] = await db
+      .insert(events)
+      .values({
+        id: index + 1,
+        type: event.type,
+        chatId: PRIMARY_FIXTURE_CHAT_ID,
+        actorId: event.actorId,
+        subjectId: event.subjectId,
+        messageId: event.messageId,
+        createdAt: messageDate,
+        reversible: reversesEventId === null,
+        reversesEventId,
+      })
+      .returning();
+
+    insertedIds.push(inserted.id);
 
     await db
       .insert(messageAuthors)

@@ -5,7 +5,6 @@ import { addRegistration, removeRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
 import {
   displayIdentities,
-  events,
   messageAuthors,
   processedUpdates,
 } from "@/lib/db/schema";
@@ -15,10 +14,11 @@ import { creditedSeasonForReaction } from "@/lib/scoring";
 import { isGroupChat } from "./chat";
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
+import { applyMarkChanges } from "./marks";
 import { isRegistrationMessage } from "./register";
 import {
   diffReactionStates,
-  reactionDiffToEventTypes,
+  reactionDiffToMarkChanges,
 } from "./reaction-events";
 
 async function tryClaimUpdate(
@@ -92,6 +92,21 @@ async function handleMessageUpdate(
 
   if (!from.is_bot) {
     await upsertDisplayIdentity(db, chatId, from);
+  }
+
+  const repliedTo = message.reply_to_message;
+  if (repliedTo?.from) {
+    await upsertMessageAuthor(db, {
+      chatId,
+      messageId: repliedTo.message_id,
+      authorId: repliedTo.from.id,
+      authorIsBot: repliedTo.from.is_bot,
+      messageDate: repliedTo.date,
+    });
+
+    if (!repliedTo.from.is_bot) {
+      await upsertDisplayIdentity(db, chatId, repliedTo.from);
+    }
   }
 }
 
@@ -173,14 +188,14 @@ async function handleMessageReactionUpdate(
     return;
   }
 
-  const mapped = reactionDiffToEventTypes({
+  const mapped = reactionDiffToMarkChanges({
     ...changes,
     actorId: actor.id,
     subjectId: author.authorId,
     subjectIsBot: author.authorIsBot,
   });
 
-  if (!mapped.ok || mapped.eventTypes.length === 0) {
+  if (!mapped.ok || mapped.changes.length === 0) {
     return;
   }
 
@@ -196,16 +211,17 @@ async function handleMessageReactionUpdate(
 
   await upsertDisplayIdentity(db, chatId, actor);
 
-  await db.insert(events).values(
-    mapped.eventTypes.map((type) => ({
-      type,
+  await applyMarkChanges(db, {
+    identity: {
       chatId,
       actorId: actor.id,
       subjectId: author.authorId,
       messageId,
-      createdAt,
-    })),
-  );
+    },
+    changes: mapped.changes,
+    createdAt,
+    additionsAreReversible: true,
+  });
 }
 
 /** Process one Telegram update atomically and report whether this call claimed it. */

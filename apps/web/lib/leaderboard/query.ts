@@ -58,6 +58,7 @@ async function querySeasonLeaderboard(
         type: events.type,
         actorId: events.actorId,
         subjectId: events.subjectId,
+        reversesEventId: events.reversesEventId,
       })
       .from(events)
       .leftJoin(
@@ -99,6 +100,7 @@ async function querySeasonLeaderboard(
       type: eventTypeSchema.parse(row.type),
       actorId: row.actorId,
       subjectId: row.subjectId,
+      isReversal: row.reversesEventId !== null,
       season,
     })),
     season,

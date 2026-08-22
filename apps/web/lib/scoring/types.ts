@@ -9,6 +9,7 @@ export interface ScoringEvent {
   type: EventType;
   actorId: number;
   subjectId: number;
+  isReversal: boolean;
   season: Season;
 }
 

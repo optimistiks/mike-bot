@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
-import { displayIdentities, events } from "@/lib/db/schema";
+import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
 import { importV1Rows } from "./import-events";
@@ -28,9 +28,14 @@ describe("importV1Rows", () => {
 
       expect(stats).toEqual({
         rowsProcessed: 1,
-        eventsInserted: 1,
-        eventsSkipped: 0,
-        displayIdentitiesInserted: 2,
+        events: { inserted: 1, updated: 0, unchanged: 0, skipped: 0 },
+        messages: { inserted: 1, updated: 0, unchanged: 0, skipped: 0 },
+        displayIdentities: {
+          inserted: 2,
+          updated: 0,
+          unchanged: 0,
+          skipped: 0,
+        },
       });
 
       const storedEvents = await pglite.db
@@ -44,8 +49,23 @@ describe("importV1Rows", () => {
         actorId: 501,
         subjectId: 502,
         messageId: 77,
+        reversible: false,
+        reversesEventId: null,
         legacyId: SAMPLE_ROW.id,
       });
+
+      await expect(
+        pglite.db
+          .select()
+          .from(messageAuthors)
+          .where(eq(messageAuthors.chatId, IMPORT_CHAT_ID)),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          messageId: 77,
+          authorId: 502,
+          messageDate: Math.floor(SAMPLE_ROW.createdAt / 1_000),
+        }),
+      ]);
 
       const storedMembers = await pglite.db
         .select()
@@ -76,10 +96,15 @@ describe("importV1Rows", () => {
       const first = await importV1Rows(pglite.db, [SAMPLE_ROW]);
       const second = await importV1Rows(pglite.db, [SAMPLE_ROW]);
 
-      expect(first.eventsInserted).toBe(1);
-      expect(second.eventsInserted).toBe(0);
-      expect(second.eventsSkipped).toBe(1);
-      expect(second.displayIdentitiesInserted).toBe(0);
+      expect(first.events.inserted).toBe(1);
+      expect(second.events).toEqual({
+        inserted: 0,
+        updated: 0,
+        unchanged: 1,
+        skipped: 0,
+      });
+      expect(second.messages.unchanged).toBe(1);
+      expect(second.displayIdentities.unchanged).toBe(2);
 
       const storedEvents = await pglite.db
         .select({ id: events.id })
@@ -92,7 +117,7 @@ describe("importV1Rows", () => {
     }
   });
 
-  it("preserves current names and chooses the newest v1 name for missing Members", async () => {
+  it("updates identities to the newest name in the v1 snapshot", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -123,7 +148,7 @@ describe("importV1Rows", () => {
         expect.arrayContaining([
           expect.objectContaining({
             userId: 501,
-            displayName: "@current-giver",
+            displayName: "@giver",
           }),
           expect.objectContaining({
             userId: 503,
@@ -131,6 +156,104 @@ describe("importV1Rows", () => {
           }),
         ]),
       );
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("updates an existing legacy Event and never duplicates or deletes rows", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await importV1Rows(pglite.db, [SAMPLE_ROW]);
+      await pglite.db.insert(events).values({
+        type: "humor.add",
+        chatId: IMPORT_CHAT_ID,
+        actorId: 700,
+        subjectId: 701,
+        messageId: 99,
+        createdAt: new Date(SAMPLE_ROW.createdAt),
+      });
+
+      const corrected = { ...SAMPLE_ROW, lolType: "minus" as const };
+      const stats = await importV1Rows(pglite.db, [corrected]);
+
+      expect(stats.events.updated).toBe(1);
+      const stored = await pglite.db.select().from(events);
+      expect(stored).toHaveLength(2);
+      expect(
+        stored.find((event) => event.legacyId === SAMPLE_ROW.id)?.type,
+      ).toBe("karma.minus");
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("uses one earliest-dated Message for multiple Events", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      const earlier = {
+        ...SAMPLE_ROW,
+        id: "22222222-2222-4222-8222-222222222222",
+        createdAt: SAMPLE_ROW.createdAt - 12_345,
+        lolType: "lol" as const,
+      };
+      const stats = await importV1Rows(pglite.db, [SAMPLE_ROW, earlier]);
+
+      expect(stats.events.inserted).toBe(2);
+      expect(stats.messages.inserted).toBe(1);
+      const storedMessages = await pglite.db.select().from(messageAuthors);
+      expect(storedMessages).toEqual([
+        expect.objectContaining({
+          messageId: SAMPLE_ROW.toMessageId,
+          messageDate: Math.floor(earlier.createdAt / 1_000),
+        }),
+      ]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("skips a conflicting Message author but still imports its Events", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      const conflict = {
+        ...SAMPLE_ROW,
+        id: "22222222-2222-4222-8222-222222222222",
+        toUser: { id: 999, username: "other" },
+      };
+      const stats = await importV1Rows(pglite.db, [SAMPLE_ROW, conflict]);
+
+      expect(stats.events.inserted).toBe(2);
+      expect(stats.messages.skipped).toBe(1);
+      await expect(pglite.db.select().from(messageAuthors)).resolves.toEqual(
+        [],
+      );
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("preserves an existing Message when its stored author conflicts", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await pglite.db.insert(messageAuthors).values({
+        chatId: IMPORT_CHAT_ID,
+        messageId: SAMPLE_ROW.toMessageId,
+        authorId: 999,
+        authorIsBot: false,
+        messageDate: Math.floor(SAMPLE_ROW.createdAt / 1_000),
+      });
+      const stats = await importV1Rows(pglite.db, [SAMPLE_ROW]);
+
+      expect(stats.events.inserted).toBe(1);
+      expect(stats.messages.skipped).toBe(1);
+      await expect(pglite.db.select().from(messageAuthors)).resolves.toEqual([
+        expect.objectContaining({ authorId: 999 }),
+      ]);
     } finally {
       await closePgliteDb(pglite);
     }

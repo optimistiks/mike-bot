@@ -164,6 +164,67 @@ describe("telegram webhook integration", () => {
     }
   });
 
+  it("records reaction removal as an exact reversal and permits re-addition", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob" }),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(
+          41,
+          60,
+          { id: 301, first_name: "Alice" },
+          [],
+          [{ type: "emoji", emoji: "👍" }],
+        ),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(
+          42,
+          60,
+          { id: 301, first_name: "Alice" },
+          [{ type: "emoji", emoji: "👍" }],
+          [],
+        ),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(
+          43,
+          60,
+          { id: 301, first_name: "Alice" },
+          [],
+          [{ type: "emoji", emoji: "👍" }],
+        ),
+      );
+
+      const rows = await pglite.db.select().from(events);
+      expect(rows).toHaveLength(3);
+      expect(rows[0]).toMatchObject({
+        type: "karma.plus",
+        reversible: true,
+        reversesEventId: null,
+      });
+      expect(rows[1]).toMatchObject({
+        type: "karma.plus",
+        reversible: false,
+        reversesEventId: rows[0]?.id,
+      });
+      expect(rows[2]).toMatchObject({
+        type: "karma.plus",
+        reversible: true,
+        reversesEventId: null,
+      });
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
   it("ignores concurrently delivered duplicate update_id", async () => {
     const pglite = await createPgliteDb();
 

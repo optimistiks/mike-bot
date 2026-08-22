@@ -5,12 +5,20 @@ A Telegram group scoring bot where Members mark each other's messages and compar
 ## Scoring
 
 **Mark**:
-An eligible scoring choice that an Actor applies to a different Member's message through a Scoring reaction. The message's author is the Mark's Subject.
+An eligible scoring choice that an Actor applies to a different Member's Message through a Scoring reaction or Scoring reply. The Message's author is the Mark's Subject. At most one Mark of each kind is active for one Chat, Actor, and Message, while historical Events remain unlimited.
 _Avoid_: Vote, rating
+
+**Active Mark**:
+The latest addition of one Mark kind for a Chat, Actor, and Message that no reversal Event references. Karma plus and Karma minus are independent Active Marks and may coexist.
+_Avoid_: Unique Event, current reaction
 
 **Scoring reaction**:
 One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark.
 _Avoid_: Emoji, vote
+
+**Scoring reply**:
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. A Scoring reply remains in the Chat and cannot be undone by removing a reaction.
+_Avoid_: Legacy reply, command
 
 **Karma plus**:
 A kind of Mark that contributes one positive point to the Subject's Karma.
@@ -41,7 +49,7 @@ The Member whose message receives the Mark.
 _Avoid_: Recipient, target
 
 **Event**:
-An immutable fact that an eligible Mark was applied or removed. Removing a Mark produces a compensating Event rather than changing the earlier Event.
+An immutable canonical fact of type `karma.plus`, `karma.minus`, or `humor.add`. An addition Event has no reversal pointer. Removing a reversible reaction appends a same-type Event whose `reversesEventId` identifies the exact addition and whose scoring contribution is inverted. Reply and imported additions are not reversible.
 _Avoid_: Mark
 
 ## Community and access
@@ -58,8 +66,12 @@ _Avoid_: User, account
 The latest known name used to present a Member within one Chat.
 _Avoid_: Chat member, username
 
+**Message**:
+The cached Telegram identity, author, bot status, and second-precision date of a message that may receive Marks. Mike-bot stores no Message content. Imported Message dates are best-effort estimates from the earliest associated v1 Event.
+_Avoid_: Event, post content
+
 **Registration**:
-A Member's authorization to view one Chat in the Mini App. It begins through a Registration message, survives removal of the registration reaction, and ends when the Member leaves or is removed from the Chat.
+A Member's authorization to view one Chat in the Mini App. It begins through a Registration message reaction or the Member's group `/stats` command, survives removal of the registration reaction, and ends when the Member leaves or is removed from the Chat.
 _Avoid_: Chat membership, participation
 
 **Registration message**:
@@ -69,7 +81,7 @@ _Avoid_: Registration post
 ## Leaderboards
 
 **Season**:
-A calendar month in `Europe/Moscow` to which eligible Events are credited according to the marked message's timestamp. Reaction actions remain eligible for ten minutes after its calendar end; actions timestamped later cannot affect it.
+A calendar month in `Europe/Moscow` to which live Events are credited according to the marked Message's timestamp. Reaction actions remain eligible for ten minutes after its calendar end; actions timestamped later cannot affect it. Imported Events retain their historical v1 Event timestamp for Season attribution despite their estimated Message date.
 _Avoid_: Rolling window
 
 **Leaderboard period**:
@@ -84,13 +96,9 @@ _Avoid_: Ongoing season
 A ranking for one Leaderboard period of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
 _Avoid_: Stats, scoreboard
 
-**Stats question**:
-Free-form text following the `/stats` command through which a Member asks for Chat-scoped scoring information.
-_Avoid_: Prompt, query
-
-**Stats report**:
-A Chat-scoped answer to a Stats question over a resolved set of Members, scoring categories, and time range.
-_Avoid_: Leaderboard, analysis
+**Stats command**:
+The `/stats` command that opens the Mini App. In a Chat it also establishes Registration and links directly to that Chat's current Leaderboard; privately it opens the Chat selector.
+_Avoid_: Stats question, report
 
 **Crown**:
 Flair awarded to every Member tied for the highest total in a Leaderboard section.

@@ -3,11 +3,8 @@ import { z } from "zod";
 /** Closed vocabulary of v2 Event types (ADR-0004). */
 export const eventTypeSchema = z.enum([
   "karma.plus",
-  "karma.undo.plus",
   "karma.minus",
-  "karma.undo.minus",
   "humor.add",
-  "humor.undo.add",
 ]);
 
 export type EventType = z.infer<typeof eventTypeSchema>;
@@ -20,6 +17,8 @@ export const eventRecordSchema = z.object({
   subjectId: z.number().int(),
   messageId: z.number().int(),
   createdAt: z.coerce.date(),
+  reversible: z.boolean().default(false),
+  reversesEventId: z.number().int().nullable().optional(),
   legacyId: z.uuid().nullable().optional(),
 });
 

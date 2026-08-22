@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-shot v1 DynamoDB import (ticket 26).
+ * Repeatable v1 DynamoDB reconciliation (ticket 26).
  *
  * Local-only: scans v1 DynamoDB and writes to Neon or PGlite.
  * Not invoked on Vercel runtime.
@@ -15,7 +15,7 @@
  * Optional env:
  *   IMPORT_TARGET=pglite — use PGlite instead of DATABASE_URL
  *   PGLITE_DATA_DIR — persist PGlite files (default: in-memory)
- *   IMPORT_DUMP_DIR — write Events/Display identities/leaderboards JSON after import
+ *   IMPORT_DUMP_DIR — write Events/Messages/identities/leaderboards JSON after import
  *   LOL_TABLE_NAME (default: lolTable)
  *   IMPORT_CHAT_ID (numeric Telegram chat id filter)
  */
@@ -91,8 +91,10 @@ async function openDatabase(): Promise<{
 
 async function main(): Promise<void> {
   const chatId = readOptionalChatId();
-  const rows = await scanRows(chatId);
+  const scan = await scanRows(chatId);
+  const rows = scan.rows;
   console.log(`Fetched ${String(rows.length)} v1 rows.`);
+  console.log(`Skipped ${String(scan.skipped)} malformed v1 rows.`);
 
   const { db, close } = await openDatabase();
 
@@ -101,13 +103,17 @@ async function main(): Promise<void> {
 
     console.log("Import complete:");
     console.log(`  rows processed: ${String(stats.rowsProcessed)}`);
-    console.log(`  events inserted: ${String(stats.eventsInserted)}`);
-    console.log(
-      `  events skipped (legacy_id conflict): ${String(stats.eventsSkipped)}`,
-    );
-    console.log(
-      `  display identities inserted: ${String(stats.displayIdentitiesInserted)}`,
-    );
+    for (const [label, counts] of [
+      ["events", stats.events],
+      ["messages", stats.messages],
+      ["display identities", stats.displayIdentities],
+    ] as const) {
+      console.log(`  ${label}:`);
+      console.log(`    inserted: ${String(counts.inserted)}`);
+      console.log(`    updated: ${String(counts.updated)}`);
+      console.log(`    unchanged: ${String(counts.unchanged)}`);
+      console.log(`    skipped: ${String(counts.skipped)}`);
+    }
 
     const dumpDir = process.env.IMPORT_DUMP_DIR?.trim();
     if (dumpDir) {

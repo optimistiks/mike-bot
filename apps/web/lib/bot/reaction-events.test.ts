@@ -4,10 +4,10 @@ import type { ReactionType } from "grammy/types";
 
 import {
   diffReactionStates,
-  reactionDiffToEventTypes,
+  reactionDiffToMarkChanges,
 } from "./reaction-events";
 
-describe("reactionDiffToEventTypes", () => {
+describe("reactionDiffToMarkChanges", () => {
   const base = {
     actorId: 101,
     subjectId: 102,
@@ -19,49 +19,52 @@ describe("reactionDiffToEventTypes", () => {
       name: "add karma plus",
       addedReactions: [{ type: "emoji", emoji: "👍" }],
       removedReactions: [],
-      expected: ["karma.plus"],
+      expected: [{ action: "add", type: "karma.plus" }],
     },
     {
       name: "remove karma plus",
       addedReactions: [],
       removedReactions: [{ type: "emoji", emoji: "👍" }],
-      expected: ["karma.undo.plus"],
+      expected: [{ action: "remove", type: "karma.plus" }],
     },
     {
       name: "add karma minus",
       addedReactions: [{ type: "emoji", emoji: "👎" }],
       removedReactions: [],
-      expected: ["karma.minus"],
+      expected: [{ action: "add", type: "karma.minus" }],
     },
     {
       name: "remove karma minus",
       addedReactions: [],
       removedReactions: [{ type: "emoji", emoji: "👎" }],
-      expected: ["karma.undo.minus"],
+      expected: [{ action: "remove", type: "karma.minus" }],
     },
     {
       name: "add humor",
       addedReactions: [{ type: "emoji", emoji: "🤣" }],
       removedReactions: [],
-      expected: ["humor.add"],
+      expected: [{ action: "add", type: "humor.add" }],
     },
     {
       name: "remove humor",
       addedReactions: [],
       removedReactions: [{ type: "emoji", emoji: "🤣" }],
-      expected: ["humor.undo.add"],
+      expected: [{ action: "remove", type: "humor.add" }],
     },
     {
       name: "switch karma plus to minus",
       addedReactions: [{ type: "emoji", emoji: "👎" }],
       removedReactions: [{ type: "emoji", emoji: "👍" }],
-      expected: ["karma.undo.plus", "karma.minus"],
+      expected: [
+        { action: "remove", type: "karma.plus" },
+        { action: "add", type: "karma.minus" },
+      ],
     },
     {
       name: "add humor while karma plus is kept elsewhere",
       addedReactions: [{ type: "emoji", emoji: "🤣" }],
       removedReactions: [],
-      expected: ["humor.add"],
+      expected: [{ action: "add", type: "humor.add" }],
     },
     {
       name: "ignore non-scoring emoji",
@@ -70,18 +73,18 @@ describe("reactionDiffToEventTypes", () => {
       expected: [],
     },
   ] as const)("$name", ({ addedReactions, removedReactions, expected }) => {
-    const result = reactionDiffToEventTypes({
+    const result = reactionDiffToMarkChanges({
       ...base,
       addedReactions: [...addedReactions],
       removedReactions: [...removedReactions],
     });
 
-    expect(result).toEqual({ ok: true, eventTypes: [...expected] });
+    expect(result).toEqual({ ok: true, changes: [...expected] });
   });
 
   it("skips self-marking", () => {
     expect(
-      reactionDiffToEventTypes({
+      reactionDiffToMarkChanges({
         actorId: 101,
         subjectId: 101,
         subjectIsBot: false,
@@ -93,7 +96,7 @@ describe("reactionDiffToEventTypes", () => {
 
   it("skips bot subjects", () => {
     expect(
-      reactionDiffToEventTypes({
+      reactionDiffToMarkChanges({
         actorId: 101,
         subjectId: 999,
         subjectIsBot: true,

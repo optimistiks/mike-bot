@@ -24,32 +24,12 @@ describe("eventTypeToContributions", () => {
     });
   });
 
-  it("inverts karma.undo.plus", () => {
-    expect(eventTypeToContributions("karma.undo.plus")).toEqual({
-      karmaReceived: -1,
-      humorReceived: 0,
-      karmaPlusGiven: -1,
-      karmaMinusGiven: 0,
-      humorGiven: 0,
-    });
-  });
-
   it("maps karma.minus to negative karma received and actor karma minus given", () => {
     expect(eventTypeToContributions("karma.minus")).toEqual({
       karmaReceived: -1,
       humorReceived: 0,
       karmaPlusGiven: 0,
       karmaMinusGiven: 1,
-      humorGiven: 0,
-    });
-  });
-
-  it("inverts karma.undo.minus", () => {
-    expect(eventTypeToContributions("karma.undo.minus")).toEqual({
-      karmaReceived: 1,
-      humorReceived: 0,
-      karmaPlusGiven: 0,
-      karmaMinusGiven: -1,
       humorGiven: 0,
     });
   });
@@ -63,28 +43,11 @@ describe("eventTypeToContributions", () => {
       humorGiven: 1,
     });
   });
-
-  it("inverts humor.undo.add", () => {
-    expect(eventTypeToContributions("humor.undo.add")).toEqual({
-      karmaReceived: 0,
-      humorReceived: -1,
-      karmaPlusGiven: 0,
-      karmaMinusGiven: 0,
-      humorGiven: -1,
-    });
-  });
 });
 
 describe("EVENT_TYPES", () => {
-  it("exports all six v2 event types", () => {
-    expect(EVENT_TYPES).toEqual([
-      "karma.plus",
-      "karma.undo.plus",
-      "karma.minus",
-      "karma.undo.minus",
-      "humor.add",
-      "humor.undo.add",
-    ]);
+  it("exports the three canonical Event types", () => {
+    expect(EVENT_TYPES).toEqual(["karma.plus", "karma.minus", "humor.add"]);
   });
 });
 
@@ -138,11 +101,13 @@ function event(
   actorId: number,
   subjectId: number,
   createdAt: string,
+  isReversal = false,
 ): ScoringEvent {
   return {
     type,
     actorId,
     subjectId,
+    isReversal,
     season: seasonForDate(new Date(createdAt)),
   };
 }
@@ -207,12 +172,12 @@ describe("aggregateLeaderboard", () => {
     ]);
   });
 
-  it("applies undo events by inverting contributions", () => {
+  it("applies reversal Events by inverting normal contributions", () => {
     const events: ScoringEvent[] = [
       event("karma.plus", 1, 70, "2026-08-01T12:00:00.000Z"),
-      event("karma.undo.plus", 1, 70, "2026-08-02T12:00:00.000Z"),
+      event("karma.plus", 1, 70, "2026-08-02T12:00:00.000Z", true),
       event("humor.add", 2, 80, "2026-08-03T12:00:00.000Z"),
-      event("humor.undo.add", 2, 80, "2026-08-04T12:00:00.000Z"),
+      event("humor.add", 2, 80, "2026-08-04T12:00:00.000Z", true),
     ];
 
     const result = aggregateLeaderboard(events, august2026);

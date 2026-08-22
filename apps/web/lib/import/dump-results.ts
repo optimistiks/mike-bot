@@ -44,6 +44,7 @@ export async function dumpImportResults(
       ),
     );
   const identityRows = await db.select().from(displayIdentities);
+  const messageRows = await db.select().from(messageAuthors);
 
   await writeJsonFile(
     options.outDir,
@@ -51,6 +52,7 @@ export async function dumpImportResults(
     eventRows.map((row) => row.event),
   );
   await writeJsonFile(options.outDir, "display_identities.json", identityRows);
+  await writeJsonFile(options.outDir, "messages.json", messageRows);
 
   const chatIds =
     options.chatIds ??
@@ -101,6 +103,7 @@ export async function dumpImportResults(
   return [
     path.join(options.outDir, "events.json"),
     path.join(options.outDir, "display_identities.json"),
+    path.join(options.outDir, "messages.json"),
     path.join(options.outDir, "leaderboards.json"),
   ];
 }

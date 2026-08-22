@@ -2,6 +2,8 @@ import type { ReactionType } from "grammy/types";
 
 import type { EventType } from "@/lib/domain/event";
 
+import type { MarkChange } from "./marks";
+
 import {
   HUMOR_EMOJI,
   isScoringEmoji,
@@ -20,19 +22,13 @@ export interface ReactionEventInput {
 }
 
 export type ReactionEventResult =
-  | { ok: true; eventTypes: EventType[] }
+  | { ok: true; changes: MarkChange[] }
   | { ok: false; reason: ReactionSkipReason };
 
 const ADD_TYPE: Record<string, EventType> = {
   [KARMA_PLUS_EMOJI]: "karma.plus",
   [KARMA_MINUS_EMOJI]: "karma.minus",
   [HUMOR_EMOJI]: "humor.add",
-};
-
-const REMOVE_TYPE: Record<string, EventType> = {
-  [KARMA_PLUS_EMOJI]: "karma.undo.plus",
-  [KARMA_MINUS_EMOJI]: "karma.undo.minus",
-  [HUMOR_EMOJI]: "humor.undo.add",
 };
 
 function reactionKey(reaction: ReactionType): string {
@@ -71,8 +67,8 @@ function scoringEmojis(reactions: ReactionType[]): string[] {
   );
 }
 
-/** Pure adapter: reaction diff → append-only Event types (no DB). */
-export function reactionDiffToEventTypes(
+/** Pure adapter: reaction diff → removal-before-addition Mark changes. */
+export function reactionDiffToMarkChanges(
   input: ReactionEventInput,
 ): ReactionEventResult {
   if (input.actorId === input.subjectId) {
@@ -83,15 +79,15 @@ export function reactionDiffToEventTypes(
     return { ok: false, reason: "bot_subject" };
   }
 
-  const eventTypes: EventType[] = [];
+  const changes: MarkChange[] = [];
 
   for (const emoji of scoringEmojis(input.removedReactions)) {
-    eventTypes.push(REMOVE_TYPE[emoji]);
+    changes.push({ action: "remove", type: ADD_TYPE[emoji] });
   }
 
   for (const emoji of scoringEmojis(input.addedReactions)) {
-    eventTypes.push(ADD_TYPE[emoji]);
+    changes.push({ action: "add", type: ADD_TYPE[emoji] });
   }
 
-  return { ok: true, eventTypes };
+  return { ok: true, changes };
 }

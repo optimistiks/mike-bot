@@ -61,6 +61,22 @@ async function main(): Promise<void> {
     allowed_updates: [...TELEGRAM_WEBHOOK_ALLOWED_UPDATES],
   });
 
+  const statsCommand = {
+    command: "stats",
+    description: "Открыть таблицы лидеров",
+  };
+  const registerCommand = {
+    command: "register",
+    description: "Настроить доступ к таблицам",
+  };
+  await bot.api.setMyCommands([statsCommand, registerCommand]);
+  await bot.api.setMyCommands([statsCommand], {
+    scope: { type: "all_private_chats" },
+  });
+  await bot.api.setMyCommands([statsCommand, registerCommand], {
+    scope: { type: "all_group_chats" },
+  });
+
   const info = await bot.api.getWebhookInfo();
   if (!info.url) {
     throw new Error("getWebhookInfo returned no url after setWebhook");
