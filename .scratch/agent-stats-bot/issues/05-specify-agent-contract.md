@@ -1,6 +1,6 @@
 # 05: Specify the agent and tool contract
 
-Type: task
+Type: prototype
 Status: open
 Blocked by: 01, 03, 04, 12
 

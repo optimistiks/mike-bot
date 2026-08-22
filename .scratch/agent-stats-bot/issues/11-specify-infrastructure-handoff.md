@@ -1,6 +1,6 @@
 # 11: Specify the human infrastructure handoff
 
-Type: task
+Type: prototype
 Status: open
 Blocked by: 02, 04, 05, 06, 07, 10
 
@@ -39,4 +39,3 @@ operational connection and one separate read-replica connection with the capabil
 - The first AI Gateway request and every live-model smoke check are explicitly human-triggered; no agent-run
   verification spends the monthly credit.
 - No credential value is stored in the repository or the Wayfinder artifacts.
-

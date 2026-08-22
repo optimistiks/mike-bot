@@ -1,6 +1,6 @@
 # 06: Specify public Telegram reports
 
-Type: task
+Type: prototype
 Status: open
 Blocked by: 02, 05, 12
 

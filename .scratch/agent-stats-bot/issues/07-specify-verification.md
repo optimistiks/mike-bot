@@ -1,6 +1,6 @@
 # 07: Specify verification boundaries
 
-Type: task
+Type: prototype
 Status: open
 Blocked by: 04, 05, 06, 10, 12
 

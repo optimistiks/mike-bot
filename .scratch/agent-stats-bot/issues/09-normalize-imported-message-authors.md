@@ -1,6 +1,6 @@
 # 09: Normalize imported message metadata
 
-Type: prototype
+Type: grilling
 Status: resolved
 Blocked by: 01
 
