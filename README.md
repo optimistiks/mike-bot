@@ -76,7 +76,7 @@ Use the **Vercel-Managed** Neon integration (Marketplace → **Neon Postgres** �
 | Variable (injected by integration) | Purpose                                                                               |
 | ---------------------------------- | ------------------------------------------------------------------------------------- |
 | `DATABASE_URL`                     | **Pooled** TCP string — used by the deployed app (`pg` `Pool` + `attachDatabasePool`) |
-| `DATABASE_URL_UNPOOLED`            | **Direct** TCP string — use for migrations, `psql`, and local `import:v1`             |
+| `DATABASE_URL_UNPOOLED`            | **Direct** TCP string — use for migrations, `psql`, and the local import              |
 
 Do not paste a Neon console connection string manually unless you are debugging. Do not use `@neondatabase/serverless` HTTP for production.
 
@@ -150,31 +150,41 @@ Deploy (or redeploy after adding env vars). Note the production HTTPS origin, e.
 
 ### 5. Import v1 history
 
-The Wayfinder Destination includes v1 history. Run the import **locally** — not on Vercel — and verify its output before enabling the group flow. It is safe to re-run: rows are inserted or reconciled by `legacy_id`, and nothing is deleted. Malformed source rows and Message-author conflicts are logged and skipped without stopping the import. If the source contains no applicable rows, retain the empty verification dump as evidence.
-
-Use the direct connection from `.env.local` (`DATABASE_URL_UNPOOLED` is picked up automatically after `vercel env pull`):
+The Wayfinder Destination includes v1 history. Run the import **locally** — not on Vercel — in three separate steps, so each one is cheap to repeat and easy to inspect:
 
 ```bash
 cd apps/web
+
+# 1. DynamoDB -> JSON (the only step needing AWS credentials)
 AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
-pnpm import:v1
+pnpm import:scan          # writes tmp/v1-rows.json
+
+# 2. JSON -> SQL (no AWS, no database)
+pnpm import:sql           # writes tmp/v1-import.sql
+
+# 3. Execute the SQL
+pnpm import:run
 ```
 
-| Variable                | Required | Purpose                                                            |
-| ----------------------- | -------- | ------------------------------------------------------------------ |
-| `DATABASE_URL`          | yes†     | From `.env.local` (`DATABASE_URL_UNPOOLED` or `DATABASE_URL`)      |
-| `AWS_REGION`            | yes*     | Region of v1 `lolTable` (e.g. `eu-west-1`)                         |
-| `AWS_ACCESS_KEY_ID`     | yes      | IAM key with `dynamodb:Scan` on the table                          |
-| `AWS_SECRET_ACCESS_KEY` | yes      | Matching secret                                                    |
-| `LOL_TABLE_NAME`        | no       | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)             |
-| `IMPORT_CHAT_ID`        | no       | Import one chat only (still scans full table)                      |
-| `IMPORT_TARGET`         | no       | `pglite` = local PGlite instead of Neon                            |
-| `PGLITE_DATA_DIR`       | no       | Persist PGlite files between runs                                  |
-| `IMPORT_DUMP_DIR`       | no       | Write `events.json`, `messages.json`, identities, and leaderboards |
+The generated file is plain `INSERT ... ON CONFLICT DO NOTHING` batches — **no transaction**. Every conflict is resolved in memory while generating, so re-running is safe and a killed run resumes where it stopped. `pnpm import:run` sends one statement per round trip and prints progress; `psql -f tmp/v1-import.sql` works identically if you have psql installed.
 
-\* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`. † Not required when `IMPORT_TARGET=pglite`.
+Read `tmp/v1-import.sql` before step 3 — it is the entire change, in order.
+
+| Variable                | Step | Purpose                                                  |
+| ----------------------- | ---- | -------------------------------------------------------- |
+| `AWS_REGION`            | scan | Region of v1 `lolTable` (e.g. `eu-west-1`)\*             |
+| `AWS_ACCESS_KEY_ID`     | scan | IAM key with `dynamodb:Scan` on the table                |
+| `AWS_SECRET_ACCESS_KEY` | scan | Matching secret                                          |
+| `LOL_TABLE_NAME`        | scan | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)   |
+| `IMPORT_CHAT_ID`        | scan | Import one chat only (still scans full table)            |
+| `IMPORT_JSON`           | both | Path of the JSON dump (default `./tmp/v1-rows.json`)     |
+| `IMPORT_SQL`            | both | Path of the SQL file (default `./tmp/v1-import.sql`)     |
+| `IMPORT_BATCH_SIZE`     | sql  | Rows per INSERT statement (default 1000)                 |
+| `DATABASE_URL`          | run  | From `.env.local` (`DATABASE_URL_UNPOOLED` is preferred) |
+
+\* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`.
 
 Do **not** add AWS keys to Vercel. Create a short-lived IAM user, import, then deactivate the access key.
 
@@ -184,30 +194,15 @@ Do **not** add AWS keys to Vercel. Create a short-lived IAM user, import, then d
 - **Credentials:** IAM → Users → dedicated import user → policy with `dynamodb:Scan` + `dynamodb:DescribeTable` on the table ARN (see `docs/research/03-read-v1-dynamodb.md`).
 - **`IMPORT_CHAT_ID`:** Telegram supergroup id (negative, often `-100…`) from v1 context or DynamoDB `chatId` attribute.
 
-**Dry run (no Neon)**
+**Verify**
 
 ```bash
-IMPORT_TARGET=pglite \
-AWS_REGION="eu-west-1" \
-AWS_ACCESS_KEY_ID="..." \
-AWS_SECRET_ACCESS_KEY="..." \
-IMPORT_DUMP_DIR=./tmp/import-dump \
-pnpm import:v1
-```
-
-Verify dump:
-
-```bash
+pnpm import:dump          # writes tmp/import-dump/*.json from the database
 jq 'length' tmp/import-dump/events.json
 jq '.[0].leaderboard.sections[].title' tmp/import-dump/leaderboards.json
 ```
 
-Optional filters:
-
-```bash
-LOL_TABLE_NAME="lolTable-Prod" pnpm import:v1
-IMPORT_CHAT_ID="-1001234567890" pnpm import:v1
-```
+Malformed source rows and Message-author conflicts are logged and skipped during step 2, so the SQL file only ever contains rows that convert cleanly.
 
 ### 6. Register the Telegram webhook
 

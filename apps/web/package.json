@@ -18,7 +18,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed-db.ts",
-    "import:v1": "tsx scripts/import-v1.ts",
+    "import:scan": "tsx scripts/import-scan.ts",
+    "import:sql": "tsx scripts/import-sql.ts",
+    "import:run": "tsx scripts/import-run.ts",
+    "import:dump": "tsx scripts/import-dump.ts",
     "set-webhook": "tsx scripts/set-webhook.ts"
   },
   "dependencies": {

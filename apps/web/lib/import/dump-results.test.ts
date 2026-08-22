@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 
 import { dumpImportResults } from "./dump-results";
-import { importV1Rows } from "./import-events";
+import { buildImportSql, splitStatements } from "./sql-file";
 
 const SAMPLE_ROW = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -21,7 +21,11 @@ describe("dumpImportResults", () => {
     const outDir = "/tmp/mike-bot-import-dump-test";
 
     try {
-      await importV1Rows(pglite.db, [SAMPLE_ROW]);
+      for (const statement of splitStatements(
+        buildImportSql([SAMPLE_ROW]).sql,
+      )) {
+        await pglite.client.query(statement);
+      }
       const files = await dumpImportResults(pglite.db, { outDir });
 
       expect(files).toEqual([
