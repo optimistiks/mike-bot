@@ -220,8 +220,4 @@ export function buildLeaderboard(
   };
 }
 
-export function leaderboardIsEmpty(leaderboard: PrototypeLeaderboard): boolean {
-  return leaderboard.sections.every((section) => section.entries.length === 0);
-}
-
 export { findPrototypeChat };

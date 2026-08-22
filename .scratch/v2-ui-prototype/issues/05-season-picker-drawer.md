@@ -9,19 +9,19 @@ A Season that genuinely has no Events shows a single clear empty state rather th
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The Season chip in the header opens the drawer
-- [ ] The drawer is built on the 8bitcn `drawer` (vaul). Drag-to-dismiss, rubber-band resistance, and
+- [x] The Season chip in the header opens the drawer
+- [x] The drawer is built on the 8bitcn `drawer` (vaul). Drag-to-dismiss, rubber-band resistance, and
       velocity dismissal come from the library — **do not hand-roll them**
-- [ ] The drawer contains a horizontal year strip above a 3×4 month grid, built with 8bitcn `toggle-group`
+- [x] The drawer contains a horizontal year strip above a 3×4 month grid, built with 8bitcn `toggle-group`
       rather than raw buttons or native selects
-- [ ] A persistent "СЕЙЧАС" cell returns to the Current Season from anywhere
-- [ ] A persistent "ВЕСЬ ГОД" cell opens the month-less full-year view
-- [ ] Months with no data render dimmed
-- [ ] Selecting any Season navigates with replace and closes the drawer
-- [ ] A Season with no Events renders the already-vendored 8bitcn `empty` state, not five blank sections
-- [ ] The empty state is reachable in practice: any Season before 2024-01 reaches it
-- [ ] Full-year totals shown match the sum of that year's months
-- [ ] The drawer and its contents are isolated composed components in their own files
-- [ ] Full verification suite green; lands as a single unpushed commit
+- [x] A persistent "СЕЙЧАС" cell returns to the Current Season from anywhere
+- [x] A persistent "ВЕСЬ ГОД" cell opens the month-less full-year view
+- [x] Months with no data render dimmed
+- [x] Selecting any Season navigates with replace and closes the drawer
+- [x] A Season with no Events renders the already-vendored 8bitcn `empty` state, not five blank sections
+- [x] The empty state is reachable in practice: any Season before 2024-01 reaches it
+- [x] Full-year totals shown match the sum of that year's months
+- [x] The drawer and its contents are isolated composed components in their own files
+- [x] Full verification suite green; lands as a single unpushed commit

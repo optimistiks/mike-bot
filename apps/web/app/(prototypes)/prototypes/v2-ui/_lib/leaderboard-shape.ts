@@ -14,3 +14,14 @@ import type { LeaderboardResponse } from "@/lib/leaderboard/schema";
 export type LeaderboardSection = LeaderboardResponse["sections"][number];
 
 export type LeaderboardEntry = LeaderboardSection["entries"][number];
+
+/**
+ * Whether a Season holds no Events at all.
+ *
+ * Reading it off the sections rather than off the fixture builder keeps it on
+ * the client side of the seam: the builder is `server-only`, and the screen
+ * that has to choose between the filmstrip and the empty state is not.
+ */
+export function hasNoEntries(sections: LeaderboardSection[]): boolean {
+  return sections.every((section) => section.entries.length === 0);
+}

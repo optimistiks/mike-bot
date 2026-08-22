@@ -8,7 +8,7 @@ import type { PrototypeChat } from "../_lib/chats";
 import type { PrototypeSeason } from "../_lib/seasons";
 
 import { ChatMorph } from "./chat-morph";
-import { SeasonChip } from "./season-chip";
+import { SeasonDrawer } from "./season-drawer";
 
 /**
  * The Leaderboard's two-tier header, which never scrolls.
@@ -21,18 +21,18 @@ import { SeasonChip } from "./season-chip";
 export function LeaderboardHeader({
   chat,
   season,
-  sectionTitles,
-  activeIndex,
+  section,
 }: {
   chat: PrototypeChat;
   season: PrototypeSeason;
-  sectionTitles: string[];
-  activeIndex: number;
+  /**
+   * Which of the five sections the filmstrip is on, or nothing at all when
+   * there is no filmstrip to be on. An empty Season leaves tier two out rather
+   * than naming a section that does not exist — but never tier one, because the
+   * Season chip up there is how a Member leaves an empty Season.
+   */
+  section?: { title: string; index: number; count: number };
 }) {
-  // The index only ever comes from the carousel's own snap list, which is built
-  // from these very sections, so it is always in range.
-  const activeTitle = sectionTitles[activeIndex];
-
   return (
     <header className="arcade-header">
       {/* The other end of the Chat card's morph. The whole tier travels, not
@@ -45,36 +45,38 @@ export function LeaderboardHeader({
             {chat.name}
           </h1>
           <div className="shrink-0">
-            <SeasonChip chatId={chat.id} season={season} />
+            <SeasonDrawer chatId={chat.id} season={season} />
           </div>
         </div>
       </ChatMorph>
 
-      <div className="flex flex-col gap-2 px-4 pb-3">
-        <div className="arcade-header-title">
-          <AnimatePresence initial={false}>
-            <motion.h2
-              key={activeTitle}
-              className="arcade-header-title-text arcade-text-md text-secondary"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              {activeTitle}
-            </motion.h2>
-          </AnimatePresence>
-        </div>
+      {section !== undefined && (
+        <div className="flex flex-col gap-2 px-4 pb-3">
+          <div className="arcade-header-title">
+            <AnimatePresence initial={false}>
+              <motion.h2
+                key={section.title}
+                className="arcade-header-title-text arcade-text-md text-secondary"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                {section.title}
+              </motion.h2>
+            </AnimatePresence>
+          </div>
 
-        {/* How far through the five sections the Member has swiped, drawn in the
+          {/* How far through the five sections the Member has swiped, drawn in the
             same retro squares as the score bars. */}
-        <Progress
-          variant="retro"
-          value={((activeIndex + 1) / sectionTitles.length) * 100}
-          className="h-2"
-          aria-label="Раздел"
-        />
-      </div>
+          <Progress
+            variant="retro"
+            value={((section.index + 1) / section.count) * 100}
+            className="h-2"
+            aria-label="Раздел"
+          />
+        </div>
+      )}
     </header>
   );
 }
