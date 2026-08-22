@@ -19,9 +19,9 @@ arguments, query time/row limits, and the schema surface visible to the model. C
 options—such as a restricted database role/read replica plus Chat-scoped views or row-level security—and
 exercise the chosen boundary with both valid and adversarial queries.
 
-The deployed application will receive separate human-supplied operational and read-replica database URLs.
-The agent tool must construct its connection exclusively from the read-replica URL; ingestion, imports, and
-migrations must never use that connection.
+The deployed application will receive separate human-supplied operational and agent database URLs. The
+agent tool must construct its connection exclusively from the agent URL; ingestion, imports, and migrations
+must never use that connection.
 
 Do not replace generated SQL with a fixed catalogue of analytics tools; generated SQL is a settled product
 decision.
@@ -30,7 +30,7 @@ decision.
 
 - A minimal executable proof demonstrates ordinary cross-category and cross-season questions.
 - Attempts to mutate data or read another Chat fail at the tool/database boundary, not merely by prompt.
-- The proof names the exact capabilities required from the operational and read-replica connections without
+- The proof names the exact capabilities required from the operational and agent connections without
   depending on whether they belong to a new or existing Neon project.
 - The answer recommends one mechanism appropriate to this toy and records what complexity it adds.
 
@@ -38,59 +38,57 @@ decision.
 
 ### Decision
 
-Use PostgreSQL Row-Level Security with the existing default Neon role as trusted transaction setup and one
-new `NOLOGIN`, `NOBYPASSRLS` role named `stats_agent` for generated SQL. The application sets the trusted
-Telegram Chat before dropping to `stats_agent`; the model controls only the SQL nested inside a single
-outer `SELECT`.
+Pre-scope the invoking Chat into one transaction-local temporary table named `scoring_events`, then execute
+generated SQL through one `SECURITY DEFINER` function owned by the limited `stats_agent` role. The function
+turns PostgreSQL's normally privilege-raising feature into a privilege drop: its owner has no access to the
+persistent application tables and receives `SELECT` only on the already-scoped temporary table.
 
-This is smaller than either a PostgreSQL-aware application validator or a capability-token function. It
-adds one role, three RLS policies, one read view, a database-function privilege change, and a small query
-wrapper. It supports any number of Chats without provisioning per-Chat database objects.
+This replaces the rejected RLS/custom-setting design. Chat identity never becomes mutable session state, and
+generated SQL never receives `chat_id`. The boundary adds one existing `NOLOGIN` role, one small executor
+function, one temporary table per tool call, and one direct database connection pinned for the transaction.
+
+### Why the function is required
+
+Creating the temporary table as the default Neon role and then using plain `SET ROLE stats_agent` is unsafe.
+Even inside a nested `SELECT`, generated SQL can call `set_config('role', 'none', true)` and restore the
+session's `neondb_owner` role. Revoking `set_config` is not available in Neon because `cloud_admin` owns the
+function and its `PUBLIC` grant.
+
+Generated SQL instead runs inside `stats.execute_scoped_sql(text, integer)`, whose owner is `stats_agent`.
+PostgreSQL treats execution inside a security-definer function as security-restricted: changing `role` or
+`session_authorization` fails. The executor also nests generated SQL inside one outer `SELECT`, applies the
+row cap, returns rows as JSON, and fixes its search path to `pg_catalog, pg_temp`.
+
+The function's default `PUBLIC` execution grant is removed, and the existing default Neon role receives the
+explicit caller grant. It is not a privileged gateway: because `stats_agent` owns it, any generated query
+that names `public.events` or another persistent application table still fails for lack of privileges.
 
 ### Per-query boundary
 
-Every agent SQL tool call independently performs this sequence on a connection constructed exclusively from
-the human-supplied read-replica URL:
+Every SQL tool call independently performs this sequence on one checked-out direct connection:
 
-1. Begin a read-only transaction as the existing default Neon role.
-2. Set a 2-second server-side `statement_timeout`.
-3. Call `set_config('app.chat_id', trustedChatId, true)`, where `trustedChatId` is closed over from the
-   Telegram update or direct Stats harness and is absent from model-controlled tool arguments.
-4. Execute `SET LOCAL ROLE stats_agent`.
-5. Run the generated SQL as a nested query and fetch at most 201 rows:
+1. Begin a normal transaction and set a 2-second server-side `statement_timeout`.
+2. Run one fixed, parameterized `CREATE TEMP TABLE scoring_events ON COMMIT DROP AS ... WHERE e.chat_id =
+   $1` statement as the existing default Neon role. `$1` is closed over from the Telegram update or direct
+   Stats harness and is absent from model-controlled tool arguments.
+3. Grant `stats_agent` `SELECT` on that temporary table. Do not grant `INSERT`, `UPDATE`, `DELETE`, or any
+   privilege on the persistent source tables.
+4. Call `stats.execute_scoped_sql(generatedSql, 201)`. The model controls only `generatedSql`; trusted code
+   supplies the row limit.
+5. Return the first 200 JSON rows plus a `truncated` flag and commit. Any error rolls back. `ON COMMIT DROP`
+   also removes the table before a pooled client can reuse the session.
 
-   ```sql
-   SELECT *
-   FROM (<generated SELECT>) AS agent_result
-   LIMIT 201
-   ```
+The transaction cannot be declared read-only: PostgreSQL rejects `CREATE TABLE AS` in a read-only
+transaction. Read-only enforcement therefore comes from `stats_agent` privileges and the executor's nested
+query, not from the transaction flag. The trusted staging statement is fixed application code.
 
-6. Return the first 200 rows plus a `truncated` flag; always end the transaction before returning tool output.
+The client should additionally use a 2.5-second deadline so a lost or delayed server cancellation cannot
+hold the agent loop indefinitely. A complicated Stats question may invoke the tool several times; every call
+rebuilds the scoped table in a fresh transaction.
 
-The client should additionally use a 2.5-second query deadline so a lost or delayed server cancellation does
-not hold the agent loop indefinitely. A complicated Stats question may invoke this tool several times; every
-call receives the same trusted Chat through a fresh transaction and boundary.
+### Model-visible schema
 
-The outer query makes `SET`, `RESET ROLE`, mutation commands, and multiple statements invalid syntax. The
-`stats_agent` role cannot execute `pg_catalog.set_config(text, text, boolean)`, closing the remaining path by
-which a single `SELECT` could change `app.chat_id`.
-
-### RLS and model-visible schema
-
-Enable and force RLS on `events`, `message_authors`, and `display_identities`. Give `stats_agent` only
-`SELECT` privileges, and apply a `FOR SELECT TO stats_agent` policy to each table:
-
-```sql
-USING (
-  chat_id = nullif(current_setting('app.chat_id', true), '')::bigint
-)
-```
-
-A missing context therefore exposes no rows; malformed trusted context fails the query. `stats_agent` must
-not own the protected tables.
-
-Teach the model one `security_barrier`, `security_invoker` view named `stats.scoring_events`. It joins Events
-to message authors and current Display identities and exposes:
+Teach the model exactly one temporary relation, `scoring_events`:
 
 | Column | Meaning |
 | --- | --- |
@@ -105,37 +103,36 @@ to message authors and current Display identities and exposes:
 | `karma_minus_given_delta` | Signed contribution to Actor Karma minus given. |
 | `humor_given_delta` | Signed contribution to Actor Humor Marks given. |
 
-Do not expose `chat_id`, `message_id`, `legacy_id`, or a provenance-specific Season branch in the model
-schema. Direct queries against the underlying tables remain Chat-safe because RLS applies there too.
+Do not include `chat_id`, `message_id`, `legacy_id`, or a provenance-specific Season branch. The fixed staging
+query joins `events`, `message_authors`, and both current Display identities before the privilege drop.
 
 ### Role and connection capabilities
 
-- **Existing default Neon role, operational URL:** ingestion writes, imports, migrations, RLS/view creation,
-  and role/grant administration. The bot's ingestion, import, and migration modules use only this operational
-  connection.
-- **Existing default Neon role, read-replica URL:** trusted transaction setup, `set_config`, and
-  `SET LOCAL ROLE stats_agent`. The agent SQL module uses only this URL and never imports the operational
-  connection constructor.
-- **`stats_agent`:** is `NOLOGIN`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOREPLICATION`, and
-  `NOBYPASSRLS`. It
-  receives only the schema usage and `SELECT` grants needed by the scoring view and its RLS-protected source
-  tables. Membership is one-way: the default role may become `stats_agent`; `stats_agent` cannot become the
-  default role.
+- **Operational database URL:** the existing default Neon role on the normal application connection;
+  ingestion writes, imports, migrations, and role/function administration use it.
+- **Agent database URL:** the existing default Neon role on a direct, unpooled connection to the primary
+  compute. Only the agent SQL module imports it. It stages the trusted temporary table and calls the limited
+  executor; generated SQL never runs with its privileges.
+- **`stats_agent`:** remains `NOLOGIN`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`,
+  `NOREPLICATION`, and `NOBYPASSRLS`. It owns the executor function and receives `SELECT` only on each
+  transaction's `scoring_events` table. It receives no persistent table grants.
 
-The default execute grant on `pg_catalog.set_config(text, text, boolean)` must be revoked from `PUBLIC` in
-this database and granted back to the existing default Neon role. The current repository contains no use of
-`set_config`; any future trusted role that genuinely needs it must be granted explicitly.
+A true Neon read-replica URL is incompatible with this design because the staging `CREATE TEMP TABLE AS`
+requires a read-write transaction. The implementation therefore uses a separately named direct primary URL
+for agent session pinning rather than a read replica. This is acceptable for the toy because the generated
+query itself remains privilege-read-only and timeout-limited.
 
-The human runs [the role bootstrap SQL](../prototypes/04-create-agent-role.sql) once against the primary
-compute as the existing default Neon role. The later infrastructure handoff must include the role command,
-read-replica URL construction, privilege checks, a live cross-Chat RLS check, and a Neon timeout smoke test.
-No new password or connection string is required for `stats_agent` because it is `NOLOGIN`.
+The role already created manually on the live `main` branch has the required flags. The corrected
+[role bootstrap](../prototypes/04-create-agent-role.sql) no longer attempts to revoke `set_config`. The
+[executor DDL](../prototypes/04-create-agent-executor.sql) is prototype migration input; it was tested inside
+a rolled-back Neon transaction and has not been installed on the live database.
 
-### Proof and alternatives
+### Proof
 
 The [executable PGlite proof](../prototypes/04-sql-boundary-proof.mjs) demonstrates cross-category and
-cross-Season analytics, direct cross-Chat attempts through both the view and source tables, `set_config`,
-`SET`, `RESET ROLE`, multi-statement and mutation attempts, role downgrade, and result truncation. The
+cross-Season analytics, empty cross-Chat results through scoped data, denied reads of persistent tables,
+harmless custom-setting changes, blocked role reset through `set_config`, blocked commands and mutations,
+the row cap, active timeout/role, and `ON COMMIT DROP` cleanup. The
 [interactive walkthrough](../prototypes/04-sql-boundary-demo.html) presents the same cases. Run the proof
 from the repository root with:
 
@@ -143,19 +140,30 @@ from the repository root with:
 node .scratch/agent-stats-bot/prototypes/04-sql-boundary-proof.mjs
 ```
 
-PGlite accepts and reports `statement_timeout` but does not interrupt `pg_sleep`, so local automated tests
-should verify timeout configuration through the database adapter rather than wait on a real slow query. The
-human Neon smoke test verifies actual cancellation after infrastructure exists.
+Live Neon CLI checks against `main` additionally proved:
+
+- `stats_agent` has no `SELECT` privilege on any application table and no executable application-defined
+  security-definer function currently exists.
+- A normal transaction can create the scoped table, grant only `SELECT`, and drop it on commit; the same
+  `CREATE TABLE AS` fails in a read-only transaction.
+- Plain `SET ROLE stats_agent` is escapable through `set_config('role', 'none', true)`.
+- The `stats_agent`-owned executor successfully reads the granted temporary table, rejects the role-reset
+  call as a security-restricted operation, and rejects `public.events` for lack of privilege.
+
+All live proof objects and transactions were rolled back or dropped on commit. No persistent database change
+was made during verification.
 
 Rejected alternatives:
 
-- A SQL parser plus trusted CTE moves the hard boundary into a complex, security-sensitive AST validator.
-- Plain RLS with a mutable custom setting lets generated `SELECT` call `set_config` and change Chats.
+- RLS with `app.chat_id` is mutable because every role retains `PUBLIC` execution of `set_config` on Neon.
+- Temp-table staging followed by plain `SET ROLE` is escapable through the `role` setting.
+- A `LOGIN` limited role plus copying rows through application memory is safe but adds another credential,
+  connection, and a database-to-app-to-database round trip.
+- A PostgreSQL-aware SQL parser is larger and more security-sensitive than the limited executor.
 - One role or view per Chat creates open-ended provisioning and cleanup.
-- A signed capability function avoids the global `set_config` grant change but adds two security-definer
-  functions and secret management without improving this toy's user-visible behavior.
 
 ## Comments
 
-- Human review selected the one-new-role RLS design after rejecting the capability-function prototype and a
-  PostgreSQL AST validator as unnecessary complexity.
+- Human review replaced the RLS/custom-GUC design with a privilege-scoped temporary-table design.
+- Neon CLI verification surfaced the `set_config('role', 'none', true)` escape and read-replica incompatibility;
+  the final executor design closes both gaps while retaining one existing default role and one limited role.

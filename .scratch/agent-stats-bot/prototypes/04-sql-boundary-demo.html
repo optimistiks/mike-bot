@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RLS boundary walkthrough</title>
+    <title>Temporary-table boundary walkthrough</title>
     <style>
       :root {
         color-scheme: light;
@@ -221,12 +221,11 @@
   <body>
     <main>
       <p class="eyebrow">Validated logic prototype</p>
-      <h1>One new role locks generated SQL to one Chat.</h1>
+      <h1>Generated SQL only receives one Chat's copied rows.</h1>
       <p class="lede">
-        Mike-bot keeps using the existing default Neon role. For each query it
-        writes the trusted Telegram Chat into the transaction, drops into a new
-        limited role, and only then executes the AI-generated SQL. PostgreSQL
-        Row-Level Security filters every scoring table.
+        Mike-bot uses fixed, trusted SQL to copy one Telegram Chat into a
+        transaction-local table. AI-generated SQL then runs through a function
+        owned by a role that can read that table and nothing persistent.
       </p>
 
       <section class="flow" aria-label="Query flow">
@@ -237,21 +236,21 @@
         </article>
         <article class="step">
           <span class="number">2</span>
-          <h3>Set the Chat</h3>
-          <p>The existing Neon role stores Chat 100 inside the transaction.</p>
+          <h3>Stage the Chat</h3>
+          <p>Fixed SQL copies only Chat 100 into <code>scoring_events</code>.</p>
         </article>
         <article class="step">
           <span class="number">3</span>
-          <h3>Drop privileges</h3>
+          <h3>Enter the executor</h3>
           <p>
-            <code>SET ROLE stats_agent</code> removes the ability to change that
-            Chat or bypass RLS.
+            A <code>stats_agent</code>-owned function runs the generated query
+            without persistent-table privileges.
           </p>
         </article>
         <article class="step">
           <span class="number">4</span>
-          <h3>Run generated SQL</h3>
-          <p>Any number of tool calls repeat this boundary independently.</p>
+          <h3>Drop the copy</h3>
+          <p><code>ON COMMIT DROP</code> removes the scoped rows after every call.</p>
         </article>
       </section>
 
@@ -283,7 +282,7 @@
               <dd id="reason">Choose a query to see the boundary.</dd>
             </div>
           </dl>
-          <pre id="sql">SELECT * FROM stats.scoring_events</pre>
+          <pre id="sql">SELECT * FROM scoring_events</pre>
         </section>
       </div>
 
@@ -296,31 +295,37 @@
     </main>
 
     <script>
-      const RlsPrototype = (() => {
+      const TempTablePrototype = (() => {
         const scenarios = {
           analytics: {
             title: "Answer a normal Stats question",
-            sql: "SELECT subject_name, sum(humor_received_delta)\nFROM stats.scoring_events GROUP BY subject_id, subject_name",
+            sql: "SELECT subject_name, sum(humor_received_delta)\nFROM scoring_events GROUP BY subject_id, subject_name",
             outcome: "Allowed",
             reason: "Chat 100 rows are available for arbitrary analysis.",
           },
-          otherChatView: {
-            title: "Look for another Chat in the scoring view",
-            sql: "SELECT * FROM stats.scoring_events WHERE subject_name = 'Mallory'",
+          otherChatScoped: {
+            title: "Look for another Chat in scoped data",
+            sql: "SELECT * FROM scoring_events WHERE subject_name = 'Mallory'",
             outcome: "Allowed, zero rows",
-            reason: "RLS removed Chat 200 before the view returned rows.",
+            reason: "Chat 200 was never copied into the temporary table.",
           },
           otherChatTable: {
             title: "Query the underlying table directly",
             sql: "SELECT * FROM private.events WHERE chat_id = 200",
-            outcome: "Allowed, zero rows",
-            reason: "RLS protects the base tables, not only the friendly view.",
+            outcome: "Blocked",
+            reason: "The function owner has no privilege on persistent tables.",
           },
           setConfig: {
-            title: "Change the trusted Chat",
-            sql: "SELECT set_config('app.chat_id', '200', true)",
+            title: "Change an irrelevant session setting",
+            sql: "SELECT set_config('app.chat_id', '200', true), count(*) FROM scoring_events WHERE subject_name = 'Mallory'",
+            outcome: "Allowed, zero rows",
+            reason: "Chat scope is copied data, not a mutable setting.",
+          },
+          resetRoleFunction: {
+            title: "Reset the role through set_config",
+            sql: "SELECT set_config('role', 'none', true)",
             outcome: "Blocked",
-            reason: "stats_agent cannot execute set_config.",
+            reason: "PostgreSQL forbids role changes inside a security-definer function.",
           },
           resetRole: {
             title: "Regain the default Neon role",
@@ -332,11 +337,11 @@
             title: "Delete an Event",
             sql: "DELETE FROM private.events RETURNING *",
             outcome: "Blocked",
-            reason: "The wrapper rejects mutation and the Neon endpoint is read-only.",
+            reason: "The nested query rejects mutation and stats_agent has no write grants.",
           },
           rowCap: {
             title: "Return too many rows",
-            sql: "SELECT * FROM stats.scoring_events ORDER BY action_at",
+            sql: "SELECT * FROM scoring_events ORDER BY action_at",
             outcome: "Allowed, truncated",
             reason: "The outer query returns at most the configured row budget.",
           },
@@ -356,13 +361,13 @@
           },
           isolation: {
             label: "Chat isolation",
-            description: "Try the friendly view and the underlying tables.",
-            steps: ["otherChatView", "otherChatTable", "setConfig"],
+            description: "Try the scoped copy and the underlying tables.",
+            steps: ["otherChatScoped", "otherChatTable", "setConfig"],
           },
           escape: {
             label: "Escape attempts",
             description: "Try to regain privilege or modify stored data.",
-            steps: ["resetRole", "mutate"],
+            steps: ["resetRoleFunction", "resetRole", "mutate"],
           },
         };
 
@@ -381,10 +386,10 @@
         return { scenarios, walks, initialState, reduce };
       })();
 
-      let state = RlsPrototype.initialState;
+      let state = TempTablePrototype.initialState;
 
       function dispatch(action) {
-        state = RlsPrototype.reduce(state, action);
+        state = TempTablePrototype.reduce(state, action);
         render();
       }
 
@@ -402,7 +407,7 @@
         document
           .querySelector("#free-play")
           .replaceChildren(
-            ...Object.entries(RlsPrototype.scenarios).map(([key, scenario]) =>
+            ...Object.entries(TempTablePrototype.scenarios).map(([key, scenario]) =>
               actionButton(key, scenario.title),
             ),
           );
@@ -412,7 +417,7 @@
         document
           .querySelector("#tabs")
           .replaceChildren(
-            ...Object.entries(RlsPrototype.walks).map(([key, walk]) => {
+            ...Object.entries(TempTablePrototype.walks).map(([key, walk]) => {
               const button = document.createElement("button");
               button.type = "button";
               button.role = "tab";
@@ -427,14 +432,14 @@
       }
 
       function renderWalkthrough() {
-        const walk = RlsPrototype.walks[state.walk];
+        const walk = TempTablePrototype.walks[state.walk];
         const wrapper = document.createElement("div");
         const description = document.createElement("p");
         description.textContent = walk.description;
         wrapper.append(description);
 
         walk.steps.forEach((key, index) => {
-          const scenario = RlsPrototype.scenarios[key];
+          const scenario = TempTablePrototype.scenarios[key];
           const row = document.createElement("div");
           const copy = document.createElement("p");
           row.className = "walk-step";
@@ -448,7 +453,7 @@
 
       function renderState() {
         const scenario = state.scenario
-          ? RlsPrototype.scenarios[state.scenario]
+          ? TempTablePrototype.scenarios[state.scenario]
           : null;
         document.querySelector("#scenario-title").textContent =
           scenario?.title ?? "Nothing run yet";
@@ -462,7 +467,7 @@
         document.querySelector("#reason").textContent =
           scenario?.reason ?? "Choose a query to see the boundary.";
         document.querySelector("#sql").textContent =
-          scenario?.sql ?? "SELECT * FROM stats.scoring_events";
+          scenario?.sql ?? "SELECT * FROM scoring_events";
       }
 
       function render() {

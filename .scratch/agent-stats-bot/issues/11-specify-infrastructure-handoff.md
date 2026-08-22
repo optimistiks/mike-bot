@@ -14,8 +14,9 @@ The runbook must cover:
 
 - creating or selecting the Vercel project for the Hono workspace and setting its root/build configuration;
 - creating or selecting the Neon database, applying migrations, and running any required import/backfill;
-- providing the operational database URL and a distinct read-replica database URL, with their environment
-  variable names and Vercel Local/Preview/Production scope;
+- providing the operational database URL and a distinct direct, unpooled primary URL for the agent's
+  transaction-local staging, with their environment variable names and Vercel Local/Preview/Production
+  scope;
 - supplying Telegram bot credentials and webhook secret, registering and verifying the webhook with the
   required updates, and disabling the Mini App button in BotFather;
 - configuring Vercel AI Gateway authentication/model variables and any development-harness switch or secret;
@@ -27,7 +28,7 @@ The runbook must cover:
   the human, including the exact evidence needed before work resumes.
 
 Whether the Neon project is new or existing is not a product decision. The required contract is one
-operational connection and one separate read-replica connection with the capabilities established by
+operational connection and one separate direct agent connection with the capabilities established by
 [Prove the SQL and Chat-isolation boundary](04-prove-sql-boundary.md).
 
 ## Done when

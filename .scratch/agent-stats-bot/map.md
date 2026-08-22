@@ -20,8 +20,8 @@ database.
   must invoke the same agent pipeline as `/stats`, not a second implementation. Its exact request, response,
   environment exposure, and database choice remain to be specified.
 - Deployment requires two human-supplied database connections: the operational database URL used by bot
-  ingestion/import/migrations and a separate read-replica URL used exclusively by the agent SQL tool. The
-  Neon project may be new or existing.
+  ingestion/import/migrations and a separate direct, unpooled primary URL used exclusively by the agent SQL
+  tool's transaction-local staging. The Neon project may be new or existing.
 - The final implementation plan must identify every dashboard, credential, environment-variable, migration,
   webhook, and BotFather action that only the human can perform, with explicit handoff and verification steps.
 - Agents and automated tests must never call a real language model or spend Vercel AI Gateway credit. Prompt,
@@ -45,8 +45,8 @@ database.
   v1 row always creates one Event and creates its `message_authors` row only when absent; reruns can backfill
   missing message metadata without duplicating the Event.
 - [Prove the SQL and Chat-isolation boundary](issues/04-prove-sql-boundary.md): generated SQL runs as one
-  limited RLS role after trusted code injects the Chat; a read view, wrapper, timeout, and row cap complete the
-  boundary.
+  limited function owner against a Chat-scoped temporary table; base-table grants, role-reset protection,
+  timeout, row cap, and commit cleanup complete the boundary.
 
 ## Not yet specified
 
