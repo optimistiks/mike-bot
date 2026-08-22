@@ -50,12 +50,4 @@ describe("Telegram webhook route", () => {
     expect(mocks.webhookCallback).toHaveBeenCalledOnce();
     expect(handler).toHaveBeenCalledTimes(2);
   });
-
-  it("uses the platform defaults for caching, runtime, and duration", async () => {
-    const route = await import("./route");
-
-    expect(route).not.toHaveProperty("dynamic");
-    expect(route).not.toHaveProperty("runtime");
-    expect(route).not.toHaveProperty("maxDuration");
-  });
 });

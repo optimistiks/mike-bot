@@ -18,6 +18,7 @@ export default defineConfig({
       "class-variance-authority",
       "clsx",
       "motion/react",
+      "next/link",
       "next/navigation",
       "tailwind-merge",
       "zod",

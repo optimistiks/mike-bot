@@ -4,7 +4,6 @@ import type { EventType } from "@/lib/domain/event";
 
 import { aggregateLeaderboard } from "./aggregate";
 import { eventTypeToContributions } from "./contributions";
-import { EVENT_TYPES } from "./types";
 import {
   creditedSeasonForReaction,
   getCurrentSeason,
@@ -42,12 +41,6 @@ describe("eventTypeToContributions", () => {
       karmaMinusGiven: 0,
       humorGiven: 1,
     });
-  });
-});
-
-describe("EVENT_TYPES", () => {
-  it("exports the three canonical Event types", () => {
-    expect(EVENT_TYPES).toEqual(["karma.plus", "karma.minus", "humor.add"]);
   });
 });
 

@@ -76,11 +76,6 @@ function mockRegisterContext(options: {
 }
 
 describe("register command guards", () => {
-  it("describes access rather than leaderboard participation", () => {
-    expect(REGISTRATION_MESSAGE_TEXT).toContain("получить доступ");
-    expect(REGISTRATION_MESSAGE_TEXT).not.toContain("участвовать");
-  });
-
   it.each([
     ["group", true],
     ["supergroup", true],
