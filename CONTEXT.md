@@ -1,6 +1,7 @@
 # Mike-bot
 
-A Telegram group scoring bot where Members mark each other's messages and compare seasonal Karma and Humor.
+A Telegram group scoring bot where Members mark each other's messages and compare Karma and Humor over
+Seasons and years.
 
 ## Scoring
 
@@ -12,12 +13,16 @@ _Avoid_: Vote, rating
 The latest addition of one Mark kind for a Chat, Actor, and Message that no reversal Event references. Karma plus and Karma minus are independent Active Marks and may coexist.
 _Avoid_: Unique Event, current reaction
 
+**Scoring action**:
+An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scoring reply. Its Telegram timestamp, not the moment Mike-bot processes it, decides whether it is still eligible for the Message's Season.
+_Avoid_: Webhook update, request
+
 **Scoring reaction**:
-One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark.
+One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it reverses the Mark.
 _Avoid_: Emoji, vote
 
 **Scoring reply**:
-An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. A Scoring reply remains in the Chat and cannot be undone by removing a reaction.
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. A Scoring reply remains in the Chat, is acknowledged with a 👍 reaction, and cannot be undone.
 _Avoid_: Legacy reply, command
 
 **Karma plus**:
@@ -33,11 +38,11 @@ A kind of Mark that contributes one point to the Subject's Humor.
 _Avoid_: Lol, joke vote
 
 **Karma**:
-A Member's net seasonal total from received Karma plus and Karma minus Marks and their reversals.
+A Member's net total, over one Leaderboard period, of received Karma plus and Karma minus Marks and their reversals.
 _Avoid_: Carma, score, respect
 
 **Humor**:
-A Member's net seasonal total from received Humor Marks and their reversals. Humor does not decay.
+A Member's net total, over one Leaderboard period, of received Humor Marks and their reversals.
 _Avoid_: Lol score, humor points
 
 **Actor**:
@@ -49,13 +54,17 @@ The Member whose message receives the Mark.
 _Avoid_: Recipient, target
 
 **Event**:
-An immutable canonical fact of type `karma.plus`, `karma.minus`, or `humor.add`. An addition Event has no reversal pointer. Removing a reversible reaction appends a same-type Event whose `reversesEventId` identifies the exact addition and whose scoring contribution is inverted. Reply and imported additions are not reversible.
+An immutable canonical fact of type `karma.plus`, `karma.minus`, or `humor.add`. An addition stands alone; reversing a Mark appends a same-type reversal Event that names the exact addition it undoes and inverts its scoring contribution. Only Scoring reaction additions are reversible.
 _Avoid_: Mark
+
+**Imported Event**:
+An Event reconciled from v1, Mike-bot's retired AWS-hosted predecessor. It is never reversible and keeps its v1 timestamp for Season attribution.
+_Avoid_: Legacy row, migration
 
 ## Community and access
 
 **Chat**:
-A Telegram group or supergroup whose Marks, Display identities, Registrations, and leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat.
+A Telegram group or supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither.
 _Avoid_: Room
 
 **Member**:
@@ -67,7 +76,7 @@ The latest known name used to present a Member within one Chat.
 _Avoid_: Chat member, username
 
 **Message**:
-The cached Telegram identity, author, bot status, and second-precision date of a message that may receive Marks. Mike-bot stores no Message content. Imported Message dates are best-effort estimates from the earliest associated v1 Event.
+The cached Telegram identity, author, bot status, and post time of a message that may receive Marks. Mike-bot stores no Message content, and a Message it never observed cannot be marked by reaction. An imported Message's post time is a best-effort estimate from the earliest Event that marked it.
 _Avoid_: Event, post content
 
 **Registration**:
@@ -78,10 +87,14 @@ _Avoid_: Chat membership, participation
 A bot-authored message through which a Member can establish Registration by adding a reaction.
 _Avoid_: Registration post
 
+**Register command**:
+The `/register` command, usable only by a Chat administrator inside a Chat, that posts that Chat's Registration message.
+_Avoid_: Signup, invite
+
 ## Leaderboards
 
 **Season**:
-A calendar month in `Europe/Moscow` to which live Events are credited according to the marked Message's timestamp. Reaction actions remain eligible for ten minutes after its calendar end; actions timestamped later cannot affect it. Imported Events retain their historical v1 Event timestamp for Season attribution despite their estimated Message date.
+A calendar month in `Europe/Moscow` to which live Events are credited according to the marked Message's post time. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one has no effect on it. Imported Events are credited by their v1 timestamp instead.
 _Avoid_: Rolling window
 
 **Leaderboard period**:
@@ -93,8 +106,12 @@ The Season containing the present time in `Europe/Moscow`.
 _Avoid_: Ongoing season
 
 **Leaderboard**:
-A ranking for one Leaderboard period of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
+The ranking of one Chat for one Leaderboard period, presented as five Leaderboard sections.
 _Avoid_: Stats, scoreboard
+
+**Leaderboard section**:
+One of a Leaderboard's five rankings, always in this order: Karma received (Уважаемые люди), Humor received (Юмористы), Karma plus given (На позитиве), Humor given (Хотят смеяться 5 минут), Karma minus given (Как же у них горит). A Member with a zero total is left out of a section.
+_Avoid_: Category, tab, board
 
 **Stats command**:
 The `/stats` command that opens the Mini App. In a Chat it also establishes Registration and links directly to that Chat's current Leaderboard; privately it opens the Chat selector.

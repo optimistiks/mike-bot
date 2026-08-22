@@ -1,0 +1,5 @@
+# Mirror Chat titles and photo references, stream photo bytes through an authenticated proxy
+
+The Mini App needs each Chat's name and avatar, but Telegram remains their owner: Postgres stores the latest title, the small-photo file reference, and a stable photo version, never image bytes. `/api/chats/[chatId]/photo` authenticates the Member, requires their Registration in that Chat, resolves the current Telegram file path, and streams the bytes, so `BOT_TOKEN` never reaches a client and a Chat's photo stays exactly as private as the Chat. The client holds the resulting Blob in its in-memory query cache only and falls back to title initials.
+
+The alternative — copying images into our own object storage — would buy a friend-group project little beyond a blob store to maintain and a second copy of data Telegram already keeps current. The cost accepted instead is an extra authenticated request per Chat, a stale file reference refreshed on demand, and no photo at all when the bot cannot reach Telegram.
