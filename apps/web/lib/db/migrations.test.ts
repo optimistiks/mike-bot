@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "./pglite";
 import {
+  chats,
   displayIdentities,
   events,
   messageAuthors,
@@ -11,7 +12,7 @@ import {
 } from "./schema";
 
 describe("Drizzle migrations on PGlite", () => {
-  it("applies migrations and supports all six tables", async () => {
+  it("applies migrations and supports all seven tables", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -22,6 +23,11 @@ describe("Drizzle migrations on PGlite", () => {
         subjectId: 2,
         messageId: 10,
         createdAt: new Date("2026-08-01T09:00:00.000Z"),
+      });
+
+      await pglite.db.insert(chats).values({
+        chatId: -100123,
+        title: "Test Chat",
       });
 
       await pglite.db.insert(displayIdentities).values({
@@ -59,6 +65,7 @@ describe("Drizzle migrations on PGlite", () => {
       );
 
       expect(tables.rows.map((row) => row.tablename)).toEqual([
+        "chats",
         "display_identities",
         "events",
         "message_authors",

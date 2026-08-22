@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
-import { queryLeaderboard, resolveSeason } from "@/lib/leaderboard/query";
+import { queryLeaderboard, resolvePeriod } from "@/lib/leaderboard/query";
 import {
   leaderboardQuerySchema,
   leaderboardResponseSchema,
@@ -38,8 +38,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const season = resolveSeason(parsed.data);
-  const leaderboard = await queryLeaderboard(db, parsed.data.chatId, season);
+  const period = resolvePeriod(parsed.data);
+  const leaderboard = await queryLeaderboard(db, parsed.data.chatId, period);
   const response = leaderboardResponseSchema.parse(leaderboard);
 
   return NextResponse.json(response);

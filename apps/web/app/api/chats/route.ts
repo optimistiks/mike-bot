@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { resolveChatMetadata } from "@/lib/bot/chat-metadata";
 import { getRuntimeDb } from "@/lib/db/runtime";
 import { listChatsForUser } from "@/lib/mini-app/chats-query";
 import { authenticateTmaRequestMember } from "@/lib/mini-app/request-auth.server";
@@ -15,8 +16,25 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   const db = await getRuntimeDb();
-  const chats = await listChatsForUser(db, member.userId);
-  const response = chatsResponseSchema.parse({ chats });
+  let registeredChats = await listChatsForUser(db, member.userId);
+  const botToken = process.env.BOT_TOKEN?.trim();
+
+  if (botToken) {
+    registeredChats = await Promise.all(
+      registeredChats.map(async (chat) => {
+        const metadata = await resolveChatMetadata(db, chat.chatId, botToken);
+        return metadata
+          ? {
+              chatId: metadata.chatId,
+              title: metadata.title,
+              photoVersion: metadata.photoUniqueId,
+            }
+          : chat;
+      }),
+    );
+  }
+
+  const response = chatsResponseSchema.parse({ chats: registeredChats });
 
   return NextResponse.json(response);
 }

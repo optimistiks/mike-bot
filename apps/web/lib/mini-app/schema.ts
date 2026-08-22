@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const chatEntrySchema = z.object({
   chatId: z.number().int(),
-  label: z.string(),
+  title: z.string(),
+  photoVersion: z.string().nullable(),
 });
 
 export const chatsResponseSchema = z.object({

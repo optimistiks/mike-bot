@@ -116,15 +116,15 @@ describe("resetAndSeedDatabase", () => {
           ],
         },
         {
-          id: "karma-minus-given",
-          entries: [{ displayName: "@alice", score: 1 }],
-        },
-        {
           id: "humor-given",
           entries: [
             { displayName: "@alice", score: 1 },
             { displayName: "@bob", score: 1 },
           ],
+        },
+        {
+          id: "karma-minus-given",
+          entries: [{ displayName: "@alice", score: 1 }],
         },
       ]);
       expect(second.displayIdentities).toHaveLength(5);

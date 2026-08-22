@@ -50,6 +50,15 @@ export const registrations = pgTable(
   (table) => [primaryKey({ columns: [table.chatId, table.userId] })],
 );
 
+/** Latest Telegram-owned metadata for a group or supergroup Chat. */
+export const chats = pgTable("chats", {
+  chatId: bigint("chat_id", { mode: "number" }).primaryKey(),
+  title: text("title").notNull(),
+  photoSmallFileId: text("photo_small_file_id"),
+  photoUniqueId: text("photo_unique_id"),
+  metadataCheckedAt: timestamp("metadata_checked_at", { withTimezone: true }),
+});
+
 /** Cached message authors for Subject lookup on reaction updates. */
 export const messageAuthors = pgTable(
   "message_authors",
@@ -80,6 +89,7 @@ export const processedUpdates = pgTable("processed_updates", {
 });
 
 export const schema = {
+  chats,
   events,
   displayIdentities,
   registrations,

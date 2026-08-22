@@ -3,7 +3,7 @@ import { expect } from "vitest";
 import { test } from "@/test/browser/msw";
 
 import { mockDevelopmentTmaEnvironment } from "./tma-development";
-import { initializeTmaPlatform } from "./tma-platform";
+import { initializeTelegramPlatform } from "./_lib/telegram-platform";
 
 const RAW_INIT_DATA = new URLSearchParams({
   auth_date: "1787227200",
@@ -19,7 +19,7 @@ const RAW_INIT_DATA = new URLSearchParams({
 
 test("mocks a complete TMA launch from server-provided init data", async () => {
   await mockDevelopmentTmaEnvironment(RAW_INIT_DATA);
-  const launch = await initializeTmaPlatform();
+  const launch = await initializeTelegramPlatform();
 
   expect(launch).toMatchObject({
     kind: "telegram",

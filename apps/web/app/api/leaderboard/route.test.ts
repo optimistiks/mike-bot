@@ -52,7 +52,7 @@ describe("GET /api/leaderboard", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       chatId: PRIMARY_FIXTURE_CHAT_ID,
-      season: { year: 2026, month: 8 },
+      period: { kind: "season", year: 2026, month: 8 },
     });
   });
 
@@ -103,17 +103,26 @@ describe("GET /api/leaderboard", () => {
     await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
   });
 
-  it("returns 400 for malformed query parameters after authentication", async () => {
+  it("returns annual totals when only a year is provided", async () => {
+    const db = await getRuntimeDb();
+    await resetAndSeedDatabase(db, FIXTURE_NOW);
     const response = await GET(
       leaderboardRequest(
         `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026`,
       ),
     );
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Invalid query parameters",
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      period: { kind: "year", year: 2026 },
     });
+  });
+
+  it("returns 400 when month is provided without year", async () => {
+    const response = await GET(
+      leaderboardRequest(`chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&month=8`),
+    );
+    expect(response.status).toBe(400);
   });
 
   it.each([

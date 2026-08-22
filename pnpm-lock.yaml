@@ -41,6 +41,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.3.7
         version: 0.3.16
+      '@tanstack/react-query':
+        specifier: ^5.101.4
+        version: 5.101.4(react@19.2.8)
       '@tma.js/init-data-node':
         specifier: ^2.0.8
         version: 2.0.8(typescript@7.0.2)
@@ -108,9 +111,6 @@ importers:
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.876.0
         version: 3.1113.0(@aws-sdk/client-dynamodb@3.1113.0)
-      '@faker-js/faker':
-        specifier: ^10.6.0
-        version: 10.6.0
       '@mike-bot/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1017,10 +1017,6 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@faker-js/faker@10.6.0':
-    resolution: {integrity: sha512-3RQHgEtvL1Frl/d1cSreo7qhJ3Gk1OdNUai/CtZ8G+wYeRQnJih3s9xJ9/kgYekPQRdwgh0HXRPqMlzWGwivIQ==}
-    engines: {node: ^20.19.0 || ^22.13.0 || ^23.5.0 || >=24.0.0, npm: '>=10'}
-
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
 
@@ -1678,6 +1674,14 @@ packages:
 
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
+
+  '@tanstack/query-core@5.101.4':
+    resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
+
+  '@tanstack/react-query@5.101.4':
+    resolution: {integrity: sha512-yRg2pfOCxIs4ZJW3XYYHU/WgtD04FHSnfHlpRT7h7pR77hwkdRG4wxbKe4aq6P0RvXUTBSQpQeadS1SUYUe+KA==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@tma.js/bridge@2.3.3':
     resolution: {integrity: sha512-R2o/bJY/mc8Kg4F3sF515DawCEUOVpHaOnW/zGq95Tell/ptb/7XPzCa7Ko5iq8KrlmHjpiK/0xnnF423lJ4Vw==}
@@ -5867,8 +5871,6 @@ snapshots:
   '@exodus/bytes@1.15.1':
     optional: true
 
-  '@faker-js/faker@10.6.0': {}
-
   '@floating-ui/core@1.8.0':
     dependencies:
       '@floating-ui/utils': 0.2.12
@@ -6364,6 +6366,13 @@ snapshots:
       '@tailwindcss/oxide': 4.3.3
       postcss: 8.5.26
       tailwindcss: 4.3.3
+
+  '@tanstack/query-core@5.101.4': {}
+
+  '@tanstack/react-query@5.101.4(react@19.2.8)':
+    dependencies:
+      '@tanstack/query-core': 5.101.4
+      react: 19.2.8
 
   '@tma.js/bridge@2.3.3(typescript@7.0.2)':
     dependencies:

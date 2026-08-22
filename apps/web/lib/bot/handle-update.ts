@@ -13,6 +13,7 @@ import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
 import { isGroupChat } from "./chat";
+import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
 import { isRegistrationMessage } from "./register";
 import {
@@ -75,6 +76,12 @@ async function handleMessageUpdate(
   const messageId = message.message_id;
   const from = message.from;
 
+  await upsertChatFromTelegramUpdate(db, message.chat, {
+    newTitle: message.new_chat_title,
+    newPhoto: message.new_chat_photo,
+    deletePhoto: message.delete_chat_photo,
+  });
+
   await upsertMessageAuthor(db, {
     chatId,
     messageId,
@@ -97,6 +104,7 @@ async function handleChatMemberUpdate(
   }
 
   const chatId = update.chat.id;
+  await upsertChatFromTelegramUpdate(db, update.chat);
   const member = update.new_chat_member;
   const userId = member.user.id;
 
@@ -125,6 +133,7 @@ async function handleMessageReactionUpdate(
   }
 
   const chatId = reaction.chat.id;
+  await upsertChatFromTelegramUpdate(db, reaction.chat);
   const messageId = reaction.message_id;
 
   const cached = await db

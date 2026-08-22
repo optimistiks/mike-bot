@@ -525,7 +525,7 @@ describe("telegram webhook integration", () => {
       );
 
       await expect(listChatsForUser(pglite.db, 701)).resolves.toEqual([
-        { chatId: TEST_CHAT_ID, label: "Чат -100111222" },
+        { chatId: TEST_CHAT_ID, title: "Test", photoVersion: null },
       ]);
     } finally {
       await closePgliteDb(pglite);

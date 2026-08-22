@@ -24,6 +24,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@electric-sql/pglite": "^0.3.7",
+    "@tanstack/react-query": "^5.101.4",
     "@tma.js/init-data-node": "^2.0.8",
     "@tma.js/sdk-react": "^3.0.23",
     "@vercel/functions": "^2.2.4",
@@ -48,7 +49,6 @@
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.876.0",
     "@aws-sdk/lib-dynamodb": "^3.876.0",
-    "@faker-js/faker": "^10.6.0",
     "@mike-bot/eslint-config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.17.1",

@@ -1,4 +1,4 @@
-import "./globals.css";
+import "../(root)/globals.css";
 
 import type { Metadata, Viewport } from "next";
 import { Press_Start_2P } from "next/font/google";

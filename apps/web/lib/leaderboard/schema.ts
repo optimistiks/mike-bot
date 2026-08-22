@@ -5,6 +5,13 @@ export const seasonSchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
 });
 
+export const leaderboardPeriodSchema = z.discriminatedUnion("kind", [
+  seasonSchema.extend({ kind: z.literal("season") }),
+  z.object({ kind: z.literal("year"), year: z.number().int() }),
+]);
+
+export type LeaderboardPeriod = z.infer<typeof leaderboardPeriodSchema>;
+
 export const leaderboardEntrySchema = z.object({
   userId: z.number().int(),
   displayName: z.string(),
@@ -12,21 +19,29 @@ export const leaderboardEntrySchema = z.object({
   isCrown: z.boolean(),
   isChicken: z.boolean(),
 });
+export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 
 export const leaderboardSectionSchema = z.object({
   id: z.string(),
   title: z.string(),
   entries: z.array(leaderboardEntrySchema),
 });
+export type LeaderboardSection = z.infer<typeof leaderboardSectionSchema>;
 
 export const leaderboardResponseSchema = z.object({
   chatId: z.number().int(),
-  season: seasonSchema,
-  isCurrentSeason: z.boolean(),
+  period: leaderboardPeriodSchema,
   sections: z.array(leaderboardSectionSchema),
 });
 
 export type LeaderboardResponse = z.infer<typeof leaderboardResponseSchema>;
+
+export const availablePeriodsResponseSchema = z.object({
+  seasons: z.array(seasonSchema),
+});
+export type AvailablePeriodsResponse = z.infer<
+  typeof availablePeriodsResponseSchema
+>;
 
 export const leaderboardQuerySchema = z
   .object({
@@ -38,11 +53,11 @@ export const leaderboardQuerySchema = z
     const hasYear = query.year !== undefined;
     const hasMonth = query.month !== undefined;
 
-    if (hasYear !== hasMonth) {
+    if (!hasYear && hasMonth) {
       context.addIssue({
         code: "custom",
-        message: "year and month must be provided together",
-        path: hasYear ? ["month"] : ["year"],
+        message: "month requires year",
+        path: ["year"],
       });
     }
   })

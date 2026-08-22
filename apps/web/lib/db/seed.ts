@@ -12,6 +12,7 @@ import {
   UNREGISTERED_PERSONA_ID,
 } from "./seed-personas";
 import {
+  chats,
   displayIdentities,
   events,
   messageAuthors,
@@ -53,6 +54,11 @@ const DISPLAY_IDENTITIES = [
 const REGISTRATIONS = [
   { chatId: PRIMARY_FIXTURE_CHAT_ID, userId: REGISTERED_PERSONA_ID },
   { chatId: SECONDARY_FIXTURE_CHAT_ID, userId: FORBIDDEN_PERSONA_ID },
+] as const;
+
+const CHATS = [
+  { chatId: PRIMARY_FIXTURE_CHAT_ID, title: "Клуб пятничных созвонов" },
+  { chatId: SECONDARY_FIXTURE_CHAT_ID, title: "Ночная смена" },
 ] as const;
 
 const FIXTURE_EVENTS: readonly {
@@ -264,6 +270,9 @@ export async function resetAndSeedDatabase(
   now = new Date(),
 ): Promise<void> {
   await reset(db, schema);
+  await db
+    .insert(chats)
+    .values(CHATS.map((chat) => ({ ...chat, metadataCheckedAt: now })));
   await seedDisplayIdentities(db);
   await seedRegistrations(db);
   await seedEvents(db, now);

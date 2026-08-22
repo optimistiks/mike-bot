@@ -1,32 +1,16 @@
-import type { Metadata } from "next";
-
-import { MiniAppClient } from "./mini-app-client";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Таблица лидеров",
-};
-
-interface HomePageProps {
+export default async function HomePage({
+  searchParams,
+}: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  let developmentInitDataRaw: string | null | undefined;
-
-  if (process.env.NODE_ENV !== "production") {
-    const { persona } = await searchParams;
-    const personaName = typeof persona === "string" ? persona : undefined;
-    const { signDevelopmentInitDataForPersona } =
-      await import("@/lib/mini-app/development-init-data.server");
-    developmentInitDataRaw = signDevelopmentInitDataForPersona(personaName);
+}) {
+  const { persona } = await searchParams;
+  const destination = new URL("http://mini-app.local/chats");
+  if (typeof persona === "string") {
+    destination.searchParams.set("persona", persona);
   }
-
-  return (
-    <main>
-      <h1>Таблица лидеров</h1>
-      <MiniAppClient developmentInitDataRaw={developmentInitDataRaw} />
-    </main>
-  );
+  redirect(`${destination.pathname}${destination.search}`);
 }

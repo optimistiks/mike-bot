@@ -5,15 +5,45 @@ import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
 import { eventTypeSchema } from "@/lib/domain/event";
 import {
   aggregateLeaderboard,
+  creditedSeasonForReaction,
   getCurrentSeason,
   SEASON_GRACE_PERIOD_MS,
   seasonDateRange,
+  seasonForDate,
   type Season,
 } from "@/lib/scoring";
 
-import type { LeaderboardResponse } from "./schema";
+import type {
+  LeaderboardEntry,
+  LeaderboardPeriod,
+  LeaderboardResponse,
+} from "./schema";
 
-export async function queryLeaderboard(
+function rankAnnualEntries(
+  entries: Map<number, { displayName: string; score: number }>,
+): LeaderboardEntry[] {
+  const ranked = [...entries.entries()]
+    .filter(([, entry]) => entry.score !== 0)
+    .sort((left, right) => {
+      if (right[1].score !== left[1].score) {
+        return right[1].score - left[1].score;
+      }
+      return left[0] - right[0];
+    });
+
+  const highestScore = ranked[0]?.[1].score;
+  const lowestScore = ranked.at(-1)?.[1].score;
+
+  return ranked.map(([userId, entry]) => ({
+    userId,
+    displayName: entry.displayName,
+    score: entry.score,
+    isCrown: entry.score === highestScore,
+    isChicken: highestScore !== lowestScore && entry.score === lowestScore,
+  }));
+}
+
+async function querySeasonLeaderboard(
   db: AppDatabase,
   chatId: number,
   season: Season,
@@ -64,7 +94,6 @@ export async function queryLeaderboard(
   const displayNames = new Map(
     identityRows.map((identity) => [identity.userId, identity.displayName]),
   );
-
   const aggregated = aggregateLeaderboard(
     eventRows.map((row) => ({
       type: eventTypeSchema.parse(row.type),
@@ -77,30 +106,115 @@ export async function queryLeaderboard(
 
   return {
     chatId,
-    season: aggregated.season,
-    isCurrentSeason: aggregated.isCurrentSeason,
+    period: { kind: "season", ...season },
     sections: aggregated.sections.map((section) => ({
       id: section.id,
       title: section.title,
       entries: section.entries.map((entry) => ({
-        userId: entry.userId,
+        ...entry,
         displayName:
           displayNames.get(entry.userId) ?? `User ${String(entry.userId)}`,
-        score: entry.score,
-        isCrown: entry.isCrown,
-        isChicken: entry.isChicken,
       })),
     })),
   };
 }
 
-export function resolveSeason(query: {
-  year?: number;
-  month?: number;
-}): Season {
-  if (query.year !== undefined && query.month !== undefined) {
-    return { year: query.year, month: query.month };
+async function queryYearLeaderboard(
+  db: AppDatabase,
+  chatId: number,
+  year: number,
+): Promise<LeaderboardResponse> {
+  const months = await Promise.all(
+    Array.from({ length: 12 }, (_, index) =>
+      querySeasonLeaderboard(db, chatId, { year, month: index + 1 }),
+    ),
+  );
+  const templateSections = months[0]?.sections ?? [];
+
+  return {
+    chatId,
+    period: { kind: "year", year },
+    sections: templateSections.map((template) => {
+      const totals = new Map<number, { displayName: string; score: number }>();
+
+      for (const month of months) {
+        const section = month.sections.find(({ id }) => id === template.id);
+        for (const entry of section?.entries ?? []) {
+          const current = totals.get(entry.userId);
+          totals.set(entry.userId, {
+            displayName: entry.displayName,
+            score: (current?.score ?? 0) + entry.score,
+          });
+        }
+      }
+
+      return { ...template, entries: rankAnnualEntries(totals) };
+    }),
+  };
+}
+
+export async function queryLeaderboard(
+  db: AppDatabase,
+  chatId: number,
+  period: LeaderboardPeriod | Season,
+): Promise<LeaderboardResponse> {
+  if (!("kind" in period) || period.kind === "season") {
+    return querySeasonLeaderboard(db, chatId, {
+      year: period.year,
+      month: period.month,
+    });
+  }
+  return queryYearLeaderboard(db, chatId, period.year);
+}
+
+export async function queryAvailableSeasons(
+  db: AppDatabase,
+  chatId: number,
+): Promise<Season[]> {
+  const rows = await db
+    .select({
+      legacyId: events.legacyId,
+      createdAt: events.createdAt,
+      messageDate: messageAuthors.messageDate,
+    })
+    .from(events)
+    .leftJoin(
+      messageAuthors,
+      and(
+        eq(events.chatId, messageAuthors.chatId),
+        eq(events.messageId, messageAuthors.messageId),
+      ),
+    )
+    .where(eq(events.chatId, chatId));
+
+  const seasons = new Map<string, Season>();
+  for (const row of rows) {
+    const season = row.legacyId
+      ? seasonForDate(row.createdAt)
+      : row.messageDate === null
+        ? null
+        : creditedSeasonForReaction(
+            new Date(row.messageDate * 1_000),
+            row.createdAt,
+          );
+    if (season) {
+      seasons.set(`${String(season.year)}-${String(season.month)}`, season);
+    }
   }
 
-  return getCurrentSeason();
+  return [...seasons.values()].toSorted(
+    (left, right) => left.year - right.year || left.month - right.month,
+  );
+}
+
+export function resolvePeriod(query: {
+  year?: number;
+  month?: number;
+}): LeaderboardPeriod {
+  if (query.year !== undefined && query.month !== undefined) {
+    return { kind: "season", year: query.year, month: query.month };
+  }
+  if (query.year !== undefined) return { kind: "year", year: query.year };
+
+  return { kind: "season", ...getCurrentSeason() };
 }

@@ -70,14 +70,18 @@ _Avoid_: Registration post
 
 **Season**:
 A calendar month in `Europe/Moscow` to which eligible Events are credited according to the marked message's timestamp. Reaction actions remain eligible for ten minutes after its calendar end; actions timestamped later cannot affect it.
-_Avoid_: Period, rolling window
+_Avoid_: Rolling window
+
+**Leaderboard period**:
+Either one Season or one calendar year over which a Leaderboard ranks Members. A yearly period combines the Events already credited to its twelve Seasons.
+_Avoid_: Season when referring to a year, time range
 
 **Current Season**:
 The Season containing the present time in `Europe/Moscow`.
 _Avoid_: Ongoing season
 
 **Leaderboard**:
-A seasonal ranking of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
+A ranking for one Leaderboard period of non-zero Member totals across Karma received, Humor received, Karma plus given, Karma minus given, and Humor Marks given.
 _Avoid_: Stats, scoreboard
 
 **Stats question**:

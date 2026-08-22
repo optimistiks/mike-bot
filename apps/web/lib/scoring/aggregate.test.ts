@@ -163,9 +163,9 @@ describe("aggregateLeaderboard", () => {
     expect(result.sections.map((section) => section.title)).toEqual([
       "Уважаемые люди",
       "Юмористы",
-      "Поставили +",
-      "Поставили −",
-      "Поставили лол",
+      "На позитиве",
+      "Хотят смеяться 5 минут",
+      "Как же у них горит",
     ]);
 
     expect(result.sections[0]?.entries).toEqual([
@@ -182,11 +182,11 @@ describe("aggregateLeaderboard", () => {
     ]);
 
     expect(result.sections[3]?.entries).toEqual([
-      { userId: 30, score: 1, isCrown: true, isChicken: false },
+      { userId: 10, score: 1, isCrown: true, isChicken: false },
     ]);
 
     expect(result.sections[4]?.entries).toEqual([
-      { userId: 10, score: 1, isCrown: true, isChicken: false },
+      { userId: 30, score: 1, isCrown: true, isChicken: false },
     ]);
   });
 

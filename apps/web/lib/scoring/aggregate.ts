@@ -11,9 +11,17 @@ import type { Season } from "./season";
 const SECTIONS = [
   { id: "karma-received", title: "Уважаемые люди", bucket: "karmaReceived" },
   { id: "humor-received", title: "Юмористы", bucket: "humorReceived" },
-  { id: "karma-plus-given", title: "Поставили +", bucket: "karmaPlusGiven" },
-  { id: "karma-minus-given", title: "Поставили −", bucket: "karmaMinusGiven" },
-  { id: "humor-given", title: "Поставили лол", bucket: "humorGiven" },
+  { id: "karma-plus-given", title: "На позитиве", bucket: "karmaPlusGiven" },
+  {
+    id: "humor-given",
+    title: "Хотят смеяться 5 минут",
+    bucket: "humorGiven",
+  },
+  {
+    id: "karma-minus-given",
+    title: "Как же у них горит",
+    bucket: "karmaMinusGiven",
+  },
 ] as const;
 
 type BucketKey = (typeof SECTIONS)[number]["bucket"];

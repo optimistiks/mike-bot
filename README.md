@@ -29,6 +29,19 @@ token comes from `apps/web/.env.development` as
 `TMA_DEVELOPMENT_BOT_TOKEN`. Next.js loads it only for development; production
 accepts only Telegram data signed by `BOT_TOKEN`.
 
+The production Mini App lives at `/chats`. Chat Leaderboards use
+`/chats/[chatId]/leaderboards/[year]/[month]` for a Season and
+`/chats/[chatId]/leaderboards/[year]` for annual totals. Protected client data
+is owned by TanStack Query and partitioned by the authenticated Member and Chat.
+The development-only `/api/development/init-data` endpoint signs the personas
+above and returns 404 in production.
+
+Telegram remains the source of Chat photos. Postgres stores only Telegram file
+references and a stable photo version; `/api/chats/[chatId]/photo` authenticates
+the Member, resolves the current Telegram file path, and streams the bytes
+without exposing `BOT_TOKEN`. The client keeps the resulting Blob in its
+in-memory query cache and falls back to Chat-title initials.
+
 ## Layout
 
 - `apps/web` — Next.js App Router app (webhook, Mini App, API)
@@ -105,7 +118,10 @@ vercel env pull .env.local
 pnpm db:migrate
 ```
 
-Tables: `events`, `display_identities`, `registrations`, `message_authors`, `processed_updates`, `registration_messages`.
+Tables: `chats`, `events`, `display_identities`, `registrations`,
+`message_authors`, `processed_updates`, `registration_messages`. The `chats`
+table holds the latest Telegram title and photo references; it does not store
+image bytes.
 
 Production runtime uses `pg` `Pool` + `attachDatabasePool` on Vercel Fluid compute — see `apps/web/lib/db/README.md`.
 
@@ -236,9 +252,10 @@ When a member leaves or is kicked, their registration row is removed automatical
 | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Webhook       | `set-webhook` printed success; or Telegram `getWebhookInfo` shows your URL and `message_reaction` in `allowed_updates`      |
 | Message cache | Send a normal message in the group after the bot joined, then add 👍 on that message — subject should appear on leaderboard |
-| Mini App      | Menu Button → Russian UI → Chat picker (empty until Registration-message reaction)                                          |
-| Registration  | React to a Registration message → Chat appears in picker → five leaderboard sections, Current Season default                |
-| v1 history    | If imported, older Seasons show imported rows in the Mini App                                                               |
+| Mini App      | Menu Button → arcade Chat picker → Chat photo/title → five Leaderboard sections                                             |
+| Registration  | React to a Registration message → Chat appears in picker → Current Season opens by default                                  |
+| Periods       | Season drawer → monthly and annual URLs; empty months remain selectable                                                     |
+| v1 history    | If imported, older Seasons and their annual totals show imported rows in the Mini App                                       |
 
 **Common failures**
 

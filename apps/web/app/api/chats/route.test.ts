@@ -92,14 +92,20 @@ describe("GET /api/chats", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      chats: [{ chatId: TEST_CHAT_ID, label: "Чат -100111222" }],
+      chats: [{ chatId: TEST_CHAT_ID, title: "Test", photoVersion: null }],
     });
   });
 
   it.each([
     [
       "registered",
-      [{ chatId: PRIMARY_FIXTURE_CHAT_ID, label: "Чат -100456789" }],
+      [
+        {
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          title: "Клуб пятничных созвонов",
+          photoVersion: null,
+        },
+      ],
     ],
     ["unregistered", []],
   ] as const)(

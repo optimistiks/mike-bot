@@ -29,9 +29,9 @@ describe("queryLeaderboard", () => {
       expect(leaderboard.sections.map((section) => section.title)).toEqual([
         "Уважаемые люди",
         "Юмористы",
-        "Поставили +",
-        "Поставили −",
-        "Поставили лол",
+        "На позитиве",
+        "Хотят смеяться 5 минут",
+        "Как же у них горит",
       ]);
 
       const entries = leaderboard.sections.flatMap(

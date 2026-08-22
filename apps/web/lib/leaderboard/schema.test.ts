@@ -17,13 +17,19 @@ describe("leaderboardQuerySchema", () => {
     });
   });
 
-  it("rejects partial season parameters", () => {
-    const parsed = leaderboardQuerySchema.safeParse({
+  it("accepts a year without a month for annual totals", () => {
+    const parsed = leaderboardQuerySchema.parse({
       chat_id: "1",
       year: "2026",
     });
 
-    expect(parsed.success).toBe(false);
+    expect(parsed).toEqual({ chatId: 1, year: 2026, month: undefined });
+  });
+
+  it("rejects a month without a year", () => {
+    expect(
+      leaderboardQuerySchema.safeParse({ chat_id: "1", month: "8" }).success,
+    ).toBe(false);
   });
 
   it("does not accept the internal chatId spelling at the HTTP boundary", () => {
