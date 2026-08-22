@@ -5,18 +5,17 @@ import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import {
   displayIdentities,
   events,
+  messageAuthors,
   processedUpdates,
   registrations,
 } from "@/lib/db/schema";
-import { listChatsForUser } from "@/lib/mini-app/chats-query";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
 import { getMessageAuthor, handleTelegramUpdate } from "./handle-update";
-import { recordRegistrationMessage } from "./register";
 
 const TEST_CHAT_ID = -100_111_222;
 const BOT_USER_ID = 777;
-const REGISTRATION_MESSAGE_ID = 500;
+const BOT_MESSAGE_ID = 500;
 
 function messageUpdate(
   updateId: number,
@@ -407,6 +406,30 @@ describe("telegram webhook integration", () => {
     }
   });
 
+  it("skips the author cache for an ephemeral command message", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      const update = messageUpdate(14, 0, { id: 205, first_name: "Eph" });
+      if (!update.message) {
+        throw new Error("Expected a message update");
+      }
+      update.message.ephemeral_message_id = 12;
+      update.message.text = "/stats";
+
+      await handleTelegramUpdate(pglite.db, update);
+
+      await expect(pglite.db.select().from(messageAuthors)).resolves.toEqual(
+        [],
+      );
+      await expect(pglite.db.select().from(displayIdentities)).resolves.toEqual(
+        [{ chatId: TEST_CHAT_ID, userId: 205, displayName: "Eph" }],
+      );
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
   it("does not add a Registration when a member joins", async () => {
     const pglite = await createPgliteDb();
 
@@ -465,14 +488,15 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("registers actor on Registration message reaction without scoring events", async () => {
+  it("ignores reactions on bot-authored messages", async () => {
     const pglite = await createPgliteDb();
 
     try {
-      await recordRegistrationMessage(pglite.db, {
+      await pglite.db.insert(messageAuthors).values({
         chatId: TEST_CHAT_ID,
-        messageId: REGISTRATION_MESSAGE_ID,
-        botUserId: BOT_USER_ID,
+        messageId: BOT_MESSAGE_ID,
+        authorId: BOT_USER_ID,
+        authorIsBot: true,
         messageDate: 1_722_513_600,
       });
 
@@ -480,114 +504,15 @@ describe("telegram webhook integration", () => {
         pglite.db,
         reactionUpdate(
           20,
-          REGISTRATION_MESSAGE_ID,
+          BOT_MESSAGE_ID,
           { id: 601, first_name: "Reg", username: "reguser" },
           [],
           [{ type: "emoji", emoji: "👍" }],
         ),
       );
 
-      const rows = await pglite.db.select().from(registrations);
-      expect(rows).toEqual([{ chatId: TEST_CHAT_ID, userId: 601 }]);
-
-      const eventRows = await pglite.db.select().from(events);
-      expect(eventRows).toHaveLength(0);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("allows Registration through an old Registration message", async () => {
-    const pglite = await createPgliteDb();
-
-    try {
-      await recordRegistrationMessage(pglite.db, {
-        chatId: TEST_CHAT_ID,
-        messageId: REGISTRATION_MESSAGE_ID,
-        botUserId: BOT_USER_ID,
-        messageDate: Math.floor(
-          new Date("2024-01-01T00:00:00.000Z").getTime() / 1000,
-        ),
-      });
-
-      await handleTelegramUpdate(
-        pglite.db,
-        reactionUpdate(
-          23,
-          REGISTRATION_MESSAGE_ID,
-          { id: 602, first_name: "Late" },
-          [],
-          [{ type: "emoji", emoji: "👍" }],
-        ),
-      );
-
-      await expect(pglite.db.select().from(registrations)).resolves.toEqual([
-        { chatId: TEST_CHAT_ID, userId: 602 },
-      ]);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("does not unregister when a Registration reaction is removed", async () => {
-    const pglite = await createPgliteDb();
-
-    try {
-      await recordRegistrationMessage(pglite.db, {
-        chatId: TEST_CHAT_ID,
-        messageId: REGISTRATION_MESSAGE_ID,
-        botUserId: BOT_USER_ID,
-        messageDate: 1_722_513_600,
-      });
-
-      await pglite.db.insert(registrations).values({
-        chatId: TEST_CHAT_ID,
-        userId: 601,
-      });
-
-      await handleTelegramUpdate(
-        pglite.db,
-        reactionUpdate(
-          21,
-          REGISTRATION_MESSAGE_ID,
-          { id: 601, first_name: "Reg" },
-          [{ type: "emoji", emoji: "👍" }],
-          [],
-        ),
-      );
-
-      const rows = await pglite.db.select().from(registrations);
-      expect(rows).toEqual([{ chatId: TEST_CHAT_ID, userId: 601 }]);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("registers custom emoji reactions on a Registration message", async () => {
-    const pglite = await createPgliteDb();
-
-    try {
-      await recordRegistrationMessage(pglite.db, {
-        chatId: TEST_CHAT_ID,
-        messageId: REGISTRATION_MESSAGE_ID,
-        botUserId: BOT_USER_ID,
-        messageDate: 1_722_513_600,
-      });
-
-      await handleTelegramUpdate(
-        pglite.db,
-        reactionUpdate(
-          22,
-          REGISTRATION_MESSAGE_ID,
-          { id: 701, first_name: "Opener", username: "opener" },
-          [],
-          [{ type: "custom_emoji", custom_emoji_id: "custom-1" }],
-        ),
-      );
-
-      await expect(listChatsForUser(pglite.db, 701)).resolves.toEqual([
-        { chatId: TEST_CHAT_ID, title: "Test", photoVersion: null },
-      ]);
+      await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
+      await expect(pglite.db.select().from(events)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }

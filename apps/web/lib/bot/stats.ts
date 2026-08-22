@@ -28,6 +28,8 @@ export async function handleStatsCommand(
   if (isGroupChat(chat.type)) {
     await addRegistration(db, chat.id, from.id);
     await ctx.reply(STATS_MESSAGE_TEXT, {
+      // Ephemeral reply: only the caller sees it, so the group stays uncluttered.
+      receiver_user_id: from.id,
       reply_markup: new InlineKeyboard().url(
         STATS_BUTTON_TEXT,
         miniAppLink(ctx.me.username, chat.id),

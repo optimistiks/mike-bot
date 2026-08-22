@@ -17,7 +17,6 @@ import {
   displayIdentities,
   events,
   processedUpdates,
-  registrationMessages,
   registrations,
 } from "./schema";
 
@@ -34,10 +33,6 @@ async function fixtureSnapshot(
       .from(registrations)
       .orderBy(asc(registrations.chatId), asc(registrations.userId)),
     events: await db.select().from(events).orderBy(asc(events.id)),
-    registrationMessages: await db
-      .select()
-      .from(registrationMessages)
-      .orderBy(asc(registrationMessages.chatId)),
     processedUpdates: await db.select().from(processedUpdates),
   };
 }

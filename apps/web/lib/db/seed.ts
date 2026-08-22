@@ -17,7 +17,6 @@ import {
   events,
   messageAuthors,
   registrations,
-  registrationMessages,
   schema,
 } from "./schema";
 
@@ -236,38 +235,6 @@ async function seedEvents(db: AppDatabase, now: Date): Promise<void> {
   );
 }
 
-async function seedRegistrationMessage(
-  db: AppDatabase,
-  now: Date,
-): Promise<void> {
-  await seed(
-    db,
-    { registrationMessages },
-    { seed: FIXTURE_GENERATOR_SEED },
-  ).refine((generators) => ({
-    registrationMessages: {
-      count: 1,
-      columns: {
-        chatId: generators.default({
-          defaultValue: PRIMARY_FIXTURE_CHAT_ID,
-        }),
-        messageId: generators.default({ defaultValue: 9_001 }),
-        createdAt: generators.default({
-          defaultValue: moscowSeasonStart(now, 0),
-        }),
-      },
-    },
-  }));
-
-  await db.insert(messageAuthors).values({
-    chatId: PRIMARY_FIXTURE_CHAT_ID,
-    messageId: 9_001,
-    authorId: 777,
-    authorIsBot: true,
-    messageDate: Math.floor(moscowSeasonStart(now, 0).getTime() / 1000),
-  });
-}
-
 export async function resetAndSeedDatabase(
   db: AppDatabase,
   now = new Date(),
@@ -279,5 +246,4 @@ export async function resetAndSeedDatabase(
   await seedDisplayIdentities(db);
   await seedRegistrations(db);
   await seedEvents(db, now);
-  await seedRegistrationMessage(db, now);
 }

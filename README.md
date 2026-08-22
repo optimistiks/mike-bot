@@ -239,8 +239,8 @@ Repeat for every supergroup that should use v2.
 1. **Add the bot** to the group.
 2. **Promote to administrator** — required for `message_reaction` updates. Without admin, reactions work in the client but the bot receives nothing.
 3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
-4. A **group admin** may send `/register`; the bot posts a Registration message in Russian.
-5. **Members** either react to that message or send `/stats`. Group `/stats` creates Registration and links directly to that Chat's current Leaderboard; private `/stats` opens the Chat picker.
+4. **Mark `/stats` and `/register` ephemeral** in @BotFather so the command messages stay invisible to the rest of the group. `set-webhook` publishes them with `is_ephemeral` for the group scope.
+5. **Members** send `/stats` (or its `/register` alias). In a group it creates Registration and replies ephemerally — visible only to the caller — with a deep link to that Chat's current Leaderboard; private `/stats` opens the Chat picker.
 6. **Scoring:** Members use 👍 👎 🤣 reactions, or exact `+`, `-`, `лол` replies, on others' messages. Accepted replies remain in Chat and receive a 👍 acknowledgement. Reaction Marks can be undone; reply and imported Marks cannot.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).
@@ -252,14 +252,14 @@ When a member leaves or is kicked, their registration row is removed automatical
 | Webhook       | `set-webhook` printed success; or Telegram `getWebhookInfo` shows your URL and `message_reaction` in `allowed_updates`      |
 | Message cache | Send a normal message in the group after the bot joined, then add 👍 on that message — subject should appear on leaderboard |
 | Mini App      | Main Mini App or `/stats` → Chat picker/deep link → Chat photo/title → five Leaderboard sections                            |
-| Registration  | React to a Registration message → Chat appears in picker → Current Season opens by default                                  |
+| Registration  | Send `/stats` in the group → only you see the reply → Chat appears in picker → Current Season opens by default              |
 | Periods       | Season drawer → monthly and annual URLs; empty months remain selectable                                                     |
 | v1 history    | If imported, older Seasons and their annual totals show imported rows in the Mini App                                       |
 
 **Common failures**
 
 - Reactions ignored → bot not admin, or webhook missing `message_reaction`, or reaction on a message sent before the bot could cache it.
-- Mini App empty Chat list → Member has not reacted to a Registration message or used `/stats` in that Chat.
+- Mini App empty Chat list → Member has not used `/stats` or `/register` in that Chat.
 - Webhook 401 → `BOT_WEBHOOK_SECRET` mismatch between Vercel and `set-webhook`.
 - DB errors on Vercel → Neon integration not connected to the project, or `DATABASE_URL` was overwritten manually (should be the pooled URL from the integration).
 

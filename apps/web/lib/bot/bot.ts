@@ -3,7 +3,6 @@ import { Bot, Context } from "grammy";
 import type { AppDatabase } from "@/lib/db/runtime";
 
 import { handleTelegramUpdate } from "./handle-update";
-import { handleRegisterCommand } from "./register";
 import { handleReplyMark } from "./reply-marks";
 import { handleStatsCommand } from "./stats";
 
@@ -20,12 +19,9 @@ export function createBot({ db, token }: BotDependencies): Bot {
   bot.use(async (ctx) => {
     const replyAcknowledgement = { accepted: false };
     await handleTelegramUpdate(db, ctx.update, async (transactionDb) => {
-      if (isRegisterCommand(ctx)) {
-        await handleRegisterCommand(transactionDb, ctx);
-        return;
-      }
-
-      if (isStatsCommand(ctx)) {
+      // /register is an alias of /stats: both register the caller and reply
+      // with the same Mini App deep link.
+      if (isRegisterCommand(ctx) || isStatsCommand(ctx)) {
         await handleStatsCommand(transactionDb, ctx);
         return;
       }

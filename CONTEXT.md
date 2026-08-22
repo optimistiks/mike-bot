@@ -80,15 +80,11 @@ The cached Telegram identity, author, bot status, and post time of a message tha
 _Avoid_: Event, post content
 
 **Registration**:
-A Member's authorization to view one Chat in the Mini App. It begins through a Registration message reaction or the Member's group `/stats` command, survives removal of the registration reaction, and ends when the Member leaves or is removed from the Chat.
+A Member's authorization to view one Chat in the Mini App. It begins when the Member invokes the Stats command inside that Chat, and ends when the Member leaves or is removed from the Chat.
 _Avoid_: Chat membership, participation
 
-**Registration message**:
-A bot-authored message through which a Member can establish Registration by adding a reaction.
-_Avoid_: Registration post
-
 **Register command**:
-The `/register` command, usable only by a Chat administrator inside a Chat, that posts that Chat's Registration message.
+The `/register` command, an alias of the Stats command usable by any Member.
 _Avoid_: Signup, invite
 
 ## Leaderboards
@@ -114,7 +110,7 @@ One of a Leaderboard's five rankings, always in this order: Karma received (Ув
 _Avoid_: Category, tab, board
 
 **Stats command**:
-The `/stats` command that opens the Mini App. In a Chat it also establishes Registration and links directly to that Chat's current Leaderboard; privately it opens the Chat selector.
+The `/stats` command that opens the Mini App. In a Chat it also establishes Registration and links directly to that Chat's current Leaderboard, replying ephemerally so only the caller sees it; privately it opens the Chat selector.
 _Avoid_: Stats question, report
 
 **Crown**:

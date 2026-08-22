@@ -95,17 +95,6 @@ export const messageAuthors = pgTable(
   (table) => [primaryKey({ columns: [table.chatId, table.messageId] })],
 );
 
-/** Bot-posted Registration messages; any reaction registers the actor for Mini App access. */
-export const registrationMessages = pgTable(
-  "registration_messages",
-  {
-    chatId: bigint("chat_id", { mode: "number" }).notNull(),
-    messageId: bigint("message_id", { mode: "number" }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.chatId, table.messageId] })],
-);
-
 /** Telegram update_id deduplication for webhook idempotency. */
 export const processedUpdates = pgTable("processed_updates", {
   updateId: bigint("update_id", { mode: "number" }).primaryKey(),
@@ -117,7 +106,6 @@ export const schema = {
   displayIdentities,
   registrations,
   messageAuthors,
-  registrationMessages,
   processedUpdates,
 };
 

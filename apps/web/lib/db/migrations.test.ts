@@ -7,12 +7,11 @@ import {
   events,
   messageAuthors,
   processedUpdates,
-  registrationMessages,
   registrations,
 } from "./schema";
 
 describe("Drizzle migrations on PGlite", () => {
-  it("applies migrations and supports all seven tables", async () => {
+  it("applies migrations and supports all six tables", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -51,12 +50,6 @@ describe("Drizzle migrations on PGlite", () => {
 
       await pglite.db.insert(processedUpdates).values({ updateId: 42 });
 
-      await pglite.db.insert(registrationMessages).values({
-        chatId: -100123,
-        messageId: 99,
-        createdAt: new Date("2026-08-01T09:00:00.000Z"),
-      });
-
       const [eventRow] = await pglite.db.select().from(events);
       expect(eventRow).toMatchObject({ type: "karma.plus", reversible: false });
 
@@ -70,7 +63,6 @@ describe("Drizzle migrations on PGlite", () => {
         "events",
         "message_authors",
         "processed_updates",
-        "registration_messages",
         "registrations",
       ]);
     } finally {

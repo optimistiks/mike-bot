@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactionType, Update } from "grammy/types";
+import type { Update } from "grammy/types";
 
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
-import { recordRegistrationMessage } from "@/lib/bot/register";
+import { addRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
 import { displayIdentities, events, registrations } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
@@ -16,29 +16,23 @@ import {
 import { GET } from "./route";
 
 const TEST_CHAT_ID = -100_111_222;
-const BOT_USER_ID = 777;
-const REGISTRATION_MESSAGE_ID = 500;
 const OPENER_ID = 701;
 
-function reactionUpdate(
-  updateId: number,
-  messageId: number,
-  actorId: number,
-): Update {
+/** A group message that makes the Chat and its opener known to the database. */
+function groupMessageUpdate(updateId: number, actorId: number): Update {
   return {
     update_id: updateId,
-    message_reaction: {
+    message: {
+      message_id: 500,
+      date: Math.floor(new Date("2026-08-10T12:00:00.000Z").getTime() / 1000),
       chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
-      message_id: messageId,
-      user: {
+      from: {
         id: actorId,
         is_bot: false,
         first_name: "Opener",
         username: "opener",
       },
-      date: Math.floor(new Date("2026-08-10T12:00:00.000Z").getTime() / 1000),
-      old_reaction: [] as ReactionType[],
-      new_reaction: [{ type: "emoji", emoji: "👍" }],
+      text: "hello",
     },
   };
 }
@@ -69,20 +63,11 @@ describe("GET /api/chats", () => {
     await expect(db.select().from(registrations)).resolves.toEqual([]);
   });
 
-  it("returns a registered Chat after a Registration-message reaction", async () => {
+  it("returns a registered Chat after the opener registers in a group", async () => {
     const db = await getRuntimeDb();
 
-    await recordRegistrationMessage(db, {
-      chatId: TEST_CHAT_ID,
-      messageId: REGISTRATION_MESSAGE_ID,
-      botUserId: BOT_USER_ID,
-      messageDate: 1_722_513_600,
-    });
-
-    await handleTelegramUpdate(
-      db,
-      reactionUpdate(1, REGISTRATION_MESSAGE_ID, OPENER_ID),
-    );
+    await handleTelegramUpdate(db, groupMessageUpdate(1, OPENER_ID));
+    await addRegistration(db, TEST_CHAT_ID, OPENER_ID);
 
     const response = await GET(
       new Request("http://localhost/api/chats", {

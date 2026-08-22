@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Update } from "grammy/types";
 
-import { addRegistration, removeRegistration } from "@/lib/db/registrations";
+import { removeRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
 import {
   displayIdentities,
@@ -15,7 +15,6 @@ import { isGroupChat } from "./chat";
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
 import { applyMarkChanges } from "./marks";
-import { isRegistrationMessage } from "./register";
 import {
   diffReactionStates,
   reactionDiffToMarkChanges,
@@ -82,13 +81,17 @@ async function handleMessageUpdate(
     deletePhoto: message.delete_chat_photo,
   });
 
-  await upsertMessageAuthor(db, {
-    chatId,
-    messageId,
-    authorId: from.id,
-    authorIsBot: from.is_bot,
-    messageDate: message.date,
-  });
+  // Ephemeral messages carry message_id 0 and cannot be reacted to, so caching
+  // them would only write a junk (chat_id, 0) row.
+  if (message.ephemeral_message_id === undefined) {
+    await upsertMessageAuthor(db, {
+      chatId,
+      messageId,
+      authorId: from.id,
+      authorIsBot: from.is_bot,
+      messageDate: message.date,
+    });
+  }
 
   if (!from.is_bot) {
     await upsertDisplayIdentity(db, chatId, from);
@@ -177,14 +180,8 @@ async function handleMessageReactionUpdate(
     reaction.new_reaction,
   );
 
+  // Bot-authored messages are never Subjects, so reactions on them score nothing.
   if (author.authorIsBot) {
-    const isRegistration = await isRegistrationMessage(db, chatId, messageId);
-    if (!isRegistration || changes.addedReactions.length === 0) {
-      return;
-    }
-
-    await upsertDisplayIdentity(db, chatId, actor);
-    await addRegistration(db, chatId, actor.id);
     return;
   }
 

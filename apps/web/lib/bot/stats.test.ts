@@ -55,6 +55,7 @@ describe("/stats", () => {
         { chatId: -100_123, userId: 42 },
       ]);
       expect(ctx.reply).toHaveBeenCalledWith(STATS_MESSAGE_TEXT, {
+        receiver_user_id: 42,
         reply_markup: {
           inline_keyboard: [
             [
@@ -78,15 +79,79 @@ describe("/stats", () => {
     try {
       await handleStatsCommand(pglite.db, ctx);
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
-      expect(ctx.reply).toHaveBeenCalledWith(
-        PRIVATE_STATS_MESSAGE_TEXT,
-        expect.any(Object),
-      );
+      // No receiver_user_id: ephemeral replies are a group-only concept.
+      expect(ctx.reply).toHaveBeenCalledWith(PRIVATE_STATS_MESSAGE_TEXT, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "Открыть таблицы лидеров",
+                url: "https://t.me/mike_bot?startapp",
+              },
+            ],
+          ],
+        },
+      });
       expect(miniAppLink("mike_bot")).toBe("https://t.me/mike_bot?startapp");
     } finally {
       await closePgliteDb(pglite);
     }
   });
+
+  it.each(["/stats", "/register"] as const)(
+    "%s registers the group caller and sends one ephemeral reply",
+    async (command) => {
+      const pglite = await createPgliteDb();
+      const bot = createBot({ db: pglite.db, token: "test-token" });
+      bot.botInfo = BOT_INFO;
+      const payloads: { method: string; payload: unknown }[] = [];
+      bot.api.config.use((_previous, method, payload) => {
+        payloads.push({ method, payload });
+        return Promise.resolve({
+          ok: true,
+          result: {
+            message_id: 0,
+            date: 1_787_000_000,
+            chat: { id: -100_123, type: "supergroup", title: "Test" },
+            from: BOT_INFO,
+            text: STATS_MESSAGE_TEXT,
+          },
+        } as never);
+      });
+
+      try {
+        await bot.handleUpdate({
+          update_id: 300,
+          message: {
+            message_id: 51,
+            date: 1_787_000_000,
+            chat: { id: -100_123, type: "supergroup", title: "Test" },
+            from: { id: 42, is_bot: false, first_name: "User" },
+            text: command,
+            entities: [
+              { offset: 0, length: command.length, type: "bot_command" },
+            ],
+          },
+        } satisfies Update);
+
+        expect(payloads).toEqual([
+          {
+            method: "sendMessage",
+            payload: expect.objectContaining({
+              chat_id: -100_123,
+              receiver_user_id: 42,
+              text: STATS_MESSAGE_TEXT,
+            }) as unknown,
+          },
+        ]);
+        await expect(pglite.db.select().from(registrations)).resolves.toEqual([
+          { chatId: -100_123, userId: 42 },
+        ]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    },
+  );
 
   it("handles a retried group command only once", async () => {
     const pglite = await createPgliteDb();

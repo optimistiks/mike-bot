@@ -67,15 +67,21 @@ async function main(): Promise<void> {
   };
   const registerCommand = {
     command: "register",
-    description: "Настроить доступ к таблицам",
+    description: "Получить доступ к таблицам лидеров",
   };
   await bot.api.setMyCommands([statsCommand, registerCommand]);
   await bot.api.setMyCommands([statsCommand], {
     scope: { type: "all_private_chats" },
   });
-  await bot.api.setMyCommands([statsCommand, registerCommand], {
-    scope: { type: "all_group_chats" },
-  });
+  // Ephemeral is a group-only concept: in a group the command message itself
+  // stays invisible to everyone but the sender and the bot.
+  await bot.api.setMyCommands(
+    [
+      { ...statsCommand, is_ephemeral: true },
+      { ...registerCommand, is_ephemeral: true },
+    ],
+    { scope: { type: "all_group_chats" } },
+  );
 
   const info = await bot.api.getWebhookInfo();
   if (!info.url) {
