@@ -74,16 +74,16 @@ const Carousel = React.forwardRef<
         return;
       }
 
-      setCanScrollPrev(api.canScrollPrev());
-      setCanScrollNext(api.canScrollNext());
+      setCanScrollPrev(api.canGoToPrev());
+      setCanScrollNext(api.canGoToNext());
     }, []);
 
     const scrollPrev = React.useCallback(() => {
-      api?.scrollPrev();
+      api?.goToPrev();
     }, [api]);
 
     const scrollNext = React.useCallback(() => {
-      api?.scrollNext();
+      api?.goToNext();
     }, [api]);
 
     const handleKeyDown = React.useCallback(
@@ -106,7 +106,7 @@ const Carousel = React.forwardRef<
 
     React.useEffect(() => {
       if (!api) return;
-      api.on("reInit", onSelect);
+      api.on("reinit", onSelect);
       api.on("select", onSelect);
       const frame = requestAnimationFrame(() => {
         onSelect(api);
@@ -114,7 +114,7 @@ const Carousel = React.forwardRef<
 
       return () => {
         cancelAnimationFrame(frame);
-        api.off("reInit", onSelect);
+        api.off("reinit", onSelect);
         api.off("select", onSelect);
       };
     }, [api, onSelect]);

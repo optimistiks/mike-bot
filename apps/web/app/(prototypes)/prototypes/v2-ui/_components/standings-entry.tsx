@@ -3,62 +3,48 @@
 import { motion } from "motion/react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/8bit/avatar";
-import {
-  Item,
-  ItemContent,
-  ItemFooter,
-  ItemHeader,
-} from "@/components/ui/8bit/item";
+import { Item, ItemContent, ItemHeader } from "@/components/ui/8bit/item";
 
 import type { LeaderboardEntry } from "../_lib/leaderboard-shape";
 
 import { displayInitials } from "../_lib/initials";
 import { EntryFlair } from "./entry-flair";
-import { LAYOUT_SPRING, ROW_SPRING, staggerDelay } from "./motion-config";
+import { LAYOUT_SPRING, staggerDelay } from "./motion-config";
 import { RankChip } from "./rank-chip";
-import { ScoreBar } from "./score-bar";
 import { ScoreCounter } from "./score-counter";
 
 /**
- * One Member's standing, as three stacked lines rather than a table row.
+ * One Member's standing, as two stacked lines rather than a table row.
  *
  * Columns cannot survive an arbitrary-length Display identity, which is the
- * whole reason for the shape: line 1 holds only short fixed-width things, line 2
- * gives the identity the entire width to wrap into, and line 3 carries the
- * score and its bar. Nothing here truncates.
+ * whole reason for the shape: line 1 anchors rank, avatar, flair, and score;
+ * line 2 gives the identity the entire width to wrap into. Nothing truncates.
  *
- * The row reveals itself on a spring, delayed by its own position in the list,
- * and the score and bar inside it start on the same delay so a row arrives as
- * one object. `layout` is what lets the rows below the "показать всех" button
- * slide down rather than jump when the list grows.
+ * The card keeps its DOM identity when the carousel selection changes. Only
+ * the score remounts, replaying the staggered count-up without an opacity flash.
+ * `layout` lets rows below "показать всех" slide down instead of jumping.
  */
 export function StandingsEntry({
   rank,
   index,
   entry,
-  leaderScore,
+  reveal,
 }: {
   rank: number;
   /** Position in the rendered list, which is what the stagger is drawn from. */
   index: number;
   entry: LeaderboardEntry;
-  leaderScore: number;
+  /** Changes whenever this section becomes active, replaying only the score. */
+  reveal: number;
 }) {
   const delay = staggerDelay(index);
 
   return (
     <Item
-      render={
-        <motion.li
-          layout
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...ROW_SPRING, delay, layout: LAYOUT_SPRING }}
-        />
-      }
+      render={<motion.li layout transition={{ layout: LAYOUT_SPRING }} />}
       variant="outline"
       size="sm"
-      className="gap-y-3"
+      className="arcade-entry gap-y-2.5"
     >
       <ItemHeader className="justify-start gap-3">
         <RankChip rank={rank} isCrown={entry.isCrown} />
@@ -68,6 +54,12 @@ export function StandingsEntry({
           </AvatarFallback>
         </Avatar>
         <EntryFlair isCrown={entry.isCrown} isChicken={entry.isChicken} />
+        <ScoreCounter
+          key={reveal}
+          score={entry.score}
+          delay={delay}
+          className="arcade-entry-score arcade-text-lg ml-auto text-primary"
+        />
       </ItemHeader>
 
       <ItemContent className="basis-full">
@@ -75,15 +67,6 @@ export function StandingsEntry({
           {entry.displayName}
         </span>
       </ItemContent>
-
-      <ItemFooter className="gap-3">
-        <ScoreCounter
-          score={entry.score}
-          delay={delay}
-          className="arcade-entry-score arcade-text-md text-primary"
-        />
-        <ScoreBar score={entry.score} leaderScore={leaderScore} delay={delay} />
-      </ItemFooter>
     </Item>
   );
 }

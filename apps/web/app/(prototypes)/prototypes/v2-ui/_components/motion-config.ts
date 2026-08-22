@@ -5,8 +5,8 @@
  * which is understood not to violate the prototype's single-CSS-file rule: a
  * spring is not a declarative style, it is a physics simulation the library
  * runs. Collecting the numbers here keeps them readable as a system anyway —
- * the scores, their bars, and the rows they sit in have to feel like one
- * material, and they cannot if their constants are scattered across four files.
+ * the scores and the expanding list have to feel like one material, and they
+ * cannot if their constants are scattered across several files.
  */
 
 /**
@@ -15,21 +15,6 @@
  * landing. The overshoot is the entire point of the spec's "slight overshoot".
  */
 export const SCORE_SPRING = { stiffness: 210, damping: 11, mass: 0.9 } as const;
-
-/**
- * The bar is heavier than the number it accompanies — it overshoots less, so
- * the fill reads as being pushed rather than flung. Its squares are discrete,
- * so a violent spring would only show as a flicker at the end anyway.
- */
-export const BAR_SPRING = { stiffness: 130, damping: 16, mass: 1 } as const;
-
-/** Rows arrive on the same spring as everything else, with no overshoot. */
-export const ROW_SPRING = {
-  type: "spring",
-  stiffness: 320,
-  damping: 30,
-  mass: 0.8,
-} as const;
 
 /** The reveal's height change. Interruptible by virtue of being a spring. */
 export const LAYOUT_SPRING = {

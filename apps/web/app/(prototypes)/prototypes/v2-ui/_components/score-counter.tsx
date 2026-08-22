@@ -19,7 +19,7 @@ export function ScoreCounter({
   className,
 }: {
   score: number;
-  /** Seconds to wait before the count starts, so bars and numbers agree. */
+  /** Seconds to wait before the count starts, staggering scores down the list. */
   delay: number;
   className?: string;
 }) {

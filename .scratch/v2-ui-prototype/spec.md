@@ -67,8 +67,8 @@ ship.
    whole Leaderboard with the gesture I already use everywhere else on my phone.
 10. As a Member, I want to see the edge of the next section peeking at the side of the screen, so that I
     discover the swipe affordance without being told.
-11. As a Member, I want a progress indicator showing which of the five sections I am on, so that I know
-    how much of the Leaderboard I have seen.
+11. As a Member using a mouse or touchpad, I want visible previous/next controls, so that horizontal
+    navigation does not depend on discovering a trackpad gesture.
 12. As a Member, I want a haptic tick each time a section snaps into place, so that swiping feels
     mechanical and deliberate.
 13. As a Member who swipes past the last section, I want the carousel to bounce back rather than wrap
@@ -83,14 +83,14 @@ ship.
     myself and see where I stand.
 16. As a Member with a long Display identity, I want my name on its own full-width line where it can wrap
     freely, so that it is never truncated into unreadability.
-17. As a Member, I want each entry's score accompanied by a bar proportional to the section leader's
-    score, so that I can see the shape of the standings without reading every number.
+17. As a Member, I want avatar, Display identity, and score to dominate each entry, so that the people and
+    their results are not buried under repeated data decoration.
 18. As a Member, I want scores to spring into place with a slight overshoot rather than appearing
     instantly, so that the reveal feels like a scoreboard settling.
-19. As a Member, I want the entry bars to fill in with a stagger down the list, so that my eye is led from
-    first place downward.
-20. As a Member, I want the row animation to replay when I swipe to a new section, so that each section
-    gets its own reveal rather than appearing pre-loaded.
+19. As a Member, I want score count-ups staggered down the list, so that my eye is led from first place
+    downward without filling the screen with progress bars.
+20. As a Member, I want only the score animation to replay when I swipe to a new section, so that the
+    section change is clear without its cards flickering out and back in.
 21. As a Member who is a Crown holder, I want a crown on my entry, so that my victory is visible.
 22. As a Member who is a Chicken, I want a chicken on my entry, so that my defeat is equally visible.
 23. As a Member, I want every Member tied for the top of a section to receive a Crown, so that the flair
@@ -213,15 +213,16 @@ ship.
 - **Chat list**: four Chats, each an avatar and a name. Nothing else — no member counts, no teaser stats,
   no sparklines.
 - **Leaderboard header, two tiers**: Chat name and a tappable Season chip on the first line; a persistent
-  section title on the second line that cross-fades as the carousel moves, with a pixel progress strip
-  beneath it. The section title must not scroll away.
-- **Sections as a full-bleed horizontal carousel**: five slides, one section each, roughly 12px of the next
-  slide peeking to advertise the gesture, rubber-band resistance at both ends, **no looping**. Top-level
-  vertical scrolling does not exist; vertical scroll happens only inside a slide's standings list.
-- **Standings entry, three stacked lines** — explicitly not a table row:
-  - Line 1: rank chip, avatar, and Crown/Chicken flair. Short, fixed-width things only.
+  section title on the second line that cross-fades as the carousel moves. There is no carousel-position
+  strip. The section title must not scroll away.
+- **Sections as a full-bleed horizontal carousel**: five slides, one section each, 32–40px of real tinted
+  card content from the next slide peeking to advertise the gesture, rubber-band resistance at both ends,
+  **no looping**. Fine-pointer devices additionally show half-transparent 8bitcn previous/next arrows that
+  become opaque on hover or keyboard focus. Top-level vertical scrolling does not exist; vertical scroll
+  happens only inside a slide's standings list.
+- **Standings entry, two stacked lines** — explicitly not a table row:
+  - Line 1: rank chip, avatar, Crown/Chicken flair, and a prominent score.
   - Line 2: the full Display identity, full width, wrapping freely, never truncated.
-  - Line 3: score plus a bar proportional to the section leader's score.
   Roughly six entries fit a screen; the remainder sit behind a "показать всех" reveal.
 - **Season picker**: a bottom drawer containing a horizontal year strip over a 3×4 month grid, plus
   persistent "ВЕСЬ ГОД" and "СЕЙЧАС" cells. Months with no data render dimmed.
@@ -249,8 +250,8 @@ Physics, via the motion library:
 
 - Spring count-up on scores, with overshoot and settle.
 - Layout animation on the "показать всех" reveal; interruptible mid-flight.
-- Staggered spring entry of standings rows, re-firing on each slide change.
-- Spring-driven fill on the score bars.
+- Cards remain visible and keep their DOM identity during carousel selection changes.
+- Staggered score count-ups, and only those count-ups, re-fire on each slide change.
 
 Texture, via CSS:
 
@@ -314,9 +315,10 @@ outside Telegram.
 **Two** new runtime dependencies enter a workspace that currently has zero of them, each with a reason it
 could not be avoided:
 
-- **Embla**, via the 8bitcn carousel component. Native CSS scroll-snap was considered and rejected: it
-  provides no selected-index, so driving the progress strip and snap haptics would have meant
-  hand-rolling an IntersectionObserver.
+- **Embla v9 RC3**, pinned via the 8bitcn carousel component. Its `dragFree: "snap"` mode preserves
+  momentum after pointer release and then settles on the nearest snap. Native CSS scroll-snap was
+  considered and rejected because section selection still drives the persistent title, haptics, and
+  score replay.
 - **motion**, for the four physics behaviours above, which Embla does not provide.
 
 **Amended after ticket 01.** Design argued for a third — **vaul**, via the 8bitcn drawer — on the grounds
@@ -327,14 +329,10 @@ which is already a dependency. Base UI's `Drawer` supplies the same drag-to-dism
 resistance, velocity-based dismissal, and snap points, so a second drawer library would have been
 redundant. Wherever this spec still reasons about vaul below, read it as Base UI's `Drawer`.
 
-8bitcn components to install: **carousel**, **drawer**, **toggle-group** (year strip and month grid),
-**xp-bar** (the score bar). Already vendored and reused as-is: avatar, badge, button, card, item,
-separator, skeleton, empty.
-
-The score bar uses **xp-bar** rather than the generic progress component: a literal XP bar is both the
-funnier and the more semantically correct choice for a leaderboard about earning points from friends. If
-xp-bar turns out to be rigid or to fight a spring-driven value, fall back to the progress component and
-say so.
+8bitcn components installed: **carousel**, **drawer**, and **toggle-group** (year strip and month grid).
+Already vendored and reused as-is: avatar, badge, button, card, item, separator, skeleton, empty. The
+carousel's own pixel arrow buttons are the fine-pointer controls. Score and carousel-position bars were
+removed after hands-on review because their repetition buried the leaderboard's people and scores.
 
 ### Deletions
 
@@ -365,14 +363,16 @@ These are durable rules for the implementation, not just conventions from the de
   grind.
 
 This rule fired twice during design and should be expected to fire during implementation: a hand-rolled
-drag-to-dismiss was retracted in favour of a library, and the xp-bar → progress fallback was pre-declared.
-It fired twice more during implementation, exactly as expected — vaul turned out to be redundant against
-Base UI (ticket 01), and the pre-declared xp-bar fallback was taken (ticket 03).
+drag-to-dismiss was retracted in favour of a library, and the original xp-bar → progress fallback was
+pre-declared. It fired twice more during implementation, exactly as expected — vaul turned out to be
+redundant against Base UI (ticket 01), and the pre-declared xp-bar fallback was taken (ticket 03). The
+progress treatment was later removed entirely after hands-on hierarchy review (ticket 09).
 
 ## Testing Decisions
 
-**No automated tests.** This is a throwaway prototype built to answer a design question. Tests would
-outlive the thing they test and would pin down decisions the prototype exists to keep loose.
+One focused browser component regression test protects the bug found during this iteration: changing the
+active section must keep standing-card DOM nodes mounted. This pins the absence of the opacity flicker,
+not the prototype's visual design. No broader prototype test suite is added.
 
 What still applies:
 
@@ -388,10 +388,9 @@ MCP, at a mobile viewport. Walk the Chat list, each of the five sections, the Se
 Season, an empty Season, and the long-Chat-name and long-Display-identity cases. Screenshots are not
 required as a deliverable — the developer will look themselves.
 
-**On the one seam that exists**: the fixture builder returning the production `LeaderboardResponse` shape
-is the highest and only sensible seam in this work. If tests are ever wanted here later, that boundary is
-where they go, and it already exists in the production leaderboard schema module rather than being
-invented for the prototype.
+**On the data seam**: the fixture builder returning the production `LeaderboardResponse` shape remains
+the sensible boundary for data-shape tests. It already exists in the production leaderboard schema module
+rather than being invented for the prototype.
 
 **Prior art** for browser-level verification: the production Mini App's browser tests and the dev-mode
 Telegram environment mock, both in the production app directory. They are the reference for how this repo
@@ -414,16 +413,14 @@ drives a Telegram Mini App outside Telegram — not a template to copy tests fro
 - **Alternate prototype variants.** One prototype, not three.
 - **Cloud storage, main button, biometry, QR scanning, location, invoices, popups, and home-screen
   prompts** from the Telegram SDK.
-- **Tests.**
 
 ## Further Notes
 
 **The riskiest decision** is the full-bleed carousel. It is the mobile-native gesture and it gives each
-section a whole screen, but it hides content: a friend may never discover the fifth section. Mitigations
-are baked in — the 12px peek, the progress strip, the snap haptics. If it still reads as undiscoverable
-once it is in hand, the fallback is a vertically stacked snap-scroll of the five sections, which changes
-layout only and leaves data, motion, and platform integration untouched. That fallback should be raised as
-a finding, not silently taken.
+section a whole screen, but it hides content. Its mitigations are now a 32–40px peek showing real tinted
+card content, snap haptics, and explicit 8bitcn arrows on fine-pointer devices. The redundant position
+strip was removed. If this still reads as undiscoverable in hand, raise the finding instead of silently
+building a parallel prototype.
 
 **On deliberately violating Telegram's design guidance**: Telegram's Mini App documentation is emphatic
 that apps should adopt `themeParams` so they feel native inside the client. This prototype does the

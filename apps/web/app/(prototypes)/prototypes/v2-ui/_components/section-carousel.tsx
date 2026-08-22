@@ -7,6 +7,8 @@ import {
   type CarouselApi,
   CarouselContent,
   CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
 } from "@/components/ui/8bit/carousel";
 
 import type { LeaderboardSection } from "../_lib/leaderboard-shape";
@@ -22,6 +24,10 @@ import { useTelegramPlatform } from "./telegram-provider";
  * end rather than wrapping silently back to Уважаемые люди. Embla's own
  * out-of-bounds friction supplies the rubber-band; the peek onto the next slide
  * is the slide's width, in the stylesheet.
+ *
+ * RC3's `dragFree: "snap"` keeps momentum after release and then settles on
+ * the nearest snap. Fine-pointer devices also get explicit 8bitcn arrows;
+ * touch devices retain the direct swipe without duplicate controls.
  *
  * The selected index is lifted out rather than kept here, because the header —
  * which is not inside the carousel — is what has to show it. It comes back down
@@ -44,22 +50,22 @@ export function SectionCarousel({
     if (!api) return;
 
     const reportSelection = () => {
-      const selectedIndex = api.selectedScrollSnap();
+      const selectedIndex = api.selectedSnap();
       if (selectedIndex === activeIndex) return;
 
       hapticSelection();
       onSelect(selectedIndex);
     };
     const reportReinitialization = () => {
-      onSelect(api.selectedScrollSnap());
+      onSelect(api.selectedSnap());
     };
 
     api.on("select", reportSelection);
-    api.on("reInit", reportReinitialization);
+    api.on("reinit", reportReinitialization);
 
     return () => {
       api.off("select", reportSelection);
-      api.off("reInit", reportReinitialization);
+      api.off("reinit", reportReinitialization);
     };
   }, [activeIndex, api, hapticSelection, onSelect]);
 
@@ -67,7 +73,12 @@ export function SectionCarousel({
     <Carousel
       className="arcade-filmstrip"
       setApi={setApi}
-      opts={{ align: "start", loop: false, containScroll: "trimSnaps" }}
+      opts={{
+        align: "start",
+        loop: false,
+        containScroll: "trimSnaps",
+        dragFree: "snap",
+      }}
     >
       <CarouselContent className="ml-0 h-full">
         {sections.map((section, index) => (
@@ -79,6 +90,14 @@ export function SectionCarousel({
           </CarouselItem>
         ))}
       </CarouselContent>
+      <CarouselPrevious
+        className="arcade-carousel-arrow arcade-carousel-arrow-previous top-1/2 left-4 h-10 w-10 -translate-y-1/2 active:-translate-y-1/2 md:left-5 md:h-10 md:w-10"
+        aria-label="Предыдущий раздел"
+      />
+      <CarouselNext
+        className="arcade-carousel-arrow arcade-carousel-arrow-next top-1/2 right-4 h-10 w-10 -translate-y-1/2 active:-translate-y-1/2 md:right-5 md:h-10 md:w-10"
+        aria-label="Следующий раздел"
+      />
     </Carousel>
   );
 }

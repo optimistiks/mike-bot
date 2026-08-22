@@ -2,8 +2,6 @@
 
 import { AnimatePresence, motion } from "motion/react";
 
-import { Progress } from "@/components/ui/8bit/progress";
-
 import type { PrototypeChat } from "../_lib/chats";
 import type { PrototypeSeason } from "../_lib/seasons";
 
@@ -31,7 +29,7 @@ export function LeaderboardHeader({
    * than naming a section that does not exist — but never tier one, because the
    * Season chip up there is how a Member leaves an empty Season.
    */
-  section?: { title: string; index: number; count: number };
+  section?: { title: string };
 }) {
   return (
     <header className="arcade-header">
@@ -51,7 +49,7 @@ export function LeaderboardHeader({
       </ChatMorph>
 
       {section !== undefined && (
-        <div className="flex flex-col gap-2 px-4 pb-3">
+        <div className="px-4 pb-3">
           <div className="arcade-header-title">
             <AnimatePresence initial={false}>
               <motion.h2
@@ -66,15 +64,6 @@ export function LeaderboardHeader({
               </motion.h2>
             </AnimatePresence>
           </div>
-
-          {/* How far through the five sections the Member has swiped, drawn in the
-            same retro squares as the score bars. */}
-          <Progress
-            variant="retro"
-            value={((section.index + 1) / section.count) * 100}
-            className="h-2"
-            aria-label="Раздел"
-          />
         </div>
       )}
     </header>

@@ -41,11 +41,7 @@ export function LeaderboardScreen({
           isEmpty
             ? undefined
             : {
-                // The index only ever comes from the carousel's own snap list,
-                // which is built from these very sections, so it is in range.
                 title: sections[activeIndex].title,
-                index: activeIndex,
-                count: sections.length,
               }
         }
       />

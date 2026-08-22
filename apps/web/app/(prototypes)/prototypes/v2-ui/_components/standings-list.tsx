@@ -21,12 +21,10 @@ const VISIBLE_ENTRIES = 6;
  *
  * Two separate animations meet here.
  *
- * The **reveal** re-fires every time this section becomes the active slide, so
- * each of the five gets its own entrance rather than being found pre-loaded.
- * It re-fires by remounting the rows: the reveal is not only the rows sliding
- * in but their scores counting up and their bars filling, and remounting is the
- * one thing that restarts all three together. The reveal counter is part of
- * each row's key, so a swipe back and forth replays the whole section.
+ * The **score reveal** re-fires every time this section becomes the active
+ * slide. Cards keep their DOM identity throughout the gesture; only each
+ * ScoreCounter remounts, so the number restarts from zero without the newly
+ * selected standings disappearing for a frame.
  *
  * The **expansion** is a layout animation rather than a height transition. The
  * list itself is what animates — the `<ol>` springs to its new height while the
@@ -74,9 +72,6 @@ export function StandingsList({
     isInitialized,
   ]);
 
-  // Entries arrive ranked, so the first one sets the scale every bar is drawn
-  // against.
-  const leaderScore = entries[0]?.score ?? 0;
   const visible = isExpanded ? entries : entries.slice(0, VISIBLE_ENTRIES);
 
   return (
@@ -84,11 +79,11 @@ export function StandingsList({
       <motion.ol layout transition={LAYOUT_SPRING} className="arcade-standings">
         {visible.map((entry, index) => (
           <StandingsEntry
-            key={`${String(entry.userId)}-${String(reveal)}`}
+            key={entry.userId}
             rank={index + 1}
             index={index}
             entry={entry}
-            leaderScore={leaderScore}
+            reveal={reveal}
           />
         ))}
       </motion.ol>
