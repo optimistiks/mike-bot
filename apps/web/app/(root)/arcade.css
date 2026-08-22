@@ -304,6 +304,16 @@
   padding: 12px 0 32px;
 }
 
+/* A section with no entries keeps its slide but has nothing to scroll, so the
+   empty state is centred in the slide's full height instead of sitting at the
+   top of a scroll container. */
+.arcade-slide-empty {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 /* Standings ------------------------------------------------------------- */
 
 /* The pixel borders 8bitcn's Item and Badge draw sit outside their boxes, so
