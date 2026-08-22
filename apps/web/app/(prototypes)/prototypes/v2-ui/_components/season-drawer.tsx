@@ -49,7 +49,7 @@ export function SeasonDrawer({
       >
         {seasonLabel(season)}
       </DrawerTrigger>
-      <DrawerContent aria-label="Сезон">
+      <DrawerContent className="arcade-drawer" aria-label="Сезон">
         <DrawerHeader>
           <DrawerTitle className="arcade-text-md text-primary">
             Сезон

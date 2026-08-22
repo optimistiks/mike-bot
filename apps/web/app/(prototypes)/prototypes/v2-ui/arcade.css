@@ -61,6 +61,59 @@
   padding-bottom: var(--arcade-inset-bottom);
 }
 
+/* CRT texture ------------------------------------------------------------ */
+
+/*
+ * Scanlines sit *behind* the content rather than over it. The spec's "never
+ * over text" is not a hedge — Press Start 2P is an unhinted bitmap face whose
+ * Cyrillic strokes are one pixel wide at the sizes used here, and a 4% comb
+ * laid across them eats exactly the rows that distinguish и from й. Behind the
+ * content the comb still covers everything the spec asks for: the background,
+ * and every piece of chrome, all of which are transparent over it.
+ */
+.arcade::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--arcade-ink) 4%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* The drawer is portalled to the end of the document, outside `.arcade` and so
+   outside the comb above it — and it is the largest single piece of chrome the
+   prototype has. It gets its own, as a background image rather than a layer:
+   a background image paints over the element's background colour and under
+   every one of its children, which is the same "behind the text" placement the
+   overlay achieves with a z-index sandwich, without needing one. */
+.arcade-drawer {
+  background-image: repeating-linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--arcade-ink) 4%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* The vignette is the one texture that does pass over content: it is a
+   darkening at the extreme corners, where nothing legible is ever placed, and
+   putting it behind would leave it invisible over any filled card. */
+.arcade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 52%,
+    rgb(0 0 0 / 0.5) 100%
+  );
+}
+
 /* Press Start 2P's glyphs are square and unhinted; anything below ~7px turns
    to mud, so sizes are named rather than computed. */
 .arcade-text-xs {
@@ -79,7 +132,12 @@
   font-size: var(--arcade-text-xl);
 }
 
+/* Positioned, so it paints above the scanline comb and below the vignette.
+   Every page's root element is one of these, which is what makes the sandwich
+   hold without each page having to know about it. */
 .arcade-screen {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -289,5 +347,167 @@
 @keyframes arcade-morph-blur {
   30% {
     filter: blur(2px);
+  }
+}
+
+/* CRT power-on ----------------------------------------------------------- */
+
+/* Fixed rather than absolute: the boot covers the viewport, including the safe
+   areas the app itself insets clear of. */
+.arcade-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  animation: arcade-boot-veil 1400ms ease-out forwards;
+  /* The veil is torn down by React, but it also fades and stops taking taps on
+     its own. A page whose JavaScript never arrives is then left with a CRT that
+     merely took a moment to warm up, rather than a black rectangle over the
+     whole app forever. */
+  pointer-events: auto;
+}
+
+/* The beam: a hairline drawn across the tube, held, then blown open into the
+   flash that reveals the app. */
+.arcade-boot-beam {
+  width: 0;
+  height: 2px;
+  background: var(--arcade-ink);
+  box-shadow: 0 0 12px var(--arcade-glow);
+  animation: arcade-boot-beam 1400ms ease-in-out forwards;
+}
+
+@keyframes arcade-boot-veil {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@keyframes arcade-boot-beam {
+  0% {
+    width: 0;
+    height: 2px;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  32% {
+    width: 88%;
+    height: 2px;
+  }
+  52% {
+    width: 88%;
+    height: 2px;
+  }
+  84% {
+    width: 88%;
+    height: 78vh;
+    opacity: 0.3;
+  }
+  100% {
+    width: 88%;
+    height: 78vh;
+    opacity: 0;
+  }
+}
+
+/* Tracking glitch -------------------------------------------------------- */
+
+/* Above the vignette, below the boot, and never in the way of a tap: the
+   Season has already changed by the time this plays, and the 350ms it lasts is
+   350ms a Member must still be able to swipe through. */
+.arcade-glitch {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The static. Two combs at right angles rather than a noise texture: an image
+   would be a second asset for a third of a second, and at this size and speed
+   the interference pattern between the two reads as grain anyway. */
+.arcade-glitch-static {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--arcade-ink) 14%, transparent) 0 1px,
+      transparent 1px 3px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--arcade-ink) 10%, transparent) 0 1px,
+      transparent 1px 2px
+    );
+  animation: arcade-glitch-static 350ms steps(7, end) forwards;
+}
+
+/* The tear: a band of mistracked picture sweeping down the tube, sliding
+   sideways as it goes. */
+.arcade-glitch-band {
+  position: absolute;
+  left: -8%;
+  width: 116%;
+  height: 14%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--arcade-neon-alt) 35% 65%,
+    transparent
+  );
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  animation: arcade-glitch-band 350ms linear forwards;
+}
+
+@keyframes arcade-glitch-static {
+  0% {
+    opacity: 0;
+    background-position:
+      0 0,
+      0 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.55;
+    background-position:
+      7px -13px,
+      -5px 9px;
+  }
+  100% {
+    opacity: 0;
+    background-position:
+      -11px 9px,
+      8px -6px;
+  }
+}
+
+@keyframes arcade-glitch-band {
+  0% {
+    top: -16%;
+    transform: translateX(-7%);
+  }
+  40% {
+    transform: translateX(7%);
+  }
+  70% {
+    transform: translateX(-3%);
+  }
+  100% {
+    top: 100%;
+    transform: translateX(0);
   }
 }

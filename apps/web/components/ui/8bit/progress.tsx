@@ -33,7 +33,8 @@ export interface BitProgressProps
   value?: number | null;
 }
 
-const RETRO_SQUARES = 20;
+/** Exported so a caller driving `value` can tell when a change is visible. */
+export const RETRO_SQUARES = 20;
 
 function Progress({
   className,

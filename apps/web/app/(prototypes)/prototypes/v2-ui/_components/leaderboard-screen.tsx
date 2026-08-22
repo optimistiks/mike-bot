@@ -52,7 +52,11 @@ export function LeaderboardScreen({
       {isEmpty ? (
         <SeasonEmpty season={leaderboard.season} />
       ) : (
-        <SectionCarousel sections={sections} onSelect={setActiveIndex} />
+        <SectionCarousel
+          sections={sections}
+          activeIndex={activeIndex}
+          onSelect={setActiveIndex}
+        />
       )}
     </div>
   );
