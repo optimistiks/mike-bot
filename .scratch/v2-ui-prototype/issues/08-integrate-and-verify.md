@@ -41,6 +41,6 @@ preceding tickets rather than only within each one.
 - [ ] `pnpm fmt:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm test` all pass with zero
       warnings
 - [ ] No automated tests were added — this is a throwaway prototype by design
-- [ ] Lands as a single unpushed commit on `v2-user-ui-prototypes`
+- [ ] Lands as a single unpushed commit on `v2`
 - [ ] Any decision that hit the stop-and-raise rule is surfaced to the developer rather than silently
       resolved

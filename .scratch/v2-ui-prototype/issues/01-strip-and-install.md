@@ -32,7 +32,7 @@ This is prefactoring: "make the change easy, then make the easy change."
 - [ ] The prototype root still redirects to the Chat list and the Chat list still renders
 - [ ] `pnpm fmt:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm test` all pass with zero
       warnings
-- [ ] Lands as a single commit on `v2-user-ui-prototypes`, not pushed
+- [ ] Lands as a single commit on `v2`, not pushed
 
 ## Comments
 
@@ -81,3 +81,28 @@ variants for their pixel borders; it now selects nothing but itself.
 second family. All three now point at Press Start 2P, applied to `<body>` through
 `next/font`'s generated class rather than through the group stylesheet, so
 nothing was added there.
+
+## Follow-ups from review
+
+**Two vendored files nothing imported were deleted.** `components/ui/progress.tsx`
+and `components/ui/carousel.tsx` came in with the 8bitcn install and were
+referenced by nothing: `8bit/progress.tsx` talks to `@base-ui/react/progress`
+directly, and `8bit/carousel.tsx` duplicates the base carousel rather than
+wrapping it. Both patterns already exist in this codebase — `8bit/avatar.tsx`
+also goes straight to Base UI, while `8bit/badge.tsx` wraps `ui/badge.tsx` — so
+the inconsistency is the registry's, not something introduced here. What made the
+dead copies worth removing is that the carousel duplication had already cost
+something: the `console.log` removal and the `set-state-in-effect` fix had to be
+applied twice, and a future fix could easily land on the copy nobody renders.
+
+The comment above claiming `@base-ui/react`'s progress base component "was
+installed to complete the set" is therefore retracted: it completed nothing.
+
+**`8bit/progress.tsx` had two defects, both fixed.** Its prop contract documented
+`value?: number | null` as "Base UI reads `null` as indeterminate" and then
+passed `value={value ?? 0}` to the primitive, so indeterminate was unreachable —
+a trap for ticket 03, which drives this bar, and ticket 06, which springs it.
+`null` now reaches the primitive unchanged and only an omitted value falls back
+to an empty bar. Separately, its height sniffing (`/h-(\d+|\[.*?\])/`) read
+`h-1.5` as `h-1` and missed `h-full`, silently disagreeing with the wrapper; it
+now matches the whole `h-` token.

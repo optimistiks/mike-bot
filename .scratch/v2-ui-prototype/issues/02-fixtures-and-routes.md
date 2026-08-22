@@ -62,8 +62,14 @@ Verified in the running app against Chat `-1001000000001`:
 - Every Season before 2024-01 renders zero entries in all five sections.
 - The roster is identical in 2024-05 and 2025-11 for both the first and the
   long-named Chat: 12 members each.
-- The longest handle is 30-31 characters in every Chat
-  (`@jose.altenwerth24_sonny_auer46`), past the ~25 the ticket asked for.
+- Every Chat's longest handle clears the ~25 characters the ticket asked for.
+
+**Correction (review).** An earlier version of the line above claimed "30-31
+characters in every Chat (`@jose.altenwerth24_sonny_auer46`)". That was wrong on
+both counts. Re-running the roster seeds gives 31 / 27 / 25 / 31 across the four
+Chats, and that example handle exists only in the first. The requirement still
+holds everywhere — the third Chat sits exactly at 25 with
+`@savanah_anderson_aliza34` — but the claim overstated it.
 
 **Multi-way Crown ties.** Ties turned out to be common at this event volume, but
 "common" is not "guaranteed", so March of every year is deliberately arranged to

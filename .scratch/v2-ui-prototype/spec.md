@@ -311,16 +311,21 @@ outside Telegram.
 
 ### Dependencies
 
-Three new runtime dependencies enter a workspace that currently has zero of them, each with a reason it
+**Two** new runtime dependencies enter a workspace that currently has zero of them, each with a reason it
 could not be avoided:
 
 - **Embla**, via the 8bitcn carousel component. Native CSS scroll-snap was considered and rejected: it
   provides no selected-index, so driving the progress strip and snap haptics would have meant
   hand-rolling an IntersectionObserver.
-- **Vaul**, via the 8bitcn drawer component. Drag-to-dismiss with rubber-band resistance and
-  velocity-based dismissal is exactly what vaul exists for; building it by hand would violate the
-  don't-reinvent-the-wheel rule.
-- **motion**, for the four physics behaviours above, none of which Embla or vaul provide.
+- **motion**, for the four physics behaviours above, which Embla does not provide.
+
+**Amended after ticket 01.** Design argued for a third — **vaul**, via the 8bitcn drawer — on the grounds
+that drag-to-dismiss with rubber-band resistance and velocity-based dismissal is exactly what vaul exists
+for. Installing the 8bitcn set showed it was unnecessary: this project's shadcn style is `base-nova`, so
+the drawer, toggle-group, and progress components the registry pulls in are built on `@base-ui/react`,
+which is already a dependency. Base UI's `Drawer` supplies the same drag-to-dismiss, rubber-band
+resistance, velocity-based dismissal, and snap points, so a second drawer library would have been
+redundant. Wherever this spec still reasons about vaul below, read it as Base UI's `Drawer`.
 
 8bitcn components to install: **carousel**, **drawer**, **toggle-group** (year strip and month grid),
 **xp-bar** (the score bar). Already vendored and reused as-is: avatar, badge, button, card, item,
@@ -352,15 +357,17 @@ These are durable rules for the implementation, not just conventions from the de
   composition.
 - **Need a library? Raise it.** Do not start reimplementing a wheel. If a capability seems to need a
   dependency, surface the decision rather than hand-rolling.
-- **One commit per ticket.** Each ticket lands as a single commit on `v2-user-ui-prototypes`, with the
-  full verification suite green before that commit is made. Nothing is pushed.
+- **One commit per ticket.** Each ticket lands as a single commit on `v2`, per the repo's branch policy in
+  `AGENTS.md`, with the full verification suite green before that commit is made. Nothing is pushed.
 - **The stop-and-raise rule.** If two different approaches to something both fail, zoom out and ask
   whether it is even a problem worth solving: is there a library for it, is a different part of the system
   actually responsible, should it be dropped? If all of that fails, **stop and raise an issue.** Do not
   grind.
 
 This rule fired twice during design and should be expected to fire during implementation: a hand-rolled
-drag-to-dismiss was retracted in favour of vaul, and the xp-bar → progress fallback was pre-declared.
+drag-to-dismiss was retracted in favour of a library, and the xp-bar → progress fallback was pre-declared.
+It fired twice more during implementation, exactly as expected — vaul turned out to be redundant against
+Base UI (ticket 01), and the pre-declared xp-bar fallback was taken (ticket 03).
 
 ## Testing Decisions
 
@@ -425,11 +432,12 @@ palette outward into Telegram's chrome rather than ignoring the chrome — is wh
 like a website embedded in a chat window. If this ever becomes a real product for people who are not
 friends of the author, revisit it.
 
-**On the dependency count**: three runtime dependencies for a throwaway prototype is a lot. Each was
+**On the dependency count**: two runtime dependencies for a throwaway prototype is still a lot. Each was
 argued individually rather than adopted as a bundle, and each has a stated reason a native approach was
-rejected. If the prototype is later harvested for production, Embla and vaul come along with the
-components that need them; motion is the one worth re-examining, since its four uses are all
-straightforward enough that CSS could carry them at some cost in polish.
+rejected — and the third, vaul, fell away once Base UI turned out to already supply it. If the prototype is
+later harvested for production, Embla comes along with the component that needs it; motion is the one worth
+re-examining, since its four uses are all straightforward enough that CSS could carry them at some cost in
+polish.
 
 **On the production/prototype name divergence**: this prototype uses funnier section titles than
 production ships. That divergence is a live inconsistency in the codebase until someone reconciles it.
