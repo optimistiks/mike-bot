@@ -3,14 +3,16 @@ import type { LeaderboardSection } from "../_lib/leaderboard-shape";
 import { StandingsList } from "./standings-list";
 
 /**
- * One of the five sections: its title and its standings. Ticket 04 turns this
- * into a slide of the filmstrip and lifts the title into the pinned header, so
- * it stays a whole, self-contained section until then.
+ * One slide of the filmstrip: a section's standings and nothing else.
+ *
+ * The title is deliberately absent — it lives in the header, where scrolling
+ * cannot take it away. This is the only element on the Leaderboard that scrolls
+ * vertically, which is why the scroll container is here rather than around the
+ * whole screen.
  */
 export function StandingsSection({ section }: { section: LeaderboardSection }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="arcade-text-sm text-secondary">{section.title}</h2>
+    <section aria-label={section.title} className="arcade-slide-scroll">
       <StandingsList entries={section.entries} />
     </section>
   );

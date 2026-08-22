@@ -7,7 +7,13 @@
  * removes the prototype's look in one action.
  */
 
-.arcade {
+/*
+ * The tokens sit on the root rather than on `.arcade` because 8bitcn's drawer
+ * portals its content to the end of the document, outside the prototype's own
+ * tree. Scoped to `.arcade`, everything inside a drawer loses the type scale
+ * and falls back to the browser's 16px.
+ */
+:root {
   /* Arcade palette, drawn from the group's committed tokens so the prototype
      and the 8bitcn primitives it composes never disagree on a colour. */
   --arcade-ink: var(--foreground);
@@ -26,15 +32,25 @@
   --arcade-text-lg: 13px;
   --arcade-text-xl: 16px;
 
+  /* How much of the next section shows at the screen edge. Small enough to
+     read as an edge rather than a column, large enough to be seen. */
+  --arcade-peek: 12px;
+
   /* Telegram fills these in when the Mini App runs inside the client; the
      fallbacks keep the prototype usable as a plain web page. */
   --arcade-inset-top: var(--tg-viewport-safe-area-inset-top, 0px);
   --arcade-inset-bottom: var(--tg-viewport-safe-area-inset-bottom, 0px);
+}
 
+.arcade {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  /* A definite height, not a minimum: the Leaderboard's filmstrip and its
+     slides size themselves as a percentage of this, and a `min-height` leaves
+     that chain indefinite — every slide then grows to fit its standings and the
+     whole document scrolls vertically, which is exactly what must not exist. */
+  height: 100dvh;
   overflow: hidden;
   background: var(--arcade-void);
   color: var(--arcade-ink);
@@ -68,6 +84,66 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+/* Header ---------------------------------------------------------------- */
+
+/* The header is the fixed half of the Leaderboard: it never scrolls, so it
+   never gives up its height to the filmstrip below it. */
+.arcade-header {
+  position: relative;
+  flex: none;
+  border-bottom: 4px solid var(--arcade-rule);
+}
+
+/* The title cross-fades, so the outgoing and incoming titles have to occupy the
+   same box at the same time. A one-cell grid rather than absolute positioning:
+   both titles stack in the same cell and the box still sizes to the taller of
+   them, so a title that wraps to three lines on a narrow phone pushes the
+   progress strip down instead of spilling over it. `min-height` keeps the strip
+   from jumping when a wrapped title cross-fades into a short one. */
+.arcade-header-title {
+  display: grid;
+  min-height: 2.4em;
+}
+
+.arcade-header-title-text {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+/* Filmstrip ------------------------------------------------------------- */
+
+/* The carousel takes every pixel the header leaves. Embla's viewport is the
+   carousel's own child and takes no className, so its height is reached here. */
+.arcade-filmstrip {
+  flex: 1;
+  min-height: 0;
+}
+
+.arcade-filmstrip > div {
+  height: 100%;
+}
+
+/* Full-bleed but for the peek: the next section's edge is what advertises that
+   the gesture exists at all. */
+.arcade-slide {
+  flex-basis: calc(100% - var(--arcade-peek));
+  height: 100%;
+}
+
+/* The one thing on the Leaderboard that scrolls vertically. `contain` keeps a
+   list that has hit its end from handing the scroll to the page behind it.
+   No horizontal padding of its own: the standings' own 6px is the whole inset,
+   which is what puts a sliver of the next section's cards inside the peek
+   rather than 12px of empty background. */
+.arcade-slide-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 0 32px;
 }
 
 /* Standings ------------------------------------------------------------- */
@@ -105,4 +181,36 @@
   margin-left: auto;
   font-size: 18px;
   line-height: 1;
+}
+
+/* Chat card → header morph ---------------------------------------------- */
+
+/*
+ * These are document-level pseudo-elements rather than descendants of
+ * `.arcade`: a view transition's snapshots are painted outside the page tree,
+ * so they cannot be scoped. They still belong here — this is the prototype's
+ * only stylesheet, and the morph is the prototype's.
+ */
+
+/* The overlay swallows taps for the length of the transition; letting them
+   through means a fast Member never loses one. */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(.morph) {
+  animation-duration: 320ms;
+}
+
+::view-transition-image-pair(.morph) {
+  animation-name: arcade-morph-blur;
+}
+
+/* A Chat card and a header tier are different shapes, so the interpolation
+   between them has pixel artefacts. A blur through the middle of the flight
+   hides them without softening either end. */
+@keyframes arcade-morph-blur {
+  30% {
+    filter: blur(2px);
+  }
 }
