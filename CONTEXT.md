@@ -72,7 +72,7 @@ A non-bot person identified by their stable Telegram identity.
 _Avoid_: User, account
 
 **Display identity**:
-The latest known name used to present a Member within one Chat.
+The latest known name used to present a Member within one Chat. Their Telegram profile photo is shown beside it where Telegram will serve one, and is never stored — initials stand in otherwise.
 _Avoid_: Chat member, username
 
 **Message**:

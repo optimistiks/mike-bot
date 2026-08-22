@@ -28,11 +28,11 @@
 
   /* Press Start 2P has no small sizes to fall back on, so the whole app is
      built from one deliberate step scale rather than Tailwind's. */
-  --arcade-text-xs: 7px;
-  --arcade-text-sm: 8px;
-  --arcade-text-md: 10px;
-  --arcade-text-lg: 13px;
-  --arcade-text-xl: 16px;
+  --arcade-text-xs: 10px;
+  --arcade-text-sm: 12px;
+  --arcade-text-md: 14px;
+  --arcade-text-lg: 16px;
+  --arcade-text-xl: 20px;
 
   /* After the standings' 6px inset, 32–40px of the next card remains visible:
      a real slice of content, not a decorative hairline. */
@@ -361,7 +361,7 @@
 
 /* Flair sits between identity chrome and the score without stealing the row. */
 .arcade-flair {
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
 }
 
@@ -438,7 +438,7 @@
 }
 
 .arcade-empty-media {
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
 }
 

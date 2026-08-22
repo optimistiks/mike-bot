@@ -85,7 +85,11 @@ function AuthenticatedLeaderboard({
   }
 
   return (
-    <div className="relative h-full min-h-0">
+    // A flex column, not a plain block: the screen inside claims the height
+    // with `flex: 1`, and a block wrapper would leave it at content height —
+    // which collapses the filmstrip, and with it the area a swipe can start in,
+    // whenever the sections are short or empty.
+    <div className="relative flex h-full min-h-0 flex-col">
       {!supportsNativeBackButton ? (
         <Link
           href="/chats"

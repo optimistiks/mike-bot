@@ -90,6 +90,15 @@ function periodsHandler() {
   );
 }
 
+// Standings ask for each Member's face; none of these tests are about photos,
+// so every one is a Member without one.
+function memberPhotosHandler() {
+  return http.get(
+    "*/api/members/:userId/photo",
+    () => new HttpResponse(null, { status: 404 }),
+  );
+}
+
 function leaderboardHandler(
   body: JsonBodyType = {
     chatId: CHAT_ID,
@@ -114,7 +123,12 @@ async function renderLeaderboard() {
 }
 
 test("shows the Chat, its Season, and the standings", async ({ worker }) => {
-  worker.use(chatsHandler(), periodsHandler(), leaderboardHandler());
+  worker.use(
+    chatsHandler(),
+    periodsHandler(),
+    leaderboardHandler(),
+    memberPhotosHandler(),
+  );
 
   const screen = await renderLeaderboard();
 
@@ -126,7 +140,12 @@ test("shows the Chat, its Season, and the standings", async ({ worker }) => {
 test("presents all five sections in the order the Leaderboard is read in", async ({
   worker,
 }) => {
-  worker.use(chatsHandler(), periodsHandler(), leaderboardHandler());
+  worker.use(
+    chatsHandler(),
+    periodsHandler(),
+    leaderboardHandler(),
+    memberPhotosHandler(),
+  );
 
   const screen = await renderLeaderboard();
   await expect.element(screen.getByText("Друзья")).toBeVisible();
@@ -152,6 +171,7 @@ test("replaces a Season with no Events with an empty state", async ({
       period: PERIOD,
       sections: sections([]),
     }),
+    memberPhotosHandler(),
   );
 
   const screen = await renderLeaderboard();
@@ -187,6 +207,7 @@ test("refuses a Chat that is not the Member's, even when the Leaderboard loads",
     http.get("*/api/chats", () => HttpResponse.json({ chats: [] })),
     periodsHandler(),
     leaderboardHandler(),
+    memberPhotosHandler(),
   );
 
   const screen = await renderLeaderboard();

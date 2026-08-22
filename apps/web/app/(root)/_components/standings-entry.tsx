@@ -2,13 +2,12 @@
 
 import { motion } from "motion/react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/8bit/avatar";
 import { Item, ItemContent, ItemHeader } from "@/components/ui/8bit/item";
 
 import type { LeaderboardEntry } from "../_lib/leaderboard-shape";
 
-import { displayInitials } from "../_lib/initials";
 import { EntryFlair } from "./entry-flair";
+import { MemberPhoto } from "./member-photo";
 import { LAYOUT_SPRING, staggerDelay } from "./motion-config";
 import { RankChip } from "./rank-chip";
 import { ScoreCounter } from "./score-counter";
@@ -48,11 +47,7 @@ export function StandingsEntry({
     >
       <ItemHeader className="justify-start gap-3">
         <RankChip rank={rank} isCrown={entry.isCrown} />
-        <Avatar variant="pixel" className="size-8">
-          <AvatarFallback className="arcade-text-xs bg-muted">
-            {displayInitials(entry.displayName)}
-          </AvatarFallback>
-        </Avatar>
+        <MemberPhoto userId={entry.userId} displayName={entry.displayName} />
         <EntryFlair isCrown={entry.isCrown} isChicken={entry.isChicken} />
         <ScoreCounter
           key={reveal}
