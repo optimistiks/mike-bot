@@ -21,7 +21,7 @@ import { ScoreCounter } from "./score-counter";
  *
  * The card keeps its DOM identity when the carousel selection changes. Only
  * the score remounts, replaying the staggered count-up without an opacity flash.
- * `layout` lets rows below "показать всех" slide down instead of jumping.
+ * `layout` lets rows slide into a new order instead of jumping to it.
  */
 export function StandingsEntry({
   rank,
