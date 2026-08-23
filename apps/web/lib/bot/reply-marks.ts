@@ -5,7 +5,21 @@ import type { EventType } from "@/lib/domain/event";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
 import { isGroupChat } from "./chat";
+import { memberDisplayName } from "./display-name";
 import { applyMarkChanges } from "./marks";
+
+/** What the bot says in the Chat once it has taken the Scoring reply's place. */
+const ACKNOWLEDGEMENT_LABEL: Record<EventType, string> = {
+  "karma.plus": "➕",
+  "karma.minus": "➖",
+  "humor.add": "лол",
+};
+
+export interface ReplyMarkAcknowledgement {
+  /** The marked Message, which the acknowledgement replies to in the reply's place. */
+  replyToMessageId: number;
+  text: string;
+}
 
 export function replyTextToEventType(text: string): EventType | null {
   const normalized = text.trim();
@@ -15,11 +29,21 @@ export function replyTextToEventType(text: string): EventType | null {
   return null;
 }
 
-/** Create a permanent Mark for a supported reply and report whether it was new. */
+export function acknowledgementText(
+  type: EventType,
+  actor: { username?: string; first_name: string },
+): string {
+  return `${ACKNOWLEDGEMENT_LABEL[type]} (${memberDisplayName(actor)})`;
+}
+
+/**
+ * Create a permanent Mark for a supported reply and describe how to answer it.
+ * Returns null when the reply is not a Scoring reply or repeats an Active Mark.
+ */
 export async function handleReplyMark(
   db: AppDatabase,
   ctx: Context,
-): Promise<boolean> {
+): Promise<ReplyMarkAcknowledgement | null> {
   const message = ctx.message;
   const actor = ctx.from;
   const repliedTo = message?.reply_to_message;
@@ -35,15 +59,15 @@ export async function handleReplyMark(
     subject.is_bot ||
     actor.id === subject.id
   ) {
-    return false;
+    return null;
   }
 
   const type = replyTextToEventType(message.text);
-  if (!type) return false;
+  if (!type) return null;
 
   const createdAt = new Date(message.date * 1_000);
   const messageDate = new Date(repliedTo.date * 1_000);
-  if (creditedSeasonForReaction(messageDate, createdAt) === null) return false;
+  if (creditedSeasonForReaction(messageDate, createdAt) === null) return null;
 
   const result = await applyMarkChanges(db, {
     identity: {
@@ -57,5 +81,10 @@ export async function handleReplyMark(
     additionsAreReversible: false,
   });
 
-  return result.additions === 1;
+  if (result.additions !== 1) return null;
+
+  return {
+    replyToMessageId: repliedTo.message_id,
+    text: acknowledgementText(type, actor),
+  };
 }

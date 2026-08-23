@@ -68,7 +68,8 @@ function context(options: {
             },
           }),
     },
-    react: vi.fn(),
+    deleteMessage: vi.fn(),
+    reply: vi.fn(),
   } as unknown as Context;
 }
 
@@ -94,8 +95,11 @@ describe("reply Marks", () => {
 
     try {
       const ctx = context({ text: "+" });
-      await expect(handleReplyMark(pglite.db, ctx)).resolves.toBe(true);
-      await expect(handleReplyMark(pglite.db, ctx)).resolves.toBe(false);
+      await expect(handleReplyMark(pglite.db, ctx)).resolves.toEqual({
+        replyToMessageId: 30,
+        text: "➕ (Actor)",
+      });
+      await expect(handleReplyMark(pglite.db, ctx)).resolves.toBeNull();
       await expect(pglite.db.select().from(events)).resolves.toEqual([
         expect.objectContaining({
           type: "karma.plus",
@@ -121,10 +125,10 @@ describe("reply Marks", () => {
     try {
       await expect(
         handleReplyMark(pglite.db, context({ text: "+" })),
-      ).resolves.toBe(true);
+      ).resolves.toEqual({ replyToMessageId: 30, text: "➕ (Actor)" });
       await expect(
         handleReplyMark(pglite.db, context({ text: "-" })),
-      ).resolves.toBe(true);
+      ).resolves.toEqual({ replyToMessageId: 30, text: "➖ (Actor)" });
       const rows = await pglite.db.select().from(events);
       expect(rows.map((row) => row.type)).toEqual([
         "karma.plus",
@@ -135,7 +139,7 @@ describe("reply Marks", () => {
     }
   });
 
-  it("acknowledges an accepted reply with one supported reaction and never deletes it", async () => {
+  it("replaces an accepted reply with the bot's own announcement", async () => {
     const pglite = await createPgliteDb();
     const bot = createBot({ db: pglite.db, token: "test-token" });
     bot.botInfo = BOT_INFO;
@@ -150,8 +154,8 @@ describe("reply Marks", () => {
         message_id: 31,
         date: MESSAGE_DATE + 60,
         chat: { id: CHAT_ID, type: "supergroup", title: "Test" },
-        from: { id: 10, is_bot: false, first_name: "Actor" },
-        text: "+",
+        from: { id: 10, is_bot: false, first_name: "Actor", username: "actor" },
+        text: "лол",
         reply_to_message: {
           message_id: 30,
           date: MESSAGE_DATE,
@@ -167,17 +171,18 @@ describe("reply Marks", () => {
       await bot.handleUpdate(update);
       expect(apiCalls).toEqual([
         {
-          method: "setMessageReaction",
+          method: "deleteMessage",
+          payload: { chat_id: CHAT_ID, message_id: 31 },
+        },
+        {
+          method: "sendMessage",
           payload: {
             chat_id: CHAT_ID,
-            message_id: 31,
-            reaction: [{ type: "emoji", emoji: "👍" }],
+            text: "лол (@actor)",
+            reply_parameters: { message_id: 30 },
           },
         },
       ]);
-      expect(apiCalls.some(({ method }) => method === "deleteMessage")).toBe(
-        false,
-      );
       await expect(pglite.db.select().from(messageAuthors)).resolves.toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -201,7 +206,7 @@ describe("reply Marks", () => {
   ])("rejects a %s reply", async (_name, ctx) => {
     const pglite = await createPgliteDb();
     try {
-      await expect(handleReplyMark(pglite.db, ctx)).resolves.toBe(false);
+      await expect(handleReplyMark(pglite.db, ctx)).resolves.toBeNull();
       await expect(pglite.db.select().from(events)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);

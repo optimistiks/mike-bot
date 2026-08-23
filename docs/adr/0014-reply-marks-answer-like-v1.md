@@ -1,0 +1,9 @@
+# Answer a Scoring reply the way v1 did: delete it, speak in its place
+
+ADR-0002 kept the Scoring reply in the Chat and acknowledged it with a 👍 reaction, on the reasoning that a quiet bot is a better citizen of a group. In use it read as no acknowledgement at all: a bare `+` sits in the transcript looking exactly like an unprocessed message, and a reaction on it is easy to miss on a phone. v1's answer was legible because it was loud — the reply vanished and the bot posted `лол (@name)` or `➕ (@name)` under the marked Message, so the Chat could see both that the Mark landed and who gave it.
+
+So the bot now deletes the Scoring reply and replies to the marked Message with that text, using the same display name the Mini App shows. Only the first Mark of a kind is answered; a repeat is stored as nothing and left alone, exactly as before. The Mark is committed before either Telegram call, so a failed delete or a failed reply costs the announcement, never the score.
+
+This restores v1's requirement that the bot hold `can_delete_messages` in the group. Without it every Scoring reply stays put and gets answered anyway, which is noisier than either design — the deploy check is that the bot is an administrator, not merely a member.
+
+Everything ADR-0002 decided about the two inputs themselves still holds: reactions and replies produce the same Events, reply Marks remain permanent, and counts are still never announced in the Chat.

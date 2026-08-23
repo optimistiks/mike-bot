@@ -3,7 +3,7 @@ import { Bot, Context } from "grammy";
 import type { AppDatabase } from "@/lib/db/runtime";
 
 import { handleTelegramUpdate } from "./handle-update";
-import { handleReplyMark } from "./reply-marks";
+import { handleReplyMark, type ReplyMarkAcknowledgement } from "./reply-marks";
 import { handleStatsCommand } from "./stats";
 
 export interface BotDependencies {
@@ -17,7 +17,9 @@ export function createBot({ db, token }: BotDependencies): Bot {
   const isStatsCommand = Context.has.command("stats");
 
   bot.use(async (ctx) => {
-    const replyAcknowledgement = { accepted: false };
+    const replyAcknowledgement: { pending: ReplyMarkAcknowledgement | null } = {
+      pending: null,
+    };
     await handleTelegramUpdate(db, ctx.update, async (transactionDb) => {
       // /register is an alias of /stats: both register the caller and reply
       // with the same Mini App deep link.
@@ -26,14 +28,25 @@ export function createBot({ db, token }: BotDependencies): Bot {
         return;
       }
 
-      replyAcknowledgement.accepted = await handleReplyMark(transactionDb, ctx);
+      replyAcknowledgement.pending = await handleReplyMark(transactionDb, ctx);
     });
 
-    if (replyAcknowledgement.accepted) {
+    const acknowledgement = replyAcknowledgement.pending;
+    if (acknowledgement) {
+      // The Mark is already stored, so a failed delete or reply must not undo
+      // it — the Chat just misses the announcement.
       try {
-        await ctx.react("👍");
+        await ctx.deleteMessage();
       } catch (error) {
-        console.error("failed to acknowledge reply Mark", error);
+        console.error("failed to delete Scoring reply", error);
+      }
+
+      try {
+        await ctx.reply(acknowledgement.text, {
+          reply_parameters: { message_id: acknowledgement.replyToMessageId },
+        });
+      } catch (error) {
+        console.error("failed to announce reply Mark", error);
       }
     }
   });

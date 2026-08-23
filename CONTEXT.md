@@ -22,7 +22,7 @@ One of the Telegram reactions through which a Member expresses a Mark: 👍 for 
 _Avoid_: Emoji, vote
 
 **Scoring reply**:
-An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. A Scoring reply remains in the Chat, is acknowledged with a 👍 reaction, and cannot be undone.
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's display name — and it cannot be undone.
 _Avoid_: Legacy reply, command
 
 **Karma plus**:
