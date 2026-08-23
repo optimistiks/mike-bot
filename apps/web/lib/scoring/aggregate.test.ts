@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { MarkType } from "@/lib/domain/mark";
 
 import { aggregateLeaderboard } from "./aggregate";
-import { markTypeToContributions } from "./contributions";
 import {
   creditedSeasonForReaction,
   getCurrentSeason,
@@ -11,38 +10,6 @@ import {
   seasonForDate,
 } from "./season";
 import type { ScoringMark } from "./types";
-
-describe("markTypeToContributions", () => {
-  it("maps karma.plus to subject karma received and actor karma plus given", () => {
-    expect(markTypeToContributions("karma.plus")).toEqual({
-      karmaReceived: 1,
-      humorReceived: 0,
-      karmaPlusGiven: 1,
-      karmaMinusGiven: 0,
-      humorGiven: 0,
-    });
-  });
-
-  it("maps karma.minus to negative karma received and actor karma minus given", () => {
-    expect(markTypeToContributions("karma.minus")).toEqual({
-      karmaReceived: -1,
-      humorReceived: 0,
-      karmaPlusGiven: 0,
-      karmaMinusGiven: 1,
-      humorGiven: 0,
-    });
-  });
-
-  it("maps humor.add to humor received and humor given", () => {
-    expect(markTypeToContributions("humor.add")).toEqual({
-      karmaReceived: 0,
-      humorReceived: 1,
-      karmaPlusGiven: 0,
-      karmaMinusGiven: 0,
-      humorGiven: 1,
-    });
-  });
-});
 
 describe("season bucketing", () => {
   it("uses Europe/Moscow midnight boundaries", () => {

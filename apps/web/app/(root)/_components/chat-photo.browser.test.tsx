@@ -11,7 +11,6 @@ import {
 import { test } from "@/test/browser/msw";
 
 import { ChatPhoto } from "./chat-photo";
-import { photoSizes } from "./photo-size";
 
 const telegram = vi.hoisted<{ context: unknown }>(() => ({
   context: null,
@@ -111,15 +110,16 @@ test("asks for nothing when the Chat has no photo", async ({ worker }) => {
  * fractions of the same octagon depending on the screen. Nothing but the table
  * may decide either half of that pair.
  */
-test("takes both its frame and its initials from one named size", async () => {
+test("renders a Chat at 48px around 16px type", async () => {
   const screen = await renderPhoto(null, CHAT_WITHOUT_PHOTO_ID);
 
+  // Spelled out rather than read from `photoSizes`: taking the expectation from
+  // the same table the component reads would let both halves move together,
+  // which is the one thing this test exists to catch.
   const fallback = screen.container.querySelector(
     '[data-slot="avatar-fallback"]',
   );
   expect(fallback?.classList.contains("arcade-initials")).toBe(true);
-  expect(fallback?.classList.contains(photoSizes.md.initials)).toBe(true);
-  expect(
-    screen.container.querySelector(`.${photoSizes.md.frame}`),
-  ).toBeTruthy();
+  expect(fallback?.classList.contains("arcade-text-lg")).toBe(true);
+  expect(screen.container.querySelector(".size-12")).toBeTruthy();
 });

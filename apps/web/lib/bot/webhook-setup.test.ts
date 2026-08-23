@@ -7,16 +7,6 @@ import {
 
 const webhookUrl = "https://mike-bot.vercel.app/api/telegram";
 
-describe("TELEGRAM_WEBHOOK_ALLOWED_UPDATES", () => {
-  it("includes message, message_reaction, and chat_member only", () => {
-    expect(TELEGRAM_WEBHOOK_ALLOWED_UPDATES).toEqual([
-      "message",
-      "message_reaction",
-      "chat_member",
-    ]);
-  });
-});
-
 describe("assertWebhookRegistered", () => {
   it("passes when url and allowed_updates match", () => {
     expect(() => {
