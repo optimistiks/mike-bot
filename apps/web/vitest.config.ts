@@ -13,6 +13,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "."),
       "server-only": path.resolve(__dirname, "test/server-only-stub.ts"),
+      "next/cache": path.resolve(__dirname, "test/next-cache-stub.ts"),
     },
   },
 });

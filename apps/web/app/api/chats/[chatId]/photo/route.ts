@@ -1,32 +1,16 @@
-import { Api } from "grammy";
-
 import {
   resolveChatMetadata,
   type ChatMetadata,
 } from "@/lib/bot/chat-metadata";
+import { fetchTelegramFileBytes } from "@/lib/bot/telegram-photo.server";
 import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
 import { authenticateTmaRequestMember } from "@/lib/mini-app/request-auth.server";
 
-function telegramFileUrl(botToken: string, filePath: string): string {
-  return `https://api.telegram.org/file/bot${botToken}/${filePath}`;
-}
-
-async function downloadPhoto(
-  metadata: ChatMetadata,
-  botToken: string,
-): Promise<Response | null> {
-  if (!metadata.photoSmallFileId) return null;
-
-  try {
-    const file = await new Api(botToken).getFile(metadata.photoSmallFileId);
-    if (!file.file_path) return null;
-
-    const response = await fetch(telegramFileUrl(botToken, file.file_path));
-    return response.ok ? response : null;
-  } catch {
-    return null;
-  }
+function photoBytes(metadata: ChatMetadata | null) {
+  return metadata?.photoSmallFileId
+    ? fetchTelegramFileBytes(metadata.photoSmallFileId)
+    : null;
 }
 
 export async function GET(
@@ -55,21 +39,23 @@ export async function GET(
   }
 
   let metadata = await resolveChatMetadata(db, chatId, botToken);
-  let photo = metadata ? await downloadPhoto(metadata, botToken) : null;
+  let photo = await photoBytes(metadata);
 
+  // A stored file reference outlives the photo it named. One forced refresh
+  // distinguishes "the Chat changed its photo" from "the Chat has none".
   if (!photo) {
     metadata = await resolveChatMetadata(db, chatId, botToken, { force: true });
-    photo = metadata ? await downloadPhoto(metadata, botToken) : null;
+    photo = await photoBytes(metadata);
   }
 
   if (!photo) {
     return Response.json({ error: "Photo not found" }, { status: 404 });
   }
 
-  return new Response(photo.body, {
+  return new Response(photo.bytes, {
     headers: {
       "Cache-Control": "private, max-age=3600",
-      "Content-Type": photo.headers.get("content-type") ?? "image/jpeg",
+      "Content-Type": photo.contentType,
     },
   });
 }
