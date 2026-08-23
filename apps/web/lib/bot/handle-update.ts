@@ -1,12 +1,15 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Update } from "grammy/types";
 
 import { removeRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
 import {
+  chats,
   displayIdentities,
+  marks,
   messageAuthors,
   processedUpdates,
+  registrations,
 } from "@/lib/db/schema";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { creditedSeasonForReaction } from "@/lib/scoring";
@@ -15,6 +18,7 @@ import { isGroupChat } from "./chat";
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
 import { applyMarkChanges } from "./marks";
+import { replyTextToMarkType } from "./reply-marks";
 import {
   diffReactionStates,
   reactionDiffToMarkChanges,
@@ -63,11 +67,92 @@ async function upsertDisplayIdentity(
     });
 }
 
+/**
+ * The Members a message tells us about: its sender, and the author of whatever
+ * it replies to.
+ *
+ * Sorted by user id and deduplicated so that two updates touching the same pair
+ * — Alice replying to Bob while Bob replies to Alice — take the identity rows
+ * in the same order and cannot deadlock against each other.
+ */
+export interface DisplayIdentityMember {
+  id: number;
+  is_bot: boolean;
+  username?: string;
+  first_name: string;
+}
+
+export function messageDisplayIdentities(message: {
+  from?: DisplayIdentityMember;
+  reply_to_message?: { from?: DisplayIdentityMember };
+}): DisplayIdentityMember[] {
+  const members = new Map<number, DisplayIdentityMember>();
+
+  for (const candidate of [message.from, message.reply_to_message?.from]) {
+    if (candidate && !candidate.is_bot) {
+      members.set(candidate.id, candidate);
+    }
+  }
+
+  return [...members.values()].sort((left, right) => left.id - right.id);
+}
+
+/**
+ * Move a Chat's whole history to the id Telegram gave it on upgrade.
+ *
+ * Everything Mike-bot stores is keyed on `chat_id`, so without this the upgrade
+ * strands every Mark and every Leaderboard reads zero. The `not exists` guard
+ * is defensive — an upgraded supergroup is new and should hold nothing yet —
+ * and moving rows rather than copying them keeps `legacy_id` unique.
+ */
+async function migrateChat(
+  db: AppDatabase,
+  fromChatId: number,
+  toChatId: number,
+): Promise<void> {
+  const moves = [
+    sql`update ${marks} m set chat_id = ${toChatId} where m.chat_id = ${fromChatId}
+        and not exists (select 1 from ${marks} o where o.chat_id = ${toChatId}
+          and o.actor_id = m.actor_id and o.message_id = m.message_id and o.slot = m.slot)`,
+    sql`update ${messageAuthors} a set chat_id = ${toChatId} where a.chat_id = ${fromChatId}
+        and not exists (select 1 from ${messageAuthors} o where o.chat_id = ${toChatId}
+          and o.message_id = a.message_id)`,
+    sql`update ${displayIdentities} d set chat_id = ${toChatId} where d.chat_id = ${fromChatId}
+        and not exists (select 1 from ${displayIdentities} o where o.chat_id = ${toChatId}
+          and o.user_id = d.user_id)`,
+    sql`update ${registrations} r set chat_id = ${toChatId} where r.chat_id = ${fromChatId}
+        and not exists (select 1 from ${registrations} o where o.chat_id = ${toChatId}
+          and o.user_id = r.user_id)`,
+    sql`update ${chats} c set chat_id = ${toChatId} where c.chat_id = ${fromChatId}
+        and not exists (select 1 from ${chats} o where o.chat_id = ${toChatId})`,
+  ];
+
+  for (const move of moves) {
+    await db.execute(move);
+  }
+
+  // Anything the guards refused already exists under the new id.
+  for (const table of [
+    marks,
+    messageAuthors,
+    displayIdentities,
+    registrations,
+    chats,
+  ]) {
+    await db.execute(sql`delete from ${table} where chat_id = ${fromChatId}`);
+  }
+}
+
 async function handleMessageUpdate(
   db: AppDatabase,
   message: NonNullable<Update["message"]>,
 ): Promise<void> {
   if (!isGroupChat(message.chat.type)) {
+    return;
+  }
+
+  if (message.migrate_to_chat_id !== undefined) {
+    await migrateChat(db, message.chat.id, message.migrate_to_chat_id);
     return;
   }
 
@@ -82,8 +167,16 @@ async function handleMessageUpdate(
   });
 
   // Ephemeral messages carry message_id 0 and cannot be reacted to, so caching
-  // them would only write a junk (chat_id, 0) row.
-  if (message.ephemeral_message_id === undefined) {
+  // them would only write a junk (chat_id, 0) row. A Scoring reply is about to
+  // be deleted and replaced by the bot's own answer, so it is not a Message
+  // anyone should be able to mark either — reacting to a bare "+" would spend a
+  // grant on its author for typing it.
+  const isScoringReply =
+    message.reply_to_message !== undefined &&
+    message.text !== undefined &&
+    replyTextToMarkType(message.text) !== null;
+
+  if (message.ephemeral_message_id === undefined && !isScoringReply) {
     await upsertMessageAuthor(db, {
       chatId,
       messageId,
@@ -91,10 +184,6 @@ async function handleMessageUpdate(
       authorIsBot: from.is_bot,
       messageDate: message.date,
     });
-  }
-
-  if (!from.is_bot) {
-    await upsertDisplayIdentity(db, chatId, from);
   }
 
   const repliedTo = message.reply_to_message;
@@ -106,10 +195,10 @@ async function handleMessageUpdate(
       authorIsBot: repliedTo.from.is_bot,
       messageDate: repliedTo.date,
     });
+  }
 
-    if (!repliedTo.from.is_bot) {
-      await upsertDisplayIdentity(db, chatId, repliedTo.from);
-    }
+  for (const member of messageDisplayIdentities(message)) {
+    await upsertDisplayIdentity(db, chatId, member);
   }
 }
 
@@ -140,6 +229,7 @@ async function handleChatMemberUpdate(
 async function handleMessageReactionUpdate(
   db: AppDatabase,
   reaction: NonNullable<Update["message_reaction"]>,
+  updateId: number,
 ): Promise<void> {
   if (!isGroupChat(reaction.chat.type)) {
     return;
@@ -198,7 +288,15 @@ async function handleMessageReactionUpdate(
 
   const createdAt = new Date(reaction.date * 1000);
   if (Number.isNaN(createdAt.getTime())) {
-    throw new RangeError("Telegram reaction date is invalid");
+    // No retry can succeed on a timestamp the bot cannot read, and throwing
+    // would ask Telegram to redeliver this update until it gives up.
+    console.log("skip reaction with an unreadable date", {
+      chat_id: chatId,
+      message_id: messageId,
+      actor_id: actor.id,
+      date: reaction.date,
+    });
+    return;
   }
 
   const messageDate = new Date(author.messageDate * 1000);
@@ -218,6 +316,7 @@ async function handleMessageReactionUpdate(
     changes: mapped.changes,
     createdAt,
     source: "reaction",
+    updateId,
   });
 }
 
@@ -243,7 +342,11 @@ export async function handleTelegramUpdate(
     }
 
     if (update.message_reaction) {
-      await handleMessageReactionUpdate(transactionDb, update.message_reaction);
+      await handleMessageReactionUpdate(
+        transactionDb,
+        update.message_reaction,
+        update.update_id,
+      );
     }
 
     await onClaimedUpdate?.(transactionDb);

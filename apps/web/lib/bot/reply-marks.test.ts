@@ -39,9 +39,12 @@ function context(options: {
   subjectIsBot?: boolean;
   chatType?: "private" | "supergroup";
   reply?: boolean;
+  updateId?: number;
+  topicRoot?: boolean;
 }): Context {
   const subjectId = options.subjectId ?? 20;
   return {
+    update: { update_id: options.updateId ?? 100 },
     chat:
       options.chatType === "private"
         ? { id: CHAT_ID, type: "private" }
@@ -69,6 +72,9 @@ function context(options: {
                 is_bot: options.subjectIsBot ?? false,
                 first_name: "Subject",
               },
+              ...(options.topicRoot
+                ? { forum_topic_created: { name: "General", icon_color: 0 } }
+                : {}),
             },
           }),
     },
@@ -212,6 +218,22 @@ describe("reply Marks", () => {
         ]),
       );
       await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("ignores a Scoring token posted into a forum topic", async () => {
+    const pglite = await createPgliteDb();
+
+    // Telegram fills reply_to_message with the topic's opening message for
+    // every message in a topic, so a bare "+" replying to nobody would
+    // otherwise mark whoever started the topic.
+    try {
+      await expect(
+        handleReplyMark(pglite.db, context({ topicRoot: true })),
+      ).resolves.toBeNull();
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }

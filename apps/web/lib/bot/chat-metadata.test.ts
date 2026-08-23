@@ -62,6 +62,18 @@ describe("Chat metadata", () => {
       });
     });
 
+    it("writes nothing when an update repeats what is already stored", async () => {
+      // Every message, reaction and join carries the Chat, and an upsert locks
+      // the row until the transaction commits — so rewriting an unchanged title
+      // queues the whole Chat behind one row for nothing.
+      await expect(upsertChatFromTelegramUpdate(db, groupChat)).resolves.toBe(
+        "written",
+      );
+      await expect(upsertChatFromTelegramUpdate(db, groupChat)).resolves.toBe(
+        "unchanged",
+      );
+    });
+
     it("ignores private chats", async () => {
       await upsertChatFromTelegramUpdate(db, {
         id: 555,

@@ -31,6 +31,20 @@ export const marks = pgTable(
       ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     source: text("source").notNull(),
+    /**
+     * The Telegram update that placed this Mark. Telegram timestamps are whole
+     * seconds, so a fast tap and untap tie on `created_at`; `update_id` is
+     * monotonic and totally orders them. Null for Imported Marks, which have no
+     * update, and for Marks predating this column.
+     */
+    updateId: bigint("update_id", { mode: "number" }),
+    /**
+     * Set when a Scoring reaction was taken back inside the Undo window. The row
+     * is kept as a tombstone rather than deleted so that an addition handled
+     * after its own removal collides with the primary key and loses, instead of
+     * landing in empty space (ADR-0015).
+     */
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
     legacyId: uuid("legacy_id").unique(),
   },
   (table) => [
@@ -89,7 +103,15 @@ export const messageAuthors = pgTable(
   (table) => [primaryKey({ columns: [table.chatId, table.messageId] })],
 );
 
-/** Telegram update_id deduplication for webhook idempotency. */
+/**
+ * Telegram update_id deduplication for webhook idempotency.
+ *
+ * Prune by `update_id`, which is monotonic per bot, but keep a generous margin:
+ * this table is what stops a redelivered addition from resurrecting a Mark its
+ * Actor undid (ADR-0015). Note that pointing a *different* bot token at the
+ * same database restarts `update_id` near 1, and every new update would then
+ * read as a duplicate.
+ */
 export const processedUpdates = pgTable("processed_updates", {
   updateId: bigint("update_id", { mode: "number" }).primaryKey(),
 });

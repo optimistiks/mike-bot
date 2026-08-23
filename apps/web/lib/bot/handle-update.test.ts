@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { isNull } from "drizzle-orm";
 import type { ReactionType, Update } from "grammy/types";
 
-import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
+import {
+  closePgliteDb,
+  createPgliteDb,
+  type PgliteDatabase,
+} from "@/lib/db/pglite";
 import {
   displayIdentities,
   marks,
@@ -11,7 +16,20 @@ import {
 } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
-import { getMessageAuthor, handleTelegramUpdate } from "./handle-update";
+import {
+  getMessageAuthor,
+  handleTelegramUpdate,
+  messageDisplayIdentities,
+} from "./handle-update";
+
+/**
+ * Marks that still hold their slot. An undone Scoring reaction leaves a
+ * tombstone behind rather than deleting the row, so the raw table is not the
+ * same question as "what did this Actor spend".
+ */
+function liveMarks(db: PgliteDatabase["db"]) {
+  return db.select().from(marks).where(isNull(marks.undoneAt));
+}
 
 const TEST_CHAT_ID = -100_111_222;
 const BOT_USER_ID = 777;
@@ -108,6 +126,32 @@ function chatMemberUpdate(
   } satisfies Update;
 }
 
+describe("messageDisplayIdentities", () => {
+  it("names the Members in a fixed order whichever way the reply goes", () => {
+    // Alice replying to Bob while Bob replies to Alice would otherwise take the
+    // same two identity rows in opposite orders and deadlock.
+    expect(
+      messageDisplayIdentities({
+        from: { id: 500, is_bot: false, first_name: "Alice" },
+        reply_to_message: {
+          from: { id: 200, is_bot: false, first_name: "Bob" },
+        },
+      }).map((member) => member.id),
+    ).toEqual([200, 500]);
+  });
+
+  it("names a Member once when they reply to themselves", () => {
+    const alice = { id: 500, is_bot: false, first_name: "Alice" };
+
+    expect(
+      messageDisplayIdentities({
+        from: alice,
+        reply_to_message: { from: alice },
+      }),
+    ).toHaveLength(1);
+  });
+});
+
 describe("telegram webhook integration", () => {
   it("caches message authors and appends karma.plus visible on leaderboard", async () => {
     const pglite = await createPgliteDb();
@@ -181,13 +225,13 @@ describe("telegram webhook integration", () => {
         pglite.db,
         reactionUpdate(42, 60, alice, thumbsUp, [], "2026-08-10T12:00:03.000Z"),
       );
-      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
+      await expect(liveMarks(pglite.db)).resolves.toEqual([]);
 
       await handleTelegramUpdate(
         pglite.db,
         reactionUpdate(43, 60, alice, [], thumbsUp, "2026-08-10T12:00:10.000Z"),
       );
-      const rows = await pglite.db.select().from(marks);
+      const rows = await liveMarks(pglite.db);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         type: "karma.plus",
@@ -200,7 +244,7 @@ describe("telegram webhook integration", () => {
         pglite.db,
         reactionUpdate(44, 60, alice, thumbsUp, [], "2026-08-10T12:05:00.000Z"),
       );
-      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
+      await expect(liveMarks(pglite.db)).resolves.toHaveLength(1);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -255,7 +299,7 @@ describe("telegram webhook integration", () => {
         ),
       );
 
-      const rows = await pglite.db.select().from(marks);
+      const rows = await liveMarks(pglite.db);
       expect(rows.map((row) => [row.messageId, row.type]).toSorted()).toEqual([
         [60, "karma.minus"],
         [61, "karma.plus"],
@@ -293,7 +337,208 @@ describe("telegram webhook integration", () => {
         false,
       );
 
-      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
+      await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("keeps a Mark undone when its removal is handled before its addition", async () => {
+    const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob", username: "bob" }),
+      );
+
+      // Alice taps 👍 and untaps three seconds later. Telegram delivers both
+      // updates at once and the removal is handled first.
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(42, 60, alice, thumbsUp, [], "2026-08-10T12:00:03.000Z"),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(41, 60, alice, [], thumbsUp, "2026-08-10T12:00:00.000Z"),
+      );
+
+      const leaderboard = await queryLeaderboard(pglite.db, TEST_CHAT_ID, {
+        year: 2026,
+        month: 8,
+      });
+      expect(leaderboard.sections[0]?.entries ?? []).toEqual([]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("keeps a Mark undone when the tap and untap fall in the same second", async () => {
+    const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
+    // Telegram timestamps are whole seconds, so a fast double-tap ties on date
+    // and only the update_id says which came first.
+    const sameSecond = "2026-08-10T12:00:00.000Z";
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob", username: "bob" }),
+      );
+
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(42, 60, alice, thumbsUp, [], sameSecond),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(41, 60, alice, [], thumbsUp, sameSecond),
+      );
+
+      await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("accepts a reaction carrying a nonsense timestamp instead of throwing", async () => {
+    const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob" }),
+      );
+
+      // Throwing here would read to Telegram as "try again", and no retry can
+      // ever succeed on input the bot cannot parse.
+      const poisoned = reactionUpdate(
+        41,
+        60,
+        alice,
+        [],
+        [{ type: "emoji", emoji: "👍" }],
+      );
+      const reaction = poisoned.message_reaction;
+      if (reaction) reaction.date = Number.MAX_SAFE_INTEGER;
+
+      await expect(handleTelegramUpdate(pglite.db, poisoned)).resolves.toBe(
+        true,
+      );
+      await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+      await expect(
+        pglite.db.select().from(processedUpdates),
+      ).resolves.toContainEqual({ updateId: 41 });
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("does not let a Scoring reply itself be marked", async () => {
+    const pglite = await createPgliteDb();
+    const bob = { id: 201, first_name: "Bob" };
+    const alicePlus: Update = {
+      update_id: 41,
+      message: {
+        message_id: 61,
+        date: Math.floor(new Date("2026-08-10T11:05:00.000Z").getTime() / 1000),
+        chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+        from: { id: 301, is_bot: false, first_name: "Alice" },
+        text: "+",
+        reply_to_message: {
+          message_id: 60,
+          date: Math.floor(
+            new Date("2026-08-10T11:00:00.000Z").getTime() / 1000,
+          ),
+          chat: { id: TEST_CHAT_ID, type: "supergroup", title: "Test" },
+          from: { id: 201, is_bot: false, first_name: "Bob" },
+          reply_to_message: undefined,
+        },
+      },
+    };
+
+    try {
+      await handleTelegramUpdate(pglite.db, messageUpdate(40, 60, bob));
+      await handleTelegramUpdate(pglite.db, alicePlus);
+
+      // The bot is about to delete Alice's "+". Carol reacting to it in the
+      // meantime would spend her karma point on Alice for typing "+".
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(
+          42,
+          61,
+          { id: 401, first_name: "Carol" },
+          [],
+          [{ type: "emoji", emoji: "👍" }],
+        ),
+      );
+
+      expect(
+        await getMessageAuthor(pglite.db, TEST_CHAT_ID, 61),
+      ).toBeUndefined();
+      await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+      // The marked Message is still cached, so it can still receive Marks.
+      expect(await getMessageAuthor(pglite.db, TEST_CHAT_ID, 60)).toMatchObject(
+        {
+          authorId: 201,
+        },
+      );
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("carries a Chat's history over when it is upgraded to a supergroup", async () => {
+    const pglite = await createPgliteDb();
+    const MIGRATED_CHAT_ID = -100_999_888;
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob", username: "bob" }),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(
+          41,
+          60,
+          { id: 301, first_name: "Alice" },
+          [],
+          [{ type: "emoji", emoji: "👍" }],
+        ),
+      );
+
+      await handleTelegramUpdate(pglite.db, {
+        update_id: 42,
+        message: {
+          message_id: 61,
+          date: Math.floor(
+            new Date("2026-08-10T13:00:00.000Z").getTime() / 1000,
+          ),
+          chat: { id: TEST_CHAT_ID, type: "group", title: "Test" },
+          from: { id: 201, is_bot: false, first_name: "Bob" },
+          migrate_to_chat_id: MIGRATED_CHAT_ID,
+        },
+      });
+
+      const leaderboard = await queryLeaderboard(pglite.db, MIGRATED_CHAT_ID, {
+        year: 2026,
+        month: 8,
+      });
+      expect(leaderboard.sections[0]?.entries ?? []).toContainEqual(
+        expect.objectContaining({ displayName: "@bob", score: 1 }),
+      );
+
+      const stranded = await queryLeaderboard(pglite.db, TEST_CHAT_ID, {
+        year: 2026,
+        month: 8,
+      });
+      expect(stranded.sections[0]?.entries ?? []).toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -601,19 +846,21 @@ describe("telegram webhook integration", () => {
         pglite.db,
         messageUpdate(29, 999, { id: 201, first_name: "Bob" }),
       );
-      const invalid = reactionUpdate(
+      const reaction = reactionUpdate(
         30,
         999,
         { id: 301, first_name: "Alice" },
         [],
         [{ type: "emoji", emoji: "👍" }],
       );
-      if (!invalid.message_reaction) {
-        throw new Error("Expected a reaction update");
-      }
-      invalid.message_reaction.date = Number.NaN;
 
-      await expect(handleTelegramUpdate(pglite.db, invalid)).rejects.toThrow();
+      // A real failure — the database going away mid-update, say — must leave
+      // the update unclaimed so Telegram's retry genuinely re-processes it.
+      await expect(
+        handleTelegramUpdate(pglite.db, reaction, () => {
+          throw new Error("database unreachable");
+        }),
+      ).rejects.toThrow("database unreachable");
       await expect(pglite.db.select().from(processedUpdates)).resolves.toEqual([
         { updateId: 29 },
       ]);

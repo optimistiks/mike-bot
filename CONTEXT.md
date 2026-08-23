@@ -22,11 +22,11 @@ An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scori
 _Avoid_: Webhook update, request
 
 **Scoring reaction**:
-One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it takes the Mark back only inside the Undo window.
+One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it takes the Mark back only inside the Undo window. Once that window closes the reaction Telegram displays and the Mark Mike-bot holds can disagree — switching 👍 to 👎 an hour later leaves 👎 on screen and Karma plus in the Leaderboard — and nothing in the Chat says so.
 _Avoid_: Emoji, vote
 
 **Scoring reply**:
-An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name. A reply whose slot is already spent is left in the Chat untouched and unanswered.
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name. A reply whose slot is already spent is left in the Chat untouched and unanswered. A Scoring reply is never itself a Message: neither it nor the bot's answer can be marked, so reacting to either does nothing. Editing a message into a Scoring token after the fact does nothing either.
 _Avoid_: Legacy reply, command
 
 **Karma plus**:

@@ -70,6 +70,7 @@ async function querySeasonLeaderboard(
       .where(
         and(
           eq(marks.chatId, chatId),
+          isNull(marks.undoneAt),
           or(
             and(
               isNotNull(marks.legacyId),
@@ -185,7 +186,7 @@ export async function queryAvailableSeasons(
         eq(marks.messageId, messageAuthors.messageId),
       ),
     )
-    .where(eq(marks.chatId, chatId));
+    .where(and(eq(marks.chatId, chatId), isNull(marks.undoneAt)));
 
   const seasons = new Map<string, Season>();
   for (const row of rows) {

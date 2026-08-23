@@ -48,8 +48,13 @@ describe("/stats", () => {
     const ctx = context("supergroup");
 
     try {
-      await handleStatsCommand(pglite.db, ctx);
-      await handleStatsCommand(pglite.db, ctx);
+      // The reply is returned, not sent, so it lands after the transaction.
+      await (
+        await handleStatsCommand(pglite.db, ctx)
+      )?.();
+      await (
+        await handleStatsCommand(pglite.db, ctx)
+      )?.();
 
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([
         { chatId: -100_123, userId: 42 },
@@ -77,7 +82,9 @@ describe("/stats", () => {
     const ctx = context("private");
 
     try {
-      await handleStatsCommand(pglite.db, ctx);
+      await (
+        await handleStatsCommand(pglite.db, ctx)
+      )?.();
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
       // No receiver_user_id: ephemeral replies are a group-only concept.
       expect(ctx.reply).toHaveBeenCalledWith(PRIVATE_STATS_MESSAGE_TEXT, {
@@ -152,6 +159,40 @@ describe("/stats", () => {
       }
     },
   );
+
+  it("keeps the Registration when Telegram refuses the reply", async () => {
+    const pglite = await createPgliteDb();
+    const bot = createBot({ db: pglite.db, token: "test-token" });
+    bot.botInfo = BOT_INFO;
+    bot.api.config.use((_previous, method) =>
+      method === "sendMessage"
+        ? Promise.reject(new Error("Bad Request: not enough rights"))
+        : Promise.resolve({ ok: true, result: true } as never),
+    );
+
+    try {
+      // The Registration is a fact about the caller, not about the reply. A
+      // send the bot has no rights for must not roll it back — and must not
+      // hold a transaction open across a network round trip either.
+      await bot.handleUpdate({
+        update_id: 400,
+        message: {
+          message_id: 52,
+          date: 1_787_000_000,
+          chat: { id: -100_123, type: "supergroup", title: "Test" },
+          from: { id: 42, is_bot: false, first_name: "User" },
+          text: "/stats",
+          entities: [{ offset: 0, length: 6, type: "bot_command" }],
+        },
+      } satisfies Update);
+
+      await expect(pglite.db.select().from(registrations)).resolves.toEqual([
+        { chatId: -100_123, userId: 42 },
+      ]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
 
   it("handles a retried group command only once", async () => {
     const pglite = await createPgliteDb();

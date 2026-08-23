@@ -27,6 +27,13 @@ function photoFields(photo: PhotoSize | undefined): {
   };
 }
 
+/**
+ * Mirror the Chat's Telegram-owned metadata.
+ *
+ * Reports whether it wrote, because it runs on every message, reaction and
+ * join, and an upsert locks the Chat row until the transaction commits —
+ * rewriting an unchanged title would queue the whole Chat behind one row.
+ */
 export async function upsertChatFromTelegramUpdate(
   db: AppDatabase,
   chat: Chat,
@@ -35,11 +42,11 @@ export async function upsertChatFromTelegramUpdate(
     newPhoto?: PhotoSize[];
     deletePhoto?: boolean;
   } = {},
-): Promise<void> {
-  if (!isGroupChat(chat.type)) return;
+): Promise<"written" | "unchanged" | "ignored"> {
+  if (!isGroupChat(chat.type)) return "ignored";
 
   const title = options.newTitle ?? ("title" in chat ? chat.title : undefined);
-  if (!title) return;
+  if (!title) return "ignored";
   const photo =
     options.newPhoto === undefined
       ? undefined
@@ -60,10 +67,22 @@ export async function upsertChatFromTelegramUpdate(
         }
       : { title };
 
+  const stored = await getStoredChatMetadata(db, chat.id);
+  if (
+    stored &&
+    Object.entries(updateValues).every(
+      ([key, value]) => stored[key as keyof typeof stored] === value,
+    )
+  ) {
+    return "unchanged";
+  }
+
   await db.insert(chats).values(insertValues).onConflictDoUpdate({
     target: chats.chatId,
     set: updateValues,
   });
+
+  return "written";
 }
 
 export async function storeChatFullInfo(

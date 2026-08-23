@@ -67,6 +67,10 @@ export async function handleReplyMark(
     !ctx.chat ||
     !isGroupChat(ctx.chat.type) ||
     !repliedTo ||
+    // In a forum, Telegram fills reply_to_message with the topic's opening
+    // message for every message in the topic, so a bare "+" replying to nobody
+    // would mark whoever started it.
+    repliedTo.forum_topic_created !== undefined ||
     !subject ||
     subject.is_bot ||
     actor.id === subject.id
@@ -91,6 +95,7 @@ export async function handleReplyMark(
     changes: [{ action: "add", type }],
     createdAt,
     source: "reply",
+    updateId: ctx.update.update_id,
   });
 
   if (result.added !== 1) return null;

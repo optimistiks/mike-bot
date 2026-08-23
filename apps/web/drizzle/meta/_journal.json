@@ -50,6 +50,20 @@
       "when": 1787508055936,
       "tag": "0006_fearless_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787519248975,
+      "tag": "0007_right_boomerang",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787519458115,
+      "tag": "0008_clammy_agent_brand",
+      "breakpoints": true
     }
   ]
 }

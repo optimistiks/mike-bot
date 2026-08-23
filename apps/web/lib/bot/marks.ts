@@ -1,12 +1,8 @@
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 import { marks } from "@/lib/db/schema";
-import {
-  markSlotForType,
-  type MarkSource,
-  type MarkType,
-} from "@/lib/domain/mark";
+import { type MarkSource, type MarkType } from "@/lib/domain/mark";
 import { MARK_UNDO_WINDOW_MS } from "@/lib/scoring";
 
 export interface MarkIdentity {
@@ -26,12 +22,18 @@ export interface ApplyMarkChangesInput {
   changes: readonly MarkChange[];
   createdAt: Date;
   source: MarkSource;
+  /** The Telegram update carrying this Scoring action, which orders it. */
+  updateId: number;
 }
 
 export interface ApplyMarkChangesResult {
   /** Grants spent by this call. */
   added: number;
-  /** Marks taken back inside the Undo window by this call. */
+  /**
+   * Removals this call recorded: a Mark taken back inside the Undo window, or a
+   * tombstone left where there was nothing to take back, which holds the slot
+   * against an addition still to be handled.
+   */
   undone: number;
   /** Changes that did nothing: the grant was already spent, or already gone. */
   refused: number;
@@ -70,20 +72,44 @@ export async function applyMarkChanges(
   return { added, undone, refused };
 }
 
+/** The Mark's primary key: at most one Mark per Chat, Actor, Message, and slot. */
+const MARK_SLOT = [
+  marks.chatId,
+  marks.actorId,
+  marks.messageId,
+  marks.slot,
+] as const;
+
+/**
+ * Spend the grant. The primary key refuses a slot that is already held, so no
+ * read is needed. A slot holding a tombstone is free again, but only for an
+ * addition that is not older than the removal that left it — that is what makes
+ * an addition handled after its own removal lose rather than resurrect the Mark.
+ */
 async function addMark(
   db: AppDatabase,
   input: ApplyMarkChangesInput,
   type: MarkType,
 ): Promise<number> {
+  const values = {
+    ...input.identity,
+    type,
+    createdAt: input.createdAt,
+    source: input.source,
+    updateId: input.updateId,
+  };
+
   const inserted = await db
     .insert(marks)
-    .values({
-      ...input.identity,
-      type,
-      createdAt: input.createdAt,
-      source: input.source,
+    .values(values)
+    .onConflictDoUpdate({
+      target: [...MARK_SLOT],
+      set: { ...values, undoneAt: null },
+      setWhere: and(
+        isNotNull(marks.undoneAt),
+        lte(marks.updateId, input.updateId),
+      ),
     })
-    .onConflictDoNothing()
     .returning();
 
   return inserted.length;
@@ -99,24 +125,38 @@ async function undoMark(
   input: ApplyMarkChangesInput,
   type: MarkType,
 ): Promise<number> {
+  // Telegram timestamps are whole seconds and the bound is inclusive, so the
+  // window a Member actually gets is five to six seconds of wall clock.
   const undoableAfter = new Date(
     input.createdAt.getTime() - MARK_UNDO_WINDOW_MS,
   );
 
-  const deleted = await db
-    .delete(marks)
-    .where(
-      and(
-        eq(marks.chatId, input.identity.chatId),
-        eq(marks.actorId, input.identity.actorId),
-        eq(marks.messageId, input.identity.messageId),
-        eq(marks.slot, markSlotForType(type)),
-        eq(marks.type, type),
+  // Writing a tombstone rather than deleting the row is what orders this removal
+  // against its own addition: an upsert waits for a conflicting uncommitted
+  // insert, where a delete would simply not see it.
+  const touched = await db
+    .insert(marks)
+    .values({
+      ...input.identity,
+      type,
+      createdAt: input.createdAt,
+      source: "reaction",
+      updateId: input.updateId,
+      undoneAt: input.createdAt,
+    })
+    .onConflictDoUpdate({
+      target: [...MARK_SLOT],
+      set: { undoneAt: input.createdAt, updateId: input.updateId },
+      setWhere: and(
+        isNull(marks.undoneAt),
         eq(marks.source, "reaction"),
         gte(marks.createdAt, undoableAfter),
+        // Marks predating `update_id` are long past their Undo window; treat a
+        // missing id as "older than anything" rather than refusing the removal.
+        or(isNull(marks.updateId), lte(marks.updateId, input.updateId)),
       ),
-    )
+    })
     .returning();
 
-  return deleted.length;
+  return touched.length;
 }

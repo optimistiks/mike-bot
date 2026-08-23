@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isNull } from "drizzle-orm";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import type { AppDatabase } from "@/lib/db/runtime";
@@ -38,27 +39,36 @@ describe("applyMarkChanges", () => {
       messageDate: Math.floor(markedAt.getTime() / 1_000),
     });
 
+    let updateId = 0;
     const apply = (
-      input: Omit<ApplyMarkChangesInput, "identity" | "createdAt">,
+      input: Omit<ApplyMarkChangesInput, "identity" | "createdAt" | "updateId">,
       createdAt = markedAt,
-    ) =>
-      pglite.db.transaction((transaction) =>
+    ) => {
+      // Every Scoring action arrives on its own update, in the order applied.
+      updateId += 1;
+      return pglite.db.transaction((transaction) =>
         applyMarkChanges(transaction as unknown as AppDatabase, {
           ...input,
           identity,
           createdAt,
+          updateId,
         }),
       );
+    };
 
     const react = (
       changes: ApplyMarkChangesInput["changes"],
       createdAt = markedAt,
     ) => apply({ changes, source: "reaction" }, createdAt);
 
-    const storedTypes = async () =>
-      (await pglite.db.select().from(marks)).map((row) => row.type);
+    // An undone Scoring reaction leaves a tombstone behind, so "what is stored"
+    // and "what still holds a slot" are different questions.
+    const liveTypes = async () =>
+      (await pglite.db.select().from(marks).where(isNull(marks.undoneAt))).map(
+        (row) => row.type,
+      );
 
-    return { ...pglite, apply, react, storedTypes };
+    return { ...pglite, apply, react, liveTypes };
   }
 
   it("spends the karma grant once, whichever way it is spent", async () => {
@@ -80,7 +90,7 @@ describe("applyMarkChanges", () => {
         }),
       ).resolves.toEqual(NOTHING_HAPPENED);
 
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.plus"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -142,12 +152,12 @@ describe("applyMarkChanges", () => {
           later(MARK_UNDO_WINDOW_MS),
         ),
       ).resolves.toEqual({ added: 0, undone: 1, refused: 0 });
-      await expect(pglite.storedTypes()).resolves.toEqual([]);
+      await expect(pglite.liveTypes()).resolves.toEqual([]);
 
       await expect(
         pglite.react([{ action: "add", type: "karma.minus" }], later(6_000)),
       ).resolves.toEqual({ added: 1, undone: 0, refused: 0 });
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.minus"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -164,7 +174,7 @@ describe("applyMarkChanges", () => {
           later(MARK_UNDO_WINDOW_MS + 1),
         ),
       ).resolves.toEqual(NOTHING_HAPPENED);
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.plus"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -184,7 +194,7 @@ describe("applyMarkChanges", () => {
         undone: 1,
         refused: 0,
       });
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.minus"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -197,7 +207,7 @@ describe("applyMarkChanges", () => {
         undone: 0,
         refused: 2,
       });
-      await expect(late.storedTypes()).resolves.toEqual(["karma.plus"]);
+      await expect(late.liveTypes()).resolves.toEqual(["karma.plus"]);
     } finally {
       await closePgliteDb(late);
     }
@@ -221,7 +231,7 @@ describe("applyMarkChanges", () => {
         pglite.react([{ action: "remove", type: "karma.minus" }], later(2_000)),
       ).resolves.toEqual(NOTHING_HAPPENED);
 
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.minus"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -238,7 +248,7 @@ describe("applyMarkChanges", () => {
       ]);
 
       expect(results.reduce((sum, result) => sum + result.added, 0)).toBe(1);
-      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
+      await expect(pglite.liveTypes()).resolves.toEqual(["karma.plus"]);
     } finally {
       await closePgliteDb(pglite);
     }

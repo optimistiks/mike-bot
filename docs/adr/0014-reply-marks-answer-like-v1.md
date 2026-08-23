@@ -7,3 +7,5 @@ So the bot now deletes the Scoring reply and replies to the marked Message with 
 This restores v1's requirement that the bot hold `can_delete_messages` in the group. Without it every Scoring reply stays put and gets answered anyway, which is noisier than either design — the deploy check is that the bot is an administrator, not merely a member.
 
 Everything ADR-0002 decided about the two inputs themselves still holds: reactions and replies produce the same Events, reply Marks remain permanent, and counts are still never announced in the Chat.
+
+Committing before the Telegram calls does leave one gap: if the invocation dies between the commit and the calls, Telegram sees no answer and redelivers, `processed_updates` recognises the update as handled, and the announcement is lost for good with the bare `+` still in the transcript. The Mark is safe, which is the trade this ADR chose, and the window is a crash away rather than an error away. Closing it would mean recording the pending answer alongside the claim and replaying it on the retry — worth doing if it is ever observed, not before.
