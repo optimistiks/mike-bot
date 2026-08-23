@@ -40,7 +40,6 @@ vi.mock("next/link", async () => {
     // the card's own handlers still run.
     default: (props: { href: string; children?: React.ReactNode }) => {
       const attributes: Record<string, unknown> = { ...props };
-      delete attributes.transitionTypes;
       delete attributes.children;
       return createElement("a", attributes, props.children);
     },

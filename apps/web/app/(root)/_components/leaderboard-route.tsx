@@ -112,7 +112,7 @@ export function LeaderboardRoute({
   const { launch, platform } = useTelegramPlatform();
 
   return (
-    <DirectionalTransition>
+    <DirectionalTransition name="page-leaderboard">
       {launch === null ? (
         <ArcadeLoading />
       ) : launch.kind === "outside-telegram" ? (

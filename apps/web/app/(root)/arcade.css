@@ -91,29 +91,58 @@
   }
 }
 
-::view-transition-old(.nav-forward) {
+/*
+ * Page transitions, selected by page name and by a direction class on the root.
+ *
+ * Both halves are deliberate. The names (`page-chats`, `page-leaderboard`) come
+ * from `DirectionalTransition`, and the direction from `markNavDirection`; see
+ * `_lib/nav-direction.ts` for why neither may be a `view-transition-class` — the
+ * Telegram WebViews are older than that feature, and a class that never matches
+ * drops the whole animation back to the user agent's cross-fade.
+ *
+ * Each direction names both of its ends, because which page is leaving is what
+ * decides which way it slides. The leaving page fades out over
+ * `--duration-exit`; the arriving one only starts fading in once that is done,
+ * so the two are never both half-visible.
+ */
+html.nav-forward::view-transition-old(page-chats) {
   --slide-offset: -60px;
   animation:
     var(--duration-exit) ease-in both fade reverse,
     var(--duration-move) ease-in-out both slide reverse;
 }
-::view-transition-new(.nav-forward) {
+html.nav-forward::view-transition-new(page-leaderboard) {
   --slide-offset: 60px;
   animation:
     var(--duration-enter) ease-out var(--duration-exit) both fade,
     var(--duration-move) ease-in-out both slide;
 }
-::view-transition-old(.nav-back) {
+html.nav-back::view-transition-old(page-leaderboard) {
   --slide-offset: 60px;
   animation:
     var(--duration-exit) ease-in both fade reverse,
     var(--duration-move) ease-in-out both slide reverse;
 }
-::view-transition-new(.nav-back) {
+html.nav-back::view-transition-new(page-chats) {
   --slide-offset: -60px;
   animation:
     var(--duration-enter) ease-out var(--duration-exit) both fade,
     var(--duration-move) ease-in-out both slide;
+}
+
+/*
+ * A navigation nobody marked is a Season change: the same page name at both
+ * ends, so the browser would pair the two snapshots and cross-fade them. That
+ * change is `season-glitch.tsx`'s to narrate, so hold both halves still and let
+ * the new page simply be there.
+ */
+html:not(.nav-forward):not(.nav-back)::view-transition-group(page-chats),
+html:not(.nav-forward):not(.nav-back)::view-transition-group(page-leaderboard),
+html:not(.nav-forward):not(.nav-back)::view-transition-old(page-chats),
+html:not(.nav-forward):not(.nav-back)::view-transition-old(page-leaderboard),
+html:not(.nav-forward):not(.nav-back)::view-transition-new(page-chats),
+html:not(.nav-forward):not(.nav-back)::view-transition-new(page-leaderboard) {
+  animation: none;
 }
 
 .arcade {

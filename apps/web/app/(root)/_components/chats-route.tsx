@@ -61,7 +61,7 @@ export function ChatsRoute() {
   const { launch, platform } = useTelegramPlatform();
 
   return (
-    <DirectionalTransition>
+    <DirectionalTransition name="page-chats">
       {launch === null ? (
         <ArcadeLoading />
       ) : launch.kind === "outside-telegram" ? (

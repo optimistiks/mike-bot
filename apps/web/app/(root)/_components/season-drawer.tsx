@@ -16,6 +16,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/8bit/drawer";
 
+import { clearNavDirection } from "../_lib/nav-direction";
 import { leaderboardHref, periodLabel } from "../_lib/periods";
 import { leaderboardOptions } from "../_lib/queries";
 import { SeasonPicker } from "./season-picker";
@@ -90,6 +91,7 @@ export function SeasonDrawer({
                   leaderboardOptions(platform, chatId, chosen),
                 );
               }
+              clearNavDirection();
               router.replace(leaderboardHref(chatId, chosen));
             }}
           />

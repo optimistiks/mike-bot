@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { Item, ItemContent, ItemMedia } from "@/components/ui/8bit/item";
 
 import type { MiniAppChat } from "../_lib/chat";
+import { markNavDirection } from "../_lib/nav-direction";
 import { currentPeriod, leaderboardHref } from "../_lib/periods";
 import { leaderboardOptions, periodsOptions } from "../_lib/queries";
 import { ChatMorph } from "./chat-morph";
@@ -33,10 +34,10 @@ export function ChatCard({ chat }: { chat: MiniAppChat }) {
         render={
           <Link
             href={href}
-            transitionTypes={["nav-forward"]}
             onPointerEnter={prefetch}
             onFocus={prefetch}
             onClick={() => {
+              markNavDirection("nav-forward");
               prefetch();
               hapticImpact();
             }}

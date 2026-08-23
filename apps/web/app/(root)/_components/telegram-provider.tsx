@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import { markNavDirection } from "../_lib/nav-direction";
 import {
   initializeTelegramPlatform,
   type MiniAppLaunch,
@@ -57,7 +58,8 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       backInterceptor.current();
       return;
     }
-    router.replace("/chats", { transitionTypes: ["nav-back"] });
+    markNavDirection("nav-back");
+    router.replace("/chats");
   }, [router]);
 
   const interceptBack = useCallback((handler: VoidFunction) => {
