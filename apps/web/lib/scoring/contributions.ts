@@ -1,4 +1,4 @@
-import type { EventType } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 
 import type { BucketContributions } from "./types";
 
@@ -10,7 +10,7 @@ const ZERO: BucketContributions = {
   humorGiven: 0,
 };
 
-const CONTRIBUTIONS: Record<EventType, BucketContributions> = {
+const CONTRIBUTIONS: Record<MarkType, BucketContributions> = {
   "karma.plus": {
     ...ZERO,
     karmaReceived: 1,
@@ -28,6 +28,6 @@ const CONTRIBUTIONS: Record<EventType, BucketContributions> = {
   },
 };
 
-export function eventTypeToContributions(type: EventType): BucketContributions {
+export function markTypeToContributions(type: MarkType): BucketContributions {
   return CONTRIBUTIONS[type];
 }

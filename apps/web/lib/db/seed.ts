@@ -1,7 +1,6 @@
-import { sql } from "drizzle-orm";
 import { reset, seed } from "drizzle-seed";
 
-import type { EventType } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 import { MOSCOW_UTC_OFFSET_HOURS } from "@/lib/scoring";
 
 import type { AppDatabase } from "./runtime";
@@ -14,7 +13,7 @@ import {
 import {
   chats,
   displayIdentities,
-  events,
+  marks,
   messageAuthors,
   registrations,
   schema,
@@ -60,13 +59,12 @@ const CHATS = [
   { chatId: SECONDARY_FIXTURE_CHAT_ID, title: "Ночная смена" },
 ] as const;
 
-const FIXTURE_EVENTS: readonly {
-  type: EventType;
+const FIXTURE_MARKS: readonly {
+  type: MarkType;
   actorId: number;
   subjectId: number;
   messageId: number;
   seasonOffset: number;
-  reversesFixtureIndex?: number;
 }[] = [
   {
     type: "karma.plus",
@@ -102,21 +100,6 @@ const FIXTURE_EVENTS: readonly {
     subjectId: 102,
     messageId: 1_005,
     seasonOffset: 0,
-  },
-  {
-    type: "karma.plus",
-    actorId: 101,
-    subjectId: UNREGISTERED_PERSONA_ID,
-    messageId: 1_006,
-    seasonOffset: 0,
-  },
-  {
-    type: "karma.plus",
-    actorId: 101,
-    subjectId: UNREGISTERED_PERSONA_ID,
-    messageId: 1_006,
-    seasonOffset: 0,
-    reversesFixtureIndex: 5,
   },
   {
     type: "karma.plus",
@@ -192,47 +175,31 @@ async function seedRegistrations(db: AppDatabase): Promise<void> {
   }
 }
 
-async function seedEvents(db: AppDatabase, now: Date): Promise<void> {
-  const insertedIds: number[] = [];
+async function seedMarks(db: AppDatabase, now: Date): Promise<void> {
+  for (const mark of FIXTURE_MARKS) {
+    const messageDate = moscowSeasonStart(now, mark.seasonOffset);
 
-  for (const [index, event] of FIXTURE_EVENTS.entries()) {
-    const messageDate = moscowSeasonStart(now, event.seasonOffset);
-    const reversesEventId =
-      event.reversesFixtureIndex === undefined
-        ? null
-        : insertedIds[event.reversesFixtureIndex];
-    const [inserted] = await db
-      .insert(events)
-      .values({
-        id: index + 1,
-        type: event.type,
-        chatId: PRIMARY_FIXTURE_CHAT_ID,
-        actorId: event.actorId,
-        subjectId: event.subjectId,
-        messageId: event.messageId,
-        createdAt: messageDate,
-        reversible: reversesEventId === null,
-        reversesEventId,
-      })
-      .returning();
-
-    insertedIds.push(inserted.id);
+    await db.insert(marks).values({
+      type: mark.type,
+      chatId: PRIMARY_FIXTURE_CHAT_ID,
+      actorId: mark.actorId,
+      subjectId: mark.subjectId,
+      messageId: mark.messageId,
+      createdAt: messageDate,
+      source: "reaction",
+    });
 
     await db
       .insert(messageAuthors)
       .values({
         chatId: PRIMARY_FIXTURE_CHAT_ID,
-        messageId: event.messageId,
-        authorId: event.subjectId,
+        messageId: mark.messageId,
+        authorId: mark.subjectId,
         authorIsBot: false,
         messageDate: Math.floor(messageDate.getTime() / 1000),
       })
       .onConflictDoNothing();
   }
-
-  await db.execute(
-    sql`SELECT setval(pg_get_serial_sequence('events', 'id'), (SELECT max(id) FROM events))`,
-  );
 }
 
 export async function resetAndSeedDatabase(
@@ -245,5 +212,5 @@ export async function resetAndSeedDatabase(
     .values(CHATS.map((chat) => ({ ...chat, metadataCheckedAt: now })));
   await seedDisplayIdentities(db);
   await seedRegistrations(db);
-  await seedEvents(db, now);
+  await seedMarks(db, now);
 }

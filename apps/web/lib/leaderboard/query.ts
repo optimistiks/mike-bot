@@ -1,8 +1,8 @@
 import { and, eq, gte, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
-import { eventTypeSchema } from "@/lib/domain/event";
+import { displayIdentities, marks, messageAuthors } from "@/lib/db/schema";
+import { markTypeSchema } from "@/lib/domain/mark";
 import {
   aggregateLeaderboard,
   creditedSeasonForReaction,
@@ -52,36 +52,35 @@ async function querySeasonLeaderboard(
   const startSeconds = Math.floor(range.start.getTime() / 1000);
   const endSeconds = Math.floor(range.end.getTime() / 1000);
   const closesAt = new Date(range.end.getTime() + SEASON_GRACE_PERIOD_MS);
-  const [eventRows, identityRows] = await Promise.all([
+  const [markRows, identityRows] = await Promise.all([
     db
       .select({
-        type: events.type,
-        actorId: events.actorId,
-        subjectId: events.subjectId,
-        reversesEventId: events.reversesEventId,
+        type: marks.type,
+        actorId: marks.actorId,
+        subjectId: marks.subjectId,
       })
-      .from(events)
+      .from(marks)
       .leftJoin(
         messageAuthors,
         and(
-          eq(events.chatId, messageAuthors.chatId),
-          eq(events.messageId, messageAuthors.messageId),
+          eq(marks.chatId, messageAuthors.chatId),
+          eq(marks.messageId, messageAuthors.messageId),
         ),
       )
       .where(
         and(
-          eq(events.chatId, chatId),
+          eq(marks.chatId, chatId),
           or(
             and(
-              isNotNull(events.legacyId),
-              gte(events.createdAt, range.start),
-              lt(events.createdAt, range.end),
+              isNotNull(marks.legacyId),
+              gte(marks.createdAt, range.start),
+              lt(marks.createdAt, range.end),
             ),
             and(
-              isNull(events.legacyId),
+              isNull(marks.legacyId),
               gte(messageAuthors.messageDate, startSeconds),
               lt(messageAuthors.messageDate, endSeconds),
-              lt(events.createdAt, closesAt),
+              lt(marks.createdAt, closesAt),
             ),
           ),
         ),
@@ -96,11 +95,10 @@ async function querySeasonLeaderboard(
     identityRows.map((identity) => [identity.userId, identity.displayName]),
   );
   const aggregated = aggregateLeaderboard(
-    eventRows.map((row) => ({
-      type: eventTypeSchema.parse(row.type),
+    markRows.map((row) => ({
+      type: markTypeSchema.parse(row.type),
       actorId: row.actorId,
       subjectId: row.subjectId,
-      isReversal: row.reversesEventId !== null,
       season,
     })),
     season,
@@ -175,19 +173,19 @@ export async function queryAvailableSeasons(
 ): Promise<Season[]> {
   const rows = await db
     .select({
-      legacyId: events.legacyId,
-      createdAt: events.createdAt,
+      legacyId: marks.legacyId,
+      createdAt: marks.createdAt,
       messageDate: messageAuthors.messageDate,
     })
-    .from(events)
+    .from(marks)
     .leftJoin(
       messageAuthors,
       and(
-        eq(events.chatId, messageAuthors.chatId),
-        eq(events.messageId, messageAuthors.messageId),
+        eq(marks.chatId, messageAuthors.chatId),
+        eq(marks.messageId, messageAuthors.messageId),
       ),
     )
-    .where(eq(events.chatId, chatId));
+    .where(eq(marks.chatId, chatId));
 
   const seasons = new Map<string, Season>();
   for (const row of rows) {

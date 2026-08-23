@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
-import { displayIdentities, events, registrations } from "@/lib/db/schema";
+import { displayIdentities, marks, registrations } from "@/lib/db/schema";
 import {
   PRIMARY_FIXTURE_CHAT_ID,
   REGISTERED_PERSONA_ID,
@@ -65,7 +65,7 @@ describe("GET /api/leaderboard", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(db.select().from(events)).resolves.toEqual([]);
+    await expect(db.select().from(marks)).resolves.toEqual([]);
     await expect(db.select().from(displayIdentities)).resolves.toEqual([]);
     await expect(db.select().from(registrations)).resolves.toEqual([]);
   });

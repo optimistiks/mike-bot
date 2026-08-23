@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { EventType } from "@/lib/domain/event";
+import type { MarkSource, MarkType } from "@/lib/domain/mark";
 
 const v1LolTypeSchema = z.enum(["plus", "minus", "lol"]);
 
@@ -21,15 +21,14 @@ export const v1LolRowSchema = z.object({
 
 export type V1LolRow = z.infer<typeof v1LolRowSchema>;
 
-export interface ImportedEventRow {
-  type: EventType;
+export interface ImportedMarkRow {
+  type: MarkType;
   chatId: number;
   actorId: number;
   subjectId: number;
   messageId: number;
   createdAt: Date;
-  reversible: false;
-  reversesEventId: null;
+  source: Extract<MarkSource, "reply">;
   legacyId: string;
 }
 
@@ -40,7 +39,7 @@ export interface ImportedDisplayIdentityRow {
 }
 
 export interface ConvertedV1Row {
-  event: ImportedEventRow;
+  mark: ImportedMarkRow;
   displayIdentities: ImportedDisplayIdentityRow[];
 }
 
@@ -48,7 +47,7 @@ export function v1DisplayName(user: { id: number; username?: string }): string {
   return user.username ? `@${user.username}` : `User ${String(user.id)}`;
 }
 
-export function convertV1LolType(lolType: V1LolRow["lolType"]): EventType {
+export function convertV1LolType(lolType: V1LolRow["lolType"]): MarkType {
   switch (lolType) {
     case "plus":
       return "karma.plus";
@@ -63,15 +62,14 @@ export function convertV1Row(row: V1LolRow): ConvertedV1Row {
   const chatId = row.chatId;
 
   return {
-    event: {
+    mark: {
       type: convertV1LolType(row.lolType),
       chatId,
       actorId: row.fromUser.id,
       subjectId: row.toUser.id,
       messageId: row.toMessageId,
       createdAt: new Date(row.createdAt),
-      reversible: false,
-      reversesEventId: null,
+      source: "reply",
       legacyId: row.id,
     },
     displayIdentities: [

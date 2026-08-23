@@ -118,7 +118,7 @@ vercel env pull .env.local
 pnpm db:migrate
 ```
 
-Tables: `chats`, `events`, `display_identities`, `registrations`,
+Tables: `chats`, `marks`, `display_identities`, `registrations`,
 `message_authors`, `processed_updates`, `registration_messages`. The `chats`
 table holds the latest Telegram title and photo references; it does not store
 image bytes.
@@ -198,11 +198,13 @@ Do **not** add AWS keys to Vercel. Create a short-lived IAM user, import, then d
 
 ```bash
 pnpm import:dump          # writes tmp/import-dump/*.json from the database
-jq 'length' tmp/import-dump/events.json
+jq 'length' tmp/import-dump/marks.json
 jq '.[0].leaderboard.sections[].title' tmp/import-dump/leaderboards.json
 ```
 
-Malformed source rows and Message-author conflicts are logged and skipped during step 2, so the SQL file only ever contains rows that convert cleanly.
+Malformed source rows, Message-author conflicts, and v1 rows that would spend an
+already-spent grant are logged and skipped during step 2, so the SQL file only
+ever contains rows that convert cleanly and obey the Mark model.
 
 ### 6. Register the Telegram webhook
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { events } from "./schema";
+import { marks } from "./schema";
 import { getRuntimeDb, resetRuntimeDbForTests } from "./runtime";
 
 describe("getRuntimeDb", () => {
@@ -14,7 +14,7 @@ describe("getRuntimeDb", () => {
 
     const db = await getRuntimeDb();
 
-    await expect(db.select().from(events)).resolves.toEqual([]);
+    await expect(db.select().from(marks)).resolves.toEqual([]);
   });
 
   it("fails clearly when production has no DATABASE_URL", async () => {

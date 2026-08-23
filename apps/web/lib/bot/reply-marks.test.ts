@@ -3,13 +3,13 @@ import type { Context } from "grammy";
 import type { Update, UserFromGetMe } from "grammy/types";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
-import { events, messageAuthors } from "@/lib/db/schema";
+import { marks, messageAuthors } from "@/lib/db/schema";
 
 import { createBot } from "./bot";
 import {
   acknowledgementText,
   handleReplyMark,
-  replyTextToEventType,
+  replyTextToMarkType,
 } from "./reply-marks";
 
 const CHAT_ID = -100_123;
@@ -84,7 +84,7 @@ describe("reply Marks", () => {
     ["ЛоЛ", "humor.add"],
     ["++", null],
   ])("maps exact reply %j to %s", (text, expected) => {
-    expect(replyTextToEventType(text)).toBe(expected);
+    expect(replyTextToMarkType(text)).toBe(expected);
   });
 
   it("names the Actor without mentioning them", () => {
@@ -118,11 +118,11 @@ describe("reply Marks", () => {
         text: "➕ (Actor)",
       });
       await expect(handleReplyMark(pglite.db, ctx)).resolves.toBeNull();
-      await expect(pglite.db.select().from(events)).resolves.toEqual([
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([
         expect.objectContaining({
           type: "karma.plus",
-          reversible: false,
-          reversesEventId: null,
+          slot: "karma",
+          source: "reply",
         }),
       ]);
     } finally {
@@ -130,7 +130,7 @@ describe("reply Marks", () => {
     }
   });
 
-  it("allows permanent plus and minus replies to cancel in scoring", async () => {
+  it("refuses a minus reply once the plus reply spent the karma grant", async () => {
     const pglite = await createPgliteDb();
     await pglite.db.insert(messageAuthors).values({
       chatId: CHAT_ID,
@@ -146,12 +146,13 @@ describe("reply Marks", () => {
       ).resolves.toEqual({ replyToMessageId: 30, text: "➕ (Actor)" });
       await expect(
         handleReplyMark(pglite.db, context({ text: "-" })),
-      ).resolves.toEqual({ replyToMessageId: 30, text: "➖ (Actor)" });
-      const rows = await pglite.db.select().from(events);
-      expect(rows.map((row) => row.type)).toEqual([
-        "karma.plus",
-        "karma.minus",
-      ]);
+      ).resolves.toBeNull();
+      await expect(
+        handleReplyMark(pglite.db, context({ text: "лол" })),
+      ).resolves.toEqual({ replyToMessageId: 30, text: "лол (Actor)" });
+
+      const rows = await pglite.db.select().from(marks);
+      expect(rows.map((row) => row.type)).toEqual(["karma.plus", "humor.add"]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -210,7 +211,7 @@ describe("reply Marks", () => {
           }),
         ]),
       );
-      await expect(pglite.db.select().from(events)).resolves.toHaveLength(1);
+      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -225,7 +226,7 @@ describe("reply Marks", () => {
     const pglite = await createPgliteDb();
     try {
       await expect(handleReplyMark(pglite.db, ctx)).resolves.toBeNull();
-      await expect(pglite.db.select().from(events)).resolves.toEqual([]);
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }

@@ -63,8 +63,9 @@ async function main(): Promise<void> {
   console.log(`  rows processed: ${String(stats.rowsProcessed)}`);
   console.log(`  display identities: ${String(stats.displayIdentities)}`);
   console.log(`  messages: ${String(stats.messages)}`);
-  console.log(`  events: ${String(stats.events)}`);
+  console.log(`  marks: ${String(stats.marks)}`);
   console.log(`  skipped messages: ${String(stats.skippedMessages)}`);
+  console.log(`  skipped marks: ${String(stats.skippedMarks)}`);
   console.log(`  statements: ${String(stats.statements)}`);
 }
 

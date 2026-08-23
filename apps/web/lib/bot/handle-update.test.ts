@@ -4,7 +4,7 @@ import type { ReactionType, Update } from "grammy/types";
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import {
   displayIdentities,
-  events,
+  marks,
   messageAuthors,
   processedUpdates,
   registrations,
@@ -139,7 +139,7 @@ describe("telegram webhook integration", () => {
         ),
       );
 
-      const rows = await pglite.db.select().from(events);
+      const rows = await pglite.db.select().from(marks);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         type: "karma.plus",
@@ -163,8 +163,10 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("records reaction removal as an exact reversal and permits re-addition", async () => {
+  it("takes a reaction back inside the Undo window and lets it be re-spent", async () => {
     const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
 
     try {
       await handleTelegramUpdate(
@@ -173,52 +175,125 @@ describe("telegram webhook integration", () => {
       );
       await handleTelegramUpdate(
         pglite.db,
-        reactionUpdate(
-          41,
-          60,
-          { id: 301, first_name: "Alice" },
-          [],
-          [{ type: "emoji", emoji: "👍" }],
-        ),
+        reactionUpdate(41, 60, alice, [], thumbsUp, "2026-08-10T12:00:00.000Z"),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(42, 60, alice, thumbsUp, [], "2026-08-10T12:00:03.000Z"),
+      );
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
+
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(43, 60, alice, [], thumbsUp, "2026-08-10T12:00:10.000Z"),
+      );
+      const rows = await pglite.db.select().from(marks);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        type: "karma.plus",
+        slot: "karma",
+        source: "reaction",
+      });
+
+      // The window has closed on this one, so the removal changes nothing.
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(44, 60, alice, thumbsUp, [], "2026-08-10T12:05:00.000Z"),
+      );
+      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("switches 👍 to 👎 only while the Undo window is open", async () => {
+    const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
+    const thumbsDown: ReactionType[] = [{ type: "emoji", emoji: "👎" }];
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob" }),
+      );
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(50, 61, { id: 201, first_name: "Bob" }),
+      );
+
+      // Telegram delivers a switch as one update: removal, then addition.
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(41, 60, alice, [], thumbsUp, "2026-08-10T12:00:00.000Z"),
       );
       await handleTelegramUpdate(
         pglite.db,
         reactionUpdate(
           42,
           60,
-          { id: 301, first_name: "Alice" },
-          [{ type: "emoji", emoji: "👍" }],
-          [],
+          alice,
+          thumbsUp,
+          thumbsDown,
+          "2026-08-10T12:00:02.000Z",
         ),
+      );
+
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(51, 61, alice, [], thumbsUp, "2026-08-10T12:00:00.000Z"),
       );
       await handleTelegramUpdate(
         pglite.db,
         reactionUpdate(
-          43,
-          60,
-          { id: 301, first_name: "Alice" },
-          [],
-          [{ type: "emoji", emoji: "👍" }],
+          52,
+          61,
+          alice,
+          thumbsUp,
+          thumbsDown,
+          "2026-08-10T12:30:00.000Z",
         ),
       );
 
-      const rows = await pglite.db.select().from(events);
-      expect(rows).toHaveLength(3);
-      expect(rows[0]).toMatchObject({
-        type: "karma.plus",
-        reversible: true,
-        reversesEventId: null,
-      });
-      expect(rows[1]).toMatchObject({
-        type: "karma.plus",
-        reversible: false,
-        reversesEventId: rows[0]?.id,
-      });
-      expect(rows[2]).toMatchObject({
-        type: "karma.plus",
-        reversible: true,
-        reversesEventId: null,
-      });
+      const rows = await pglite.db.select().from(marks);
+      expect(rows.map((row) => [row.messageId, row.type]).toSorted()).toEqual([
+        [60, "karma.minus"],
+        [61, "karma.plus"],
+      ]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("does not resurrect an undone Mark when its update is redelivered", async () => {
+    const pglite = await createPgliteDb();
+    const alice = { id: 301, first_name: "Alice" };
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
+
+    try {
+      await handleTelegramUpdate(
+        pglite.db,
+        messageUpdate(40, 60, { id: 201, first_name: "Bob" }),
+      );
+      const addition = reactionUpdate(
+        41,
+        60,
+        alice,
+        [],
+        thumbsUp,
+        "2026-08-10T12:00:00.000Z",
+      );
+
+      await handleTelegramUpdate(pglite.db, addition);
+      await handleTelegramUpdate(
+        pglite.db,
+        reactionUpdate(42, 60, alice, thumbsUp, [], "2026-08-10T12:00:02.000Z"),
+      );
+      await expect(handleTelegramUpdate(pglite.db, addition)).resolves.toBe(
+        false,
+      );
+
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -238,8 +313,8 @@ describe("telegram webhook integration", () => {
         handleTelegramUpdate(pglite.db, update),
       ]);
 
-      const eventRows = await pglite.db.select().from(events);
-      expect(eventRows).toHaveLength(0);
+      const markRows = await pglite.db.select().from(marks);
+      expect(markRows).toHaveLength(0);
       await expect(pglite.db.select().from(processedUpdates)).resolves.toEqual([
         { updateId: 99 },
       ]);
@@ -248,7 +323,7 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("skips reaction on uncached message without appending events", async () => {
+  it("skips reaction on uncached message without appending Marks", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -263,7 +338,7 @@ describe("telegram webhook integration", () => {
         ),
       );
 
-      const rows = await pglite.db.select().from(events);
+      const rows = await pglite.db.select().from(marks);
       expect(rows).toHaveLength(0);
     } finally {
       await closePgliteDb(pglite);
@@ -295,7 +370,7 @@ describe("telegram webhook integration", () => {
         ),
       );
 
-      await expect(pglite.db.select().from(events)).resolves.toHaveLength(1);
+      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
       const january = await queryLeaderboard(pglite.db, TEST_CHAT_ID, {
         year: 2026,
         month: 1,
@@ -308,7 +383,7 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("records no Event when the message Season is closed", async () => {
+  it("records no Mark when the message Season is closed", async () => {
     const pglite = await createPgliteDb();
 
     try {
@@ -333,7 +408,7 @@ describe("telegram webhook integration", () => {
         ),
       );
 
-      await expect(pglite.db.select().from(events)).resolves.toEqual([]);
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
       await expect(pglite.db.select().from(processedUpdates)).resolves.toEqual([
         { updateId: 6 },
         { updateId: 7 },
@@ -376,7 +451,7 @@ describe("telegram webhook integration", () => {
       await expect(pglite.db.select().from(displayIdentities)).resolves.toEqual(
         [],
       );
-      await expect(pglite.db.select().from(events)).resolves.toEqual([]);
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -512,7 +587,7 @@ describe("telegram webhook integration", () => {
       );
 
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
-      await expect(pglite.db.select().from(events)).resolves.toEqual([]);
+      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }
@@ -553,7 +628,7 @@ describe("telegram webhook integration", () => {
           [{ type: "emoji", emoji: "👍" }],
         ),
       );
-      await expect(pglite.db.select().from(events)).resolves.toHaveLength(1);
+      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(1);
     } finally {
       await closePgliteDb(pglite);
     }

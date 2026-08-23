@@ -29,7 +29,7 @@ describe("dumpImportResults", () => {
       const files = await dumpImportResults(pglite.db, { outDir });
 
       expect(files).toEqual([
-        `${outDir}/events.json`,
+        `${outDir}/marks.json`,
         `${outDir}/display_identities.json`,
         `${outDir}/messages.json`,
         `${outDir}/leaderboards.json`,
@@ -37,7 +37,7 @@ describe("dumpImportResults", () => {
 
       const { readFile } = await import("node:fs/promises");
       const eventsJson = JSON.parse(
-        await readFile(`${outDir}/events.json`, "utf8"),
+        await readFile(`${outDir}/marks.json`, "utf8"),
       ) as { type: string; legacyId: string | null }[];
       const leaderboardsJson = JSON.parse(
         await readFile(`${outDir}/leaderboards.json`, "utf8"),

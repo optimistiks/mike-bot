@@ -6,23 +6,27 @@ Seasons and years.
 ## Scoring
 
 **Mark**:
-An eligible scoring choice that an Actor applies to a different Member's Message through a Scoring reaction or Scoring reply. The Message's author is the Mark's Subject. At most one Mark of each kind is active for one Chat, Actor, and Message, while historical Events remain unlimited.
-_Avoid_: Vote, rating
+An eligible scoring choice that an Actor applies to a different Member's Message through a Scoring reaction or Scoring reply. The Message's author is the Mark's Subject. A Mark spends a Mark slot, is permanent once the Undo window closes, and cannot be joined by a second Mark in the same slot.
+_Avoid_: Vote, rating, Event
 
-**Active Mark**:
-The latest addition of one Mark kind for a Chat, Actor, and Message that no reversal Event references. Karma plus and Karma minus are independent Active Marks and may coexist.
-_Avoid_: Unique Event, current reaction
+**Mark slot**:
+One of the two grants an Actor holds for every other Member's Message: `karma`, spendable as Karma plus or Karma minus but never both, and `humor`, independent of it. A Mark spends its slot, whichever input placed it.
+_Avoid_: Kind, category, budget
+
+**Undo window**:
+The five seconds after a Scoring reaction's Mark during which removing that reaction deletes the Mark and refunds its slot. Telegram's own timestamps for the two actions decide, not the moment Mike-bot processes them. Once it closes the Mark is permanent, and reaction removal has no effect. Scoring replies never have one.
+_Avoid_: Grace period, cooldown, undo period
 
 **Scoring action**:
 An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scoring reply. Its Telegram timestamp, not the moment Mike-bot processes it, decides whether it is still eligible for the Message's Season.
 _Avoid_: Webhook update, request
 
 **Scoring reaction**:
-One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it reverses the Mark.
+One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it takes the Mark back only inside the Undo window.
 _Avoid_: Emoji, vote
 
 **Scoring reply**:
-An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name — and it cannot be undone.
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name. A reply whose slot is already spent is left in the Chat untouched and unanswered.
 _Avoid_: Legacy reply, command
 
 **Karma plus**:
@@ -38,11 +42,11 @@ A kind of Mark that contributes one point to the Subject's Humor.
 _Avoid_: Lol, joke vote
 
 **Karma**:
-A Member's net total, over one Leaderboard period, of received Karma plus and Karma minus Marks and their reversals.
+A Member's net total, over one Leaderboard period, of received Karma plus and Karma minus Marks.
 _Avoid_: Carma, score, respect
 
 **Humor**:
-A Member's net total, over one Leaderboard period, of received Humor Marks and their reversals.
+A Member's total, over one Leaderboard period, of received Humor Marks.
 _Avoid_: Lol score, humor points
 
 **Actor**:
@@ -53,12 +57,12 @@ _Avoid_: Giver, reactor
 The Member whose message receives the Mark.
 _Avoid_: Recipient, target
 
-**Event**:
-An immutable canonical fact of type `karma.plus`, `karma.minus`, or `humor.add`. An addition stands alone; reversing a Mark appends a same-type reversal Event that names the exact addition it undoes and inverts its scoring contribution. Only Scoring reaction additions are reversible.
-_Avoid_: Mark
+**Mark type**:
+The canonical value a Mark carries: `karma.plus`, `karma.minus`, or `humor.add`. Its Mark slot follows from it.
+_Avoid_: Event type, kind
 
-**Imported Event**:
-An Event reconciled from v1, Mike-bot's retired AWS-hosted predecessor. It is never reversible and keeps its v1 timestamp for Season attribution.
+**Imported Mark**:
+A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew only Scoring replies, so an Imported Mark is one, and is therefore permanent like any other. It keeps its v1 timestamp for Season attribution, which is the only thing that distinguishes it — nothing else in the model treats it specially. v1 allowed a Member to mark one Message repeatedly, so the import admits only the earliest Mark per slot.
 _Avoid_: Legacy row, migration
 
 ## Community and access
@@ -76,8 +80,8 @@ The latest known name used to present a Member within one Chat. Their Telegram p
 _Avoid_: Chat member, username
 
 **Message**:
-The cached Telegram identity, author, bot status, and post time of a message that may receive Marks. Mike-bot stores no Message content, and a Message it never observed cannot be marked by reaction. An imported Message's post time is a best-effort estimate from the earliest Event that marked it.
-_Avoid_: Event, post content
+The cached Telegram identity, author, bot status, and post time of a message that may receive Marks. A Scoring reaction carries neither the author nor the post time, so Mike-bot caches both when it first sees the message; a Message it never observed cannot be marked by reaction. Mike-bot stores no Message content. An imported Message's post time is a best-effort estimate from the earliest Mark on it.
+_Avoid_: Post content
 
 **Registration**:
 A Member's authorization to view one Chat in the Mini App. It begins when the Member invokes the Stats command inside that Chat, and ends when the Member leaves or is removed from the Chat.
@@ -90,11 +94,11 @@ _Avoid_: Signup, invite
 ## Leaderboards
 
 **Season**:
-A calendar month in `Europe/Moscow` to which live Events are credited according to the marked Message's post time. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one has no effect on it. Imported Events are credited by their v1 timestamp instead.
+A calendar month in `Europe/Moscow` to which live Marks are credited according to the marked Message's post time. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one has no effect on it. Imported Marks are credited by their v1 timestamp instead.
 _Avoid_: Rolling window
 
 **Leaderboard period**:
-Either one Season or one calendar year over which a Leaderboard ranks Members. A yearly period combines the Events already credited to its twelve Seasons.
+Either one Season or one calendar year over which a Leaderboard ranks Members. A yearly period combines the Marks already credited to its twelve Seasons.
 _Avoid_: Season when referring to a year, time range
 
 **Current Season**:

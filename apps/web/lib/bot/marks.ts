@@ -1,119 +1,122 @@
-import { and, eq, isNull, notExists, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq, gte } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { events, messageAuthors } from "@/lib/db/schema";
-import type { EventType } from "@/lib/domain/event";
+import { marks } from "@/lib/db/schema";
+import {
+  markSlotForType,
+  type MarkSource,
+  type MarkType,
+} from "@/lib/domain/mark";
+import { MARK_UNDO_WINDOW_MS } from "@/lib/scoring";
 
 export interface MarkIdentity {
   chatId: number;
   actorId: number;
   subjectId: number;
   messageId: number;
-  type: EventType;
 }
 
 export interface MarkChange {
   action: "add" | "remove";
-  type: EventType;
+  type: MarkType;
 }
 
 export interface ApplyMarkChangesInput {
-  identity: Omit<MarkIdentity, "type">;
+  identity: MarkIdentity;
   changes: readonly MarkChange[];
   createdAt: Date;
-  additionsAreReversible: boolean;
+  source: MarkSource;
 }
 
 export interface ApplyMarkChangesResult {
-  additions: number;
-  reversals: number;
-}
-
-async function lockMessage(
-  db: AppDatabase,
-  chatId: number,
-  messageId: number,
-): Promise<void> {
-  await db.execute(sql`
-    select 1
-    from ${messageAuthors}
-    where ${messageAuthors.chatId} = ${chatId}
-      and ${messageAuthors.messageId} = ${messageId}
-    for update
-  `);
-}
-
-async function findActiveAddition(db: AppDatabase, identity: MarkIdentity) {
-  const reversals = alias(events, "mark_reversals");
-  const rows = await db
-    .select({
-      id: events.id,
-      subjectId: events.subjectId,
-      reversible: events.reversible,
-    })
-    .from(events)
-    .where(
-      and(
-        eq(events.chatId, identity.chatId),
-        eq(events.actorId, identity.actorId),
-        eq(events.messageId, identity.messageId),
-        eq(events.type, identity.type),
-        isNull(events.reversesEventId),
-        notExists(
-          db
-            .select({ id: reversals.id })
-            .from(reversals)
-            .where(eq(reversals.reversesEventId, events.id)),
-        ),
-      ),
-    )
-    .orderBy(events.id)
-    .limit(1);
-
-  return rows.at(0);
+  /** Grants spent by this call. */
+  added: number;
+  /** Marks taken back inside the Undo window by this call. */
+  undone: number;
+  /** Changes that did nothing: the grant was already spent, or already gone. */
+  refused: number;
 }
 
 /**
- * Apply a removal-before-addition Mark transition while holding the Message
- * lock. This is the sole active-Mark uniqueness boundary for live inputs.
+ * Apply a removal-before-addition Mark transition.
+ *
+ * Both directions are single statements. Adding relies on the `marks` primary
+ * key to refuse a slot that is already spent, so no read and no row lock is
+ * needed; removing matches the Undo window against Telegram's own timestamps.
  */
 export async function applyMarkChanges(
   db: AppDatabase,
   input: ApplyMarkChangesInput,
 ): Promise<ApplyMarkChangesResult> {
-  await lockMessage(db, input.identity.chatId, input.identity.messageId);
-
-  let additions = 0;
-  let reversals = 0;
+  let added = 0;
+  let undone = 0;
+  let refused = 0;
 
   for (const change of input.changes) {
-    const identity = { ...input.identity, type: change.type };
-    const active = await findActiveAddition(db, identity);
+    const affected =
+      change.action === "add"
+        ? await addMark(db, input, change.type)
+        : await undoMark(db, input, change.type);
 
-    if (change.action === "add") {
-      if (active) continue;
-
-      await db.insert(events).values({
-        ...identity,
-        createdAt: input.createdAt,
-        reversible: input.additionsAreReversible,
-      });
-      additions += 1;
-      continue;
+    if (affected === 0) {
+      refused += 1;
+    } else if (change.action === "add") {
+      added += affected;
+    } else {
+      undone += affected;
     }
-
-    if (!active?.reversible) continue;
-
-    await db.insert(events).values({
-      ...identity,
-      subjectId: active.subjectId,
-      createdAt: input.createdAt,
-      reversible: false,
-      reversesEventId: active.id,
-    });
-    reversals += 1;
   }
 
-  return { additions, reversals };
+  return { added, undone, refused };
+}
+
+async function addMark(
+  db: AppDatabase,
+  input: ApplyMarkChangesInput,
+  type: MarkType,
+): Promise<number> {
+  const inserted = await db
+    .insert(marks)
+    .values({
+      ...input.identity,
+      type,
+      createdAt: input.createdAt,
+      source: input.source,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  return inserted.length;
+}
+
+/**
+ * Take back a Mark the Actor placed by reaction moments ago. The `source` guard
+ * is what stops removing a refused 👎 reaction from deleting the `-` Scoring
+ * reply that already occupies the karma slot.
+ */
+async function undoMark(
+  db: AppDatabase,
+  input: ApplyMarkChangesInput,
+  type: MarkType,
+): Promise<number> {
+  const undoableAfter = new Date(
+    input.createdAt.getTime() - MARK_UNDO_WINDOW_MS,
+  );
+
+  const deleted = await db
+    .delete(marks)
+    .where(
+      and(
+        eq(marks.chatId, input.identity.chatId),
+        eq(marks.actorId, input.identity.actorId),
+        eq(marks.messageId, input.identity.messageId),
+        eq(marks.slot, markSlotForType(type)),
+        eq(marks.type, type),
+        eq(marks.source, "reaction"),
+        gte(marks.createdAt, undoableAfter),
+      ),
+    )
+    .returning();
+
+  return deleted.length;
 }

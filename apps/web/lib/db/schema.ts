@@ -1,5 +1,4 @@
 import {
-  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -7,48 +6,43 @@ import {
   integer,
   pgTable,
   primaryKey,
-  serial,
   text,
   timestamp,
-  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-/** Append-only scoring log, except deterministic v1 reconciliation by legacyId. */
-export const events = pgTable(
-  "events",
+/**
+ * One row per spent grant: at most one Mark per Chat, Actor, Message, and slot,
+ * enforced by the primary key rather than by application code (ADR-0015).
+ */
+export const marks = pgTable(
+  "marks",
   {
-    id: serial("id").primaryKey(),
-    type: text("type").notNull(),
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     actorId: bigint("actor_id", { mode: "number" }).notNull(),
     subjectId: bigint("subject_id", { mode: "number" }).notNull(),
     messageId: bigint("message_id", { mode: "number" }).notNull(),
+    type: text("type").notNull(),
+    slot: text("slot")
+      .notNull()
+      .generatedAlwaysAs(
+        sql`case when "type" = 'humor.add' then 'humor' else 'karma' end`,
+      ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-    reversible: boolean("reversible").notNull().default(false),
-    reversesEventId: integer("reverses_event_id").references(
-      (): AnyPgColumn => events.id,
-    ),
+    source: text("source").notNull(),
     legacyId: uuid("legacy_id").unique(),
   },
   (table) => [
-    index("events_chat_id_created_at_idx").on(table.chatId, table.createdAt),
-    index("events_active_mark_lookup_idx").on(
-      table.chatId,
-      table.actorId,
-      table.messageId,
-      table.type,
-    ),
-    uniqueIndex("events_reverses_event_id_unique").on(table.reversesEventId),
+    primaryKey({
+      columns: [table.chatId, table.actorId, table.messageId, table.slot],
+    }),
+    index("marks_chat_id_created_at_idx").on(table.chatId, table.createdAt),
     check(
-      "events_type_check",
+      "marks_type_check",
       sql`${table.type} in ('karma.plus', 'karma.minus', 'humor.add')`,
     ),
-    check(
-      "events_reversal_not_self_check",
-      sql`${table.reversesEventId} is null or ${table.reversesEventId} <> ${table.id}`,
-    ),
+    check("marks_source_check", sql`${table.source} in ('reaction', 'reply')`),
   ],
 );
 
@@ -102,7 +96,7 @@ export const processedUpdates = pgTable("processed_updates", {
 
 export const schema = {
   chats,
-  events,
+  marks,
   displayIdentities,
   registrations,
   messageAuthors,

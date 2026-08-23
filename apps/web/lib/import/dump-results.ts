@@ -3,7 +3,7 @@ import path from "node:path";
 import { and, eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import { displayIdentities, events, messageAuthors } from "@/lib/db/schema";
+import { displayIdentities, marks, messageAuthors } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 import { creditedSeasonForReaction, seasonForDate } from "@/lib/scoring/season";
 
@@ -33,14 +33,14 @@ export async function dumpImportResults(
   db: AppDatabase,
   options: DumpImportResultsOptions,
 ): Promise<string[]> {
-  const eventRows = await db
-    .select({ event: events, messageDate: messageAuthors.messageDate })
-    .from(events)
+  const markRows = await db
+    .select({ mark: marks, messageDate: messageAuthors.messageDate })
+    .from(marks)
     .leftJoin(
       messageAuthors,
       and(
-        eq(events.chatId, messageAuthors.chatId),
-        eq(events.messageId, messageAuthors.messageId),
+        eq(marks.chatId, messageAuthors.chatId),
+        eq(marks.messageId, messageAuthors.messageId),
       ),
     );
   const identityRows = await db.select().from(displayIdentities);
@@ -48,15 +48,15 @@ export async function dumpImportResults(
 
   await writeJsonFile(
     options.outDir,
-    "events.json",
-    eventRows.map((row) => row.event),
+    "marks.json",
+    markRows.map((row) => row.mark),
   );
   await writeJsonFile(options.outDir, "display_identities.json", identityRows);
   await writeJsonFile(options.outDir, "messages.json", messageRows);
 
   const chatIds =
     options.chatIds ??
-    [...new Set(eventRows.map((row) => row.event.chatId))].toSorted(
+    [...new Set(markRows.map((row) => row.mark.chatId))].toSorted(
       (a, b) => a - b,
     );
 
@@ -69,19 +69,19 @@ export async function dumpImportResults(
   for (const chatId of chatIds) {
     const seasons = new Map<string, { year: number; month: number }>();
 
-    for (const row of eventRows) {
-      if (row.event.chatId !== chatId) {
+    for (const row of markRows) {
+      if (row.mark.chatId !== chatId) {
         continue;
       }
 
       const season =
-        row.event.legacyId !== null
-          ? seasonForDate(row.event.createdAt)
+        row.mark.legacyId !== null
+          ? seasonForDate(row.mark.createdAt)
           : row.messageDate === null
             ? null
             : creditedSeasonForReaction(
                 new Date(row.messageDate * 1000),
-                row.event.createdAt,
+                row.mark.createdAt,
               );
       if (season === null) {
         continue;
@@ -101,7 +101,7 @@ export async function dumpImportResults(
   await writeJsonFile(options.outDir, "leaderboards.json", leaderboards);
 
   return [
-    path.join(options.outDir, "events.json"),
+    path.join(options.outDir, "marks.json"),
     path.join(options.outDir, "display_identities.json"),
     path.join(options.outDir, "messages.json"),
     path.join(options.outDir, "leaderboards.json"),

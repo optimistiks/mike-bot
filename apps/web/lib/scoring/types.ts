@@ -1,15 +1,11 @@
-import type { EventType } from "@/lib/domain/event";
-import { EVENT_TYPES as DOMAIN_EVENT_TYPES } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 
 import type { Season } from "./season";
 
-export const EVENT_TYPES = DOMAIN_EVENT_TYPES;
-
-export interface ScoringEvent {
-  type: EventType;
+export interface ScoringMark {
+  type: MarkType;
   actorId: number;
   subjectId: number;
-  isReversal: boolean;
   season: Season;
 }
 

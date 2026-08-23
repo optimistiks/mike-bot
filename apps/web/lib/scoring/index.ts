@@ -1,9 +1,10 @@
 export { aggregateLeaderboard } from "./aggregate";
-export { eventTypeToContributions } from "./contributions";
+export { markTypeToContributions } from "./contributions";
 export {
   creditedSeasonForReaction,
   formatSeasonLabel,
   getCurrentSeason,
+  MARK_UNDO_WINDOW_MS,
   MOSCOW_UTC_OFFSET_HOURS,
   SEASON_GRACE_PERIOD_MS,
   seasonDateRange,
@@ -13,10 +14,9 @@ export {
   type Season,
 } from "./season";
 export {
-  EVENT_TYPES,
   type AggregatedLeaderboard,
   type BucketContributions,
   type LeaderboardEntry,
   type LeaderboardSection,
-  type ScoringEvent,
+  type ScoringMark,
 } from "./types";

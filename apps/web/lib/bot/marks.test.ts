@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import type { AppDatabase } from "@/lib/db/runtime";
-import { events, messageAuthors } from "@/lib/db/schema";
-import { aggregateLeaderboard, seasonForDate } from "@/lib/scoring";
+import { marks, messageAuthors } from "@/lib/db/schema";
+import { markTypeSchema } from "@/lib/domain/mark";
+import {
+  aggregateLeaderboard,
+  MARK_UNDO_WINDOW_MS,
+  seasonForDate,
+} from "@/lib/scoring";
 
 import { applyMarkChanges, type ApplyMarkChangesInput } from "./marks";
 
@@ -13,7 +18,14 @@ const identity = {
   subjectId: 20,
   messageId: 30,
 };
-const createdAt = new Date("2026-08-10T12:00:00.000Z");
+const markedAt = new Date("2026-08-10T12:00:00.000Z");
+
+/** A moment `offsetMs` after the Mark was placed. */
+function later(offsetMs: number): Date {
+  return new Date(markedAt.getTime() + offsetMs);
+}
+
+const NOTHING_HAPPENED = { added: 0, undone: 0, refused: 1 };
 
 describe("applyMarkChanges", () => {
   async function setup() {
@@ -23,10 +35,12 @@ describe("applyMarkChanges", () => {
       messageId: identity.messageId,
       authorId: identity.subjectId,
       authorIsBot: false,
-      messageDate: Math.floor(createdAt.getTime() / 1_000),
+      messageDate: Math.floor(markedAt.getTime() / 1_000),
     });
+
     const apply = (
       input: Omit<ApplyMarkChangesInput, "identity" | "createdAt">,
+      createdAt = markedAt,
     ) =>
       pglite.db.transaction((transaction) =>
         applyMarkChanges(transaction as unknown as AppDatabase, {
@@ -35,123 +49,196 @@ describe("applyMarkChanges", () => {
           createdAt,
         }),
       );
-    return { ...pglite, apply };
+
+    const react = (
+      changes: ApplyMarkChangesInput["changes"],
+      createdAt = markedAt,
+    ) => apply({ changes, source: "reaction" }, createdAt);
+
+    const storedTypes = async () =>
+      (await pglite.db.select().from(marks)).map((row) => row.type);
+
+    return { ...pglite, apply, react, storedTypes };
   }
 
-  it("prevents duplicate active Marks while allowing plus and minus together", async () => {
+  it("spends the karma grant once, whichever way it is spent", async () => {
     const pglite = await setup();
 
     try {
-      await pglite.apply({
-        changes: [{ action: "add", type: "karma.plus" }],
-        additionsAreReversible: true,
-      });
+      await pglite.react([{ action: "add", type: "karma.plus" }]);
+
+      await expect(
+        pglite.react([{ action: "add", type: "karma.plus" }]),
+      ).resolves.toEqual(NOTHING_HAPPENED);
+      await expect(
+        pglite.react([{ action: "add", type: "karma.minus" }]),
+      ).resolves.toEqual(NOTHING_HAPPENED);
       await expect(
         pglite.apply({
-          changes: [{ action: "add", type: "karma.plus" }],
-          additionsAreReversible: true,
+          changes: [{ action: "add", type: "karma.minus" }],
+          source: "reply",
         }),
-      ).resolves.toEqual({ additions: 0, reversals: 0 });
-      await pglite.apply({
-        changes: [{ action: "add", type: "karma.minus" }],
-        additionsAreReversible: true,
-      });
+      ).resolves.toEqual(NOTHING_HAPPENED);
 
-      const rows = await pglite.db.select().from(events);
-      expect(rows).toHaveLength(2);
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("leaves the humor grant untouched when the karma grant is spent", async () => {
+    const pglite = await setup();
+
+    try {
+      await pglite.react([{ action: "add", type: "karma.minus" }]);
+      await expect(
+        pglite.react([{ action: "add", type: "humor.add" }]),
+      ).resolves.toEqual({ added: 1, undone: 0, refused: 0 });
+
+      const rows = await pglite.db.select().from(marks);
+      expect(rows.map((row) => row.slot).toSorted()).toEqual([
+        "humor",
+        "karma",
+      ]);
+
       const leaderboard = aggregateLeaderboard(
         rows.map((row) => ({
-          type: row.type as "karma.plus" | "karma.minus",
+          type: markTypeSchema.parse(row.type),
           actorId: row.actorId,
           subjectId: row.subjectId,
-          isReversal: row.reversesEventId !== null,
           season: seasonForDate(row.createdAt),
         })),
         { year: 2026, month: 8 },
       );
-      expect(leaderboard.sections[0]?.entries).toEqual([]);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("serializes concurrent duplicate additions on the Message row", async () => {
-    const pglite = await setup();
-
-    try {
-      const input = {
-        changes: [{ action: "add", type: "karma.plus" }] as const,
-        additionsAreReversible: true,
-      };
-      const results = await Promise.all([
-        pglite.apply(input),
-        pglite.apply(input),
+      expect(leaderboard.sections[0]?.entries).toEqual([
+        {
+          userId: identity.subjectId,
+          score: -1,
+          isCrown: true,
+          isChicken: false,
+        },
       ]);
-
-      expect(results.reduce((sum, result) => sum + result.additions, 0)).toBe(
-        1,
-      );
-      await expect(pglite.db.select().from(events)).resolves.toHaveLength(1);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("creates exact add/reverse/re-add cycles and processes switches removal-first", async () => {
-    const pglite = await setup();
-
-    try {
-      await pglite.apply({
-        changes: [{ action: "add", type: "karma.plus" }],
-        additionsAreReversible: true,
-      });
-      await pglite.apply({
-        changes: [
-          { action: "remove", type: "karma.plus" },
-          { action: "add", type: "karma.minus" },
-        ],
-        additionsAreReversible: true,
-      });
-      await pglite.apply({
-        changes: [{ action: "add", type: "karma.plus" }],
-        additionsAreReversible: true,
-      });
-
-      const rows = await pglite.db.select().from(events);
-      expect(rows.map((row) => row.type)).toEqual([
-        "karma.plus",
-        "karma.plus",
-        "karma.minus",
-        "karma.plus",
+      expect(leaderboard.sections[1]?.entries).toEqual([
+        {
+          userId: identity.subjectId,
+          score: 1,
+          isCrown: true,
+          isChicken: false,
+        },
       ]);
-      expect(rows[1]).toMatchObject({
-        actorId: rows[0]?.actorId,
-        subjectId: rows[0]?.subjectId,
-        messageId: rows[0]?.messageId,
-        reversible: false,
-        reversesEventId: rows[0]?.id,
-      });
-      expect(rows[3]?.reversesEventId).toBeNull();
     } finally {
       await closePgliteDb(pglite);
     }
   });
 
-  it("does not reverse a permanent reply or imported Mark", async () => {
+  it("takes a reaction back inside the Undo window and refunds the grant", async () => {
     const pglite = await setup();
 
     try {
-      await pglite.apply({
-        changes: [{ action: "add", type: "humor.add" }],
-        additionsAreReversible: false,
-      });
+      await pglite.react([{ action: "add", type: "karma.plus" }]);
       await expect(
-        pglite.apply({
-          changes: [{ action: "remove", type: "humor.add" }],
-          additionsAreReversible: true,
-        }),
-      ).resolves.toEqual({ additions: 0, reversals: 0 });
-      await expect(pglite.db.select().from(events)).resolves.toHaveLength(1);
+        pglite.react(
+          [{ action: "remove", type: "karma.plus" }],
+          later(MARK_UNDO_WINDOW_MS),
+        ),
+      ).resolves.toEqual({ added: 0, undone: 1, refused: 0 });
+      await expect(pglite.storedTypes()).resolves.toEqual([]);
+
+      await expect(
+        pglite.react([{ action: "add", type: "karma.minus" }], later(6_000)),
+      ).resolves.toEqual({ added: 1, undone: 0, refused: 0 });
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("keeps a reaction Mark once the Undo window has closed", async () => {
+    const pglite = await setup();
+
+    try {
+      await pglite.react([{ action: "add", type: "karma.plus" }]);
+      await expect(
+        pglite.react(
+          [{ action: "remove", type: "karma.plus" }],
+          later(MARK_UNDO_WINDOW_MS + 1),
+        ),
+      ).resolves.toEqual(NOTHING_HAPPENED);
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("switches 👍 to 👎 inside the window but not outside it", async () => {
+    const pglite = await setup();
+    const switchToMinus = [
+      { action: "remove", type: "karma.plus" },
+      { action: "add", type: "karma.minus" },
+    ] as const;
+
+    try {
+      await pglite.react([{ action: "add", type: "karma.plus" }]);
+      await expect(pglite.react(switchToMinus, later(2_000))).resolves.toEqual({
+        added: 1,
+        undone: 1,
+        refused: 0,
+      });
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+
+    const late = await setup();
+    try {
+      await late.react([{ action: "add", type: "karma.plus" }]);
+      await expect(late.react(switchToMinus, later(60_000))).resolves.toEqual({
+        added: 0,
+        undone: 0,
+        refused: 2,
+      });
+      await expect(late.storedTypes()).resolves.toEqual(["karma.plus"]);
+    } finally {
+      await closePgliteDb(late);
+    }
+  });
+
+  it("never lets a reaction removal take back a Scoring reply", async () => {
+    const pglite = await setup();
+
+    try {
+      await pglite.apply({
+        changes: [{ action: "add", type: "karma.minus" }],
+        source: "reply",
+      });
+
+      // The 👎 reaction below is refused — the grant is already spent — so
+      // removing it must not delete the reply Mark sharing the karma slot.
+      await expect(
+        pglite.react([{ action: "add", type: "karma.minus" }], later(1_000)),
+      ).resolves.toEqual(NOTHING_HAPPENED);
+      await expect(
+        pglite.react([{ action: "remove", type: "karma.minus" }], later(2_000)),
+      ).resolves.toEqual(NOTHING_HAPPENED);
+
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.minus"]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("admits only one of two concurrent additions", async () => {
+    const pglite = await setup();
+
+    try {
+      const changes = [{ action: "add", type: "karma.plus" }] as const;
+      const results = await Promise.all([
+        pglite.react(changes),
+        pglite.react(changes),
+      ]);
+
+      expect(results.reduce((sum, result) => sum + result.added, 0)).toBe(1);
+      await expect(pglite.storedTypes()).resolves.toEqual(["karma.plus"]);
     } finally {
       await closePgliteDb(pglite);
     }

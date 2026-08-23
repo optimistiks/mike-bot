@@ -15,7 +15,7 @@ import {
 } from "./seed";
 import {
   displayIdentities,
-  events,
+  marks,
   processedUpdates,
   registrations,
 } from "./schema";
@@ -32,7 +32,10 @@ async function fixtureSnapshot(
       .select()
       .from(registrations)
       .orderBy(asc(registrations.chatId), asc(registrations.userId)),
-    events: await db.select().from(events).orderBy(asc(events.id)),
+    marks: await db
+      .select()
+      .from(marks)
+      .orderBy(asc(marks.messageId), asc(marks.actorId), asc(marks.type)),
     processedUpdates: await db.select().from(processedUpdates),
   };
 }
@@ -70,13 +73,14 @@ describe("resetAndSeedDatabase", () => {
       });
 
       await pglite.db.insert(processedUpdates).values({ updateId: 999 });
-      await pglite.db.insert(events).values({
+      await pglite.db.insert(marks).values({
         type: "karma.plus",
         chatId: -999,
         actorId: 1,
         subjectId: 2,
         messageId: 3,
         createdAt: now,
+        source: "reaction",
       });
 
       await resetAndSeedDatabase(pglite.db, now);
@@ -132,23 +136,23 @@ describe("resetAndSeedDatabase", () => {
           (member) => member.userId === UNREGISTERED_PERSONA_ID,
         ),
       ).toBe(true);
-      expect(second.events).toHaveLength(10);
+      expect(second.marks).toHaveLength(8);
       expect(second.processedUpdates).toEqual([]);
     } finally {
       await closePgliteDb(pglite);
     }
   });
 
-  it("places Events in the Current and previous Moscow Seasons", async () => {
+  it("places Marks in the Current and previous Moscow Seasons", async () => {
     const pglite = await createPgliteDb();
     const now = new Date("2026-08-31T21:00:00.000Z");
 
     try {
       await resetAndSeedDatabase(pglite.db, now);
-      const seededEvents = await pglite.db.select().from(events);
+      const seededMarks = await pglite.db.select().from(marks);
       const seasons = new Set(
-        seededEvents.map((event) => {
-          const season = seasonForDate(event.createdAt);
+        seededMarks.map((mark) => {
+          const season = seasonForDate(mark.createdAt);
           return `${String(season.year)}-${String(season.month)}`;
         }),
       );

@@ -52,12 +52,12 @@ run. Tests continue to use isolated in-memory PGlite through `createPgliteDb()`.
 
 ## Tables
 
-| Table                   | Purpose                                                     |
-| ----------------------- | ----------------------------------------------------------- |
-| `chats`                 | Latest Telegram-owned Chat title and photo references       |
-| `events`                | Three-type additions and explicit same-type reversal Events |
-| `display_identities`    | Display names per (`chat_id`, `user_id`)                    |
-| `registrations`         | Explicit Mini App access for a Member in a Chat             |
-| `message_authors`       | Message identity, author, bot status, and timestamp cache   |
-| `registration_messages` | Bot-posted Registration messages (`/register`)              |
-| `processed_updates`     | Webhook `update_id` deduplication                           |
+| Table                   | Purpose                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `chats`                 | Latest Telegram-owned Chat title and photo references        |
+| `marks`                 | One row per spent grant, keyed by Chat, Actor, Message, slot |
+| `display_identities`    | Display names per (`chat_id`, `user_id`)                     |
+| `registrations`         | Explicit Mini App access for a Member in a Chat              |
+| `message_authors`       | Message identity, author, bot status, and timestamp cache    |
+| `registration_messages` | Bot-posted Registration messages (`/register`)               |
+| `processed_updates`     | Webhook `update_id` deduplication                            |

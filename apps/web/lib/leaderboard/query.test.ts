@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
-import { events, messageAuthors } from "@/lib/db/schema";
+import { marks, messageAuthors } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
 
 import { queryLeaderboard } from "./query";
@@ -51,12 +51,13 @@ describe("queryLeaderboard", () => {
 
     try {
       await expect(
-        pglite.db.insert(events).values({
+        pglite.db.insert(marks).values({
           type: "future.unknown",
           chatId: PRIMARY_FIXTURE_CHAT_ID,
           actorId: 1,
           subjectId: 2,
           messageId: 3,
+          source: "reaction",
           createdAt: new Date("2026-08-15T12:00:00.000Z"),
         }),
       ).rejects.toThrow();
@@ -78,12 +79,13 @@ describe("queryLeaderboard", () => {
           new Date("2026-01-31T20:00:00.000Z").getTime() / 1000,
         ),
       });
-      await pglite.db.insert(events).values({
+      await pglite.db.insert(marks).values({
         type: "karma.plus",
         chatId: PRIMARY_FIXTURE_CHAT_ID,
         actorId: 1,
         subjectId: 2,
         messageId: 40,
+        source: "reaction",
         createdAt: new Date("2026-01-31T21:09:59.000Z"),
       });
 
@@ -120,12 +122,13 @@ describe("queryLeaderboard", () => {
           new Date("2026-01-31T20:00:00.000Z").getTime() / 1000,
         ),
       });
-      await pglite.db.insert(events).values({
+      await pglite.db.insert(marks).values({
         type: "karma.plus",
         chatId: PRIMARY_FIXTURE_CHAT_ID,
         actorId: 1,
         subjectId: 2,
         messageId: 41,
+        source: "reaction",
         createdAt: new Date("2026-01-31T21:10:00.000Z"),
       });
 
@@ -145,12 +148,13 @@ describe("queryLeaderboard", () => {
     const pglite = await createPgliteDb();
 
     try {
-      await pglite.db.insert(events).values({
+      await pglite.db.insert(marks).values({
         type: "karma.plus",
         chatId: PRIMARY_FIXTURE_CHAT_ID,
         actorId: 1,
         subjectId: 2,
         messageId: 42,
+        source: "reply",
         createdAt: new Date("2026-01-15T12:00:00.000Z"),
         legacyId: "11111111-1111-4111-8111-111111111111",
       });

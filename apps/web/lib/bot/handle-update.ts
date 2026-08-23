@@ -217,7 +217,7 @@ async function handleMessageReactionUpdate(
     },
     changes: mapped.changes,
     createdAt,
-    additionsAreReversible: true,
+    source: "reaction",
   });
 }
 

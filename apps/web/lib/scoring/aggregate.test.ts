@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type { EventType } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 
 import { aggregateLeaderboard } from "./aggregate";
-import { eventTypeToContributions } from "./contributions";
+import { markTypeToContributions } from "./contributions";
 import {
   creditedSeasonForReaction,
   getCurrentSeason,
   seasonDateRange,
   seasonForDate,
 } from "./season";
-import type { ScoringEvent } from "./types";
+import type { ScoringMark } from "./types";
 
-describe("eventTypeToContributions", () => {
+describe("markTypeToContributions", () => {
   it("maps karma.plus to subject karma received and actor karma plus given", () => {
-    expect(eventTypeToContributions("karma.plus")).toEqual({
+    expect(markTypeToContributions("karma.plus")).toEqual({
       karmaReceived: 1,
       humorReceived: 0,
       karmaPlusGiven: 1,
@@ -24,7 +24,7 @@ describe("eventTypeToContributions", () => {
   });
 
   it("maps karma.minus to negative karma received and actor karma minus given", () => {
-    expect(eventTypeToContributions("karma.minus")).toEqual({
+    expect(markTypeToContributions("karma.minus")).toEqual({
       karmaReceived: -1,
       humorReceived: 0,
       karmaPlusGiven: 0,
@@ -34,7 +34,7 @@ describe("eventTypeToContributions", () => {
   });
 
   it("maps humor.add to humor received and humor given", () => {
-    expect(eventTypeToContributions("humor.add")).toEqual({
+    expect(markTypeToContributions("humor.add")).toEqual({
       karmaReceived: 0,
       humorReceived: 1,
       karmaPlusGiven: 0,
@@ -89,18 +89,16 @@ describe("season bucketing", () => {
   });
 });
 
-function event(
-  type: EventType,
+function mark(
+  type: MarkType,
   actorId: number,
   subjectId: number,
   createdAt: string,
-  isReversal = false,
-): ScoringEvent {
+): ScoringMark {
   return {
     type,
     actorId,
     subjectId,
-    isReversal,
     season: seasonForDate(new Date(createdAt)),
   };
 }
@@ -109,14 +107,14 @@ describe("aggregateLeaderboard", () => {
   const august2026 = { year: 2026, month: 8 };
 
   it("returns five Russian sections with ranked user ids and scores", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 10, 20, "2026-08-05T12:00:00.000Z"),
-      event("karma.minus", 30, 20, "2026-08-06T12:00:00.000Z"),
-      event("humor.add", 10, 40, "2026-08-07T12:00:00.000Z"),
-      event("karma.plus", 20, 40, "2026-08-08T12:00:00.000Z"),
+    const marks: ScoringMark[] = [
+      mark("karma.plus", 10, 20, "2026-08-05T12:00:00.000Z"),
+      mark("karma.minus", 30, 20, "2026-08-06T12:00:00.000Z"),
+      mark("humor.add", 10, 40, "2026-08-07T12:00:00.000Z"),
+      mark("karma.plus", 20, 40, "2026-08-08T12:00:00.000Z"),
     ];
 
-    const result = aggregateLeaderboard(events, august2026);
+    const result = aggregateLeaderboard(marks, august2026);
 
     expect(result.sections.map((section) => section.title)).toEqual([
       "Уважаемые люди",
@@ -149,14 +147,14 @@ describe("aggregateLeaderboard", () => {
   });
 
   it("computes net karma for Уважаемые люди", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 1, 50, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 2, 50, "2026-08-02T12:00:00.000Z"),
-      event("karma.minus", 3, 50, "2026-08-03T12:00:00.000Z"),
-      event("karma.plus", 4, 60, "2026-08-04T12:00:00.000Z"),
+    const marks: ScoringMark[] = [
+      mark("karma.plus", 1, 50, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 2, 50, "2026-08-02T12:00:00.000Z"),
+      mark("karma.minus", 3, 50, "2026-08-03T12:00:00.000Z"),
+      mark("karma.plus", 4, 60, "2026-08-04T12:00:00.000Z"),
     ];
 
-    const result = aggregateLeaderboard(events, august2026);
+    const result = aggregateLeaderboard(marks, august2026);
     const karmaReceived = result.sections[0]?.entries ?? [];
 
     expect(karmaReceived).toEqual([
@@ -165,29 +163,13 @@ describe("aggregateLeaderboard", () => {
     ]);
   });
 
-  it("applies reversal Events by inverting normal contributions", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 1, 70, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 1, 70, "2026-08-02T12:00:00.000Z", true),
-      event("humor.add", 2, 80, "2026-08-03T12:00:00.000Z"),
-      event("humor.add", 2, 80, "2026-08-04T12:00:00.000Z", true),
+  it("filters Marks outside the requested Season", () => {
+    const marks: ScoringMark[] = [
+      mark("karma.plus", 1, 90, "2026-07-15T12:00:00.000Z"),
+      mark("karma.plus", 1, 91, "2026-08-15T12:00:00.000Z"),
     ];
 
-    const result = aggregateLeaderboard(events, august2026);
-
-    expect(result.sections[0]?.entries).toEqual([]);
-    expect(result.sections[1]?.entries).toEqual([]);
-    expect(result.sections[2]?.entries).toEqual([]);
-    expect(result.sections[4]?.entries).toEqual([]);
-  });
-
-  it("filters events outside the requested Season", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 1, 90, "2026-07-15T12:00:00.000Z"),
-      event("karma.plus", 1, 91, "2026-08-15T12:00:00.000Z"),
-    ];
-
-    const result = aggregateLeaderboard(events, august2026);
+    const result = aggregateLeaderboard(marks, august2026);
 
     expect(result.sections[0]?.entries).toEqual([
       { userId: 91, score: 1, isCrown: true, isChicken: false },
@@ -195,13 +177,13 @@ describe("aggregateLeaderboard", () => {
   });
 
   it("gives all tied entries a Crown and no Chicken", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 2, 101, "2026-08-02T12:00:00.000Z"),
-      event("karma.plus", 3, 102, "2026-08-03T12:00:00.000Z"),
+    const marks: ScoringMark[] = [
+      mark("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 2, 101, "2026-08-02T12:00:00.000Z"),
+      mark("karma.plus", 3, 102, "2026-08-03T12:00:00.000Z"),
     ];
 
-    const result = aggregateLeaderboard(events, august2026);
+    const result = aggregateLeaderboard(marks, august2026);
     const entries = result.sections[0]?.entries ?? [];
 
     expect(entries[0]).toMatchObject({
@@ -225,16 +207,16 @@ describe("aggregateLeaderboard", () => {
   });
 
   it("gives flair to every tied highest and tied lowest score", () => {
-    const events: ScoringEvent[] = [
-      event("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 2, 100, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 1, 101, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 2, 101, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 1, 102, "2026-08-01T12:00:00.000Z"),
-      event("karma.plus", 1, 103, "2026-08-01T12:00:00.000Z"),
+    const marks: ScoringMark[] = [
+      mark("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 2, 100, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 1, 101, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 2, 101, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 1, 102, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 1, 103, "2026-08-01T12:00:00.000Z"),
     ];
 
-    const entries = aggregateLeaderboard(events, august2026).sections[0]
+    const entries = aggregateLeaderboard(marks, august2026).sections[0]
       ?.entries;
 
     expect(entries).toEqual([

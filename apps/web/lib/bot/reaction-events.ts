@@ -1,6 +1,6 @@
 import type { ReactionType } from "grammy/types";
 
-import type { EventType } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 
 import type { MarkChange } from "./marks";
 
@@ -25,7 +25,7 @@ export type ReactionEventResult =
   | { ok: true; changes: MarkChange[] }
   | { ok: false; reason: ReactionSkipReason };
 
-const ADD_TYPE: Record<string, EventType> = {
+const ADD_TYPE: Record<string, MarkType> = {
   [KARMA_PLUS_EMOJI]: "karma.plus",
   [KARMA_MINUS_EMOJI]: "karma.minus",
   [HUMOR_EMOJI]: "humor.add",
@@ -67,7 +67,14 @@ function scoringEmojis(reactions: ReactionType[]): string[] {
   );
 }
 
-/** Pure adapter: reaction diff → removal-before-addition Mark changes. */
+/**
+ * Pure adapter: reaction diff → removal-before-addition Mark changes.
+ *
+ * The ordering is load-bearing. Telegram delivers a 👍→👎 switch as one update,
+ * and emitting the removal first is what lets the Actor correct a misclick
+ * inside the Undo window: the 👍 is taken back, freeing the karma slot for the
+ * 👎. Outside the window the removal does nothing and the 👎 is then refused.
+ */
 export function reactionDiffToMarkChanges(
   input: ReactionEventInput,
 ): ReactionEventResult {

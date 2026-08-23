@@ -4,7 +4,7 @@ import type { Update } from "grammy/types";
 import { handleTelegramUpdate } from "@/lib/bot/handle-update";
 import { addRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb, resetRuntimeDbForTests } from "@/lib/db/runtime";
-import { displayIdentities, events, registrations } from "@/lib/db/schema";
+import { displayIdentities, marks, registrations } from "@/lib/db/schema";
 import { PRIMARY_FIXTURE_CHAT_ID, resetAndSeedDatabase } from "@/lib/db/seed";
 import { signDevelopmentInitDataForPersona } from "@/lib/mini-app/development-init-data.server";
 import {
@@ -58,7 +58,7 @@ describe("GET /api/chats", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ chats: [] });
-    await expect(db.select().from(events)).resolves.toEqual([]);
+    await expect(db.select().from(marks)).resolves.toEqual([]);
     await expect(db.select().from(displayIdentities)).resolves.toEqual([]);
     await expect(db.select().from(registrations)).resolves.toEqual([]);
   });

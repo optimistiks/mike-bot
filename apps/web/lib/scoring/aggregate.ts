@@ -1,10 +1,10 @@
 import { getCurrentSeason, seasonsEqual } from "./season";
-import { eventTypeToContributions } from "./contributions";
+import { markTypeToContributions } from "./contributions";
 import type {
   AggregatedLeaderboard,
   LeaderboardEntry,
   LeaderboardSection,
-  ScoringEvent,
+  ScoringMark,
 } from "./types";
 import type { Season } from "./season";
 
@@ -27,7 +27,7 @@ const SECTIONS = [
 type BucketKey = (typeof SECTIONS)[number]["bucket"];
 
 function accumulateScores(
-  events: ScoringEvent[],
+  marks: ScoringMark[],
   season: Season,
 ): Record<BucketKey, Map<number, number>> {
   const scores: Record<BucketKey, Map<number, number>> = {
@@ -38,46 +38,34 @@ function accumulateScores(
     humorGiven: new Map(),
   };
 
-  for (const scoringEvent of events) {
-    if (!seasonsEqual(scoringEvent.season, season)) {
+  for (const mark of marks) {
+    if (!seasonsEqual(mark.season, season)) {
       continue;
     }
 
-    const baseContributions = eventTypeToContributions(scoringEvent.type);
-    const multiplier = scoringEvent.isReversal ? -1 : 1;
-    const contributions = {
-      karmaReceived: baseContributions.karmaReceived * multiplier,
-      humorReceived: baseContributions.humorReceived * multiplier,
-      karmaPlusGiven: baseContributions.karmaPlusGiven * multiplier,
-      karmaMinusGiven: baseContributions.karmaMinusGiven * multiplier,
-      humorGiven: baseContributions.humorGiven * multiplier,
-    };
+    const contributions = markTypeToContributions(mark.type);
 
     addToBucket(
       scores.karmaReceived,
-      scoringEvent.subjectId,
+      mark.subjectId,
       contributions.karmaReceived,
     );
     addToBucket(
       scores.humorReceived,
-      scoringEvent.subjectId,
+      mark.subjectId,
       contributions.humorReceived,
     );
     addToBucket(
       scores.karmaPlusGiven,
-      scoringEvent.actorId,
+      mark.actorId,
       contributions.karmaPlusGiven,
     );
     addToBucket(
       scores.karmaMinusGiven,
-      scoringEvent.actorId,
+      mark.actorId,
       contributions.karmaMinusGiven,
     );
-    addToBucket(
-      scores.humorGiven,
-      scoringEvent.actorId,
-      contributions.humorGiven,
-    );
+    addToBucket(scores.humorGiven, mark.actorId, contributions.humorGiven);
   }
 
   return scores;
@@ -122,11 +110,11 @@ function rankBucket(bucket: Map<number, number>): LeaderboardEntry[] {
 }
 
 export function aggregateLeaderboard(
-  events: ScoringEvent[],
+  marks: ScoringMark[],
   season: Season,
   now = new Date(),
 ): AggregatedLeaderboard {
-  const scores = accumulateScores(events, season);
+  const scores = accumulateScores(marks, season);
   const currentSeason = getCurrentSeason(now);
 
   const sections: LeaderboardSection[] = SECTIONS.map((section) => ({

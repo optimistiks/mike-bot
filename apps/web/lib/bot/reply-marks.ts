@@ -1,14 +1,14 @@
 import type { Context } from "grammy";
 
 import type { AppDatabase } from "@/lib/db/runtime";
-import type { EventType } from "@/lib/domain/event";
+import type { MarkType } from "@/lib/domain/mark";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
 import { isGroupChat } from "./chat";
 import { applyMarkChanges } from "./marks";
 
 /** What the bot says in the Chat once it has taken the Scoring reply's place. */
-const ACKNOWLEDGEMENT_LABEL: Record<EventType, string> = {
+const ACKNOWLEDGEMENT_LABEL: Record<MarkType, string> = {
   "karma.plus": "➕",
   "karma.minus": "➖",
   "humor.add": "лол",
@@ -20,7 +20,7 @@ export interface ReplyMarkAcknowledgement {
   text: string;
 }
 
-export function replyTextToEventType(text: string): EventType | null {
+export function replyTextToMarkType(text: string): MarkType | null {
   const normalized = text.trim();
   if (normalized === "+") return "karma.plus";
   if (normalized === "-") return "karma.minus";
@@ -41,7 +41,7 @@ export function acknowledgementName(actor: {
 }
 
 export function acknowledgementText(
-  type: EventType,
+  type: MarkType,
   actor: { username?: string; first_name: string },
 ): string {
   return `${ACKNOWLEDGEMENT_LABEL[type]} (${acknowledgementName(actor)})`;
@@ -49,7 +49,8 @@ export function acknowledgementText(
 
 /**
  * Create a permanent Mark for a supported reply and describe how to answer it.
- * Returns null when the reply is not a Scoring reply or repeats an Active Mark.
+ * Returns null when the reply is not a Scoring reply, or when the Actor already
+ * spent that grant on this Message — including on the opposite Karma Mark.
  */
 export async function handleReplyMark(
   db: AppDatabase,
@@ -73,7 +74,7 @@ export async function handleReplyMark(
     return null;
   }
 
-  const type = replyTextToEventType(message.text);
+  const type = replyTextToMarkType(message.text);
   if (!type) return null;
 
   const createdAt = new Date(message.date * 1_000);
@@ -89,10 +90,10 @@ export async function handleReplyMark(
     },
     changes: [{ action: "add", type }],
     createdAt,
-    additionsAreReversible: false,
+    source: "reply",
   });
 
-  if (result.additions !== 1) return null;
+  if (result.added !== 1) return null;
 
   return {
     replyToMessageId: repliedTo.message_id,

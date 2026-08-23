@@ -4,44 +4,49 @@ import { closePgliteDb, createPgliteDb } from "./pglite";
 import {
   chats,
   displayIdentities,
-  events,
+  marks,
   messageAuthors,
   processedUpdates,
   registrations,
 } from "./schema";
+
+const CHAT_ID = -100123;
+
+const mark = {
+  type: "karma.plus",
+  chatId: CHAT_ID,
+  actorId: 1,
+  subjectId: 2,
+  messageId: 10,
+  createdAt: new Date("2026-08-01T09:00:00.000Z"),
+  source: "reaction",
+} as const;
 
 describe("Drizzle migrations on PGlite", () => {
   it("applies migrations and supports all six tables", async () => {
     const pglite = await createPgliteDb();
 
     try {
-      await pglite.db.insert(events).values({
-        type: "karma.plus",
-        chatId: -100123,
-        actorId: 1,
-        subjectId: 2,
-        messageId: 10,
-        createdAt: new Date("2026-08-01T09:00:00.000Z"),
-      });
+      await pglite.db.insert(marks).values(mark);
 
       await pglite.db.insert(chats).values({
-        chatId: -100123,
+        chatId: CHAT_ID,
         title: "Test Chat",
       });
 
       await pglite.db.insert(displayIdentities).values({
-        chatId: -100123,
+        chatId: CHAT_ID,
         userId: 2,
         displayName: "@alice",
       });
 
       await pglite.db.insert(registrations).values({
-        chatId: -100123,
+        chatId: CHAT_ID,
         userId: 1,
       });
 
       await pglite.db.insert(messageAuthors).values({
-        chatId: -100123,
+        chatId: CHAT_ID,
         messageId: 10,
         authorId: 2,
         authorIsBot: false,
@@ -50,8 +55,8 @@ describe("Drizzle migrations on PGlite", () => {
 
       await pglite.db.insert(processedUpdates).values({ updateId: 42 });
 
-      const [eventRow] = await pglite.db.select().from(events);
-      expect(eventRow).toMatchObject({ type: "karma.plus", reversible: false });
+      const [markRow] = await pglite.db.select().from(marks);
+      expect(markRow).toMatchObject({ type: "karma.plus", source: "reaction" });
 
       const tables = await pglite.client.query<{ tablename: string }>(
         `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
@@ -60,7 +65,7 @@ describe("Drizzle migrations on PGlite", () => {
       expect(tables.rows.map((row) => row.tablename)).toEqual([
         "chats",
         "display_identities",
-        "events",
+        "marks",
         "message_authors",
         "processed_updates",
         "registrations",
@@ -70,68 +75,70 @@ describe("Drizzle migrations on PGlite", () => {
     }
   });
 
-  it("enforces unique legacy_id on events", async () => {
+  it("derives the slot from the type", async () => {
     const pglite = await createPgliteDb();
-    const legacyId = "11111111-1111-4111-8111-111111111111";
 
     try {
-      const base = {
-        type: "humor.add",
-        chatId: -100123,
-        actorId: 1,
-        subjectId: 2,
-        messageId: 11,
-        createdAt: new Date("2026-08-01T09:00:00.000Z"),
-        legacyId,
-      };
+      await pglite.db
+        .insert(marks)
+        .values([
+          mark,
+          { ...mark, type: "karma.minus", messageId: 11 },
+          { ...mark, type: "humor.add", messageId: 12 },
+        ]);
 
-      await pglite.db.insert(events).values(base);
-      await expect(
-        pglite.db.insert(events).values({ ...base, messageId: 12 }),
-      ).rejects.toThrow();
+      const rows = await pglite.db.select().from(marks);
+      expect(rows.map((row) => [row.type, row.slot]).toSorted()).toEqual([
+        ["humor.add", "humor"],
+        ["karma.minus", "karma"],
+        ["karma.plus", "karma"],
+      ]);
     } finally {
       await closePgliteDb(pglite);
     }
   });
 
-  it("enforces canonical types and one reversal per addition", async () => {
+  it("refuses a second Mark in a slot the Actor already spent", async () => {
     const pglite = await createPgliteDb();
 
     try {
+      await pglite.db.insert(marks).values(mark);
+
+      // Same slot, either way it is spent.
+      await expect(pglite.db.insert(marks).values(mark)).rejects.toThrow();
       await expect(
-        pglite.db.insert(events).values({
-          type: "karma.undo.plus",
-          chatId: -100123,
-          actorId: 1,
-          subjectId: 2,
-          messageId: 11,
-          createdAt: new Date("2026-08-01T09:00:00.000Z"),
-        }),
+        pglite.db.insert(marks).values({ ...mark, type: "karma.minus" }),
       ).rejects.toThrow();
 
-      const [addition] = await pglite.db
-        .insert(events)
-        .values({
-          type: "karma.plus",
-          chatId: -100123,
-          actorId: 1,
-          subjectId: 2,
-          messageId: 11,
-          createdAt: new Date("2026-08-01T09:00:00.000Z"),
-          reversible: true,
-        })
-        .returning();
-      const reversal = {
-        type: "karma.plus",
-        chatId: -100123,
-        actorId: 1,
-        subjectId: 2,
-        messageId: 11,
-        createdAt: new Date("2026-08-01T10:00:00.000Z"),
-        reversesEventId: addition.id,
-      };
-      await pglite.db.insert(events).values(reversal);
-      await expect(pglite.db.insert(events).values(reversal)).rejects.toThrow();
+      // The humor grant is independent, and so is every other Message.
+      await pglite.db.insert(marks).values({ ...mark, type: "humor.add" });
+      await pglite.db.insert(marks).values({ ...mark, messageId: 11 });
+      await expect(pglite.db.select().from(marks)).resolves.toHaveLength(3);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("enforces canonical types, sources, and unique legacy ids", async () => {
+    const pglite = await createPgliteDb();
+    const legacyId = "11111111-1111-4111-8111-111111111111";
+
+    try {
+      await expect(
+        pglite.db.insert(marks).values({ ...mark, type: "karma.undo.plus" }),
+      ).rejects.toThrow();
+      await expect(
+        pglite.db.insert(marks).values({ ...mark, source: "import" }),
+      ).rejects.toThrow();
+
+      await pglite.db
+        .insert(marks)
+        .values({ ...mark, source: "reply", legacyId });
+      await expect(
+        pglite.db
+          .insert(marks)
+          .values({ ...mark, source: "reply", messageId: 11, legacyId }),
+      ).rejects.toThrow();
     } finally {
       await closePgliteDb(pglite);
     }

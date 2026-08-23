@@ -37,15 +37,14 @@ describe("convertV1Row", () => {
       toMessageId: 42,
     });
 
-    expect(converted.event).toEqual({
+    expect(converted.mark).toEqual({
       type: "karma.plus",
       chatId: -1001234567890,
       actorId: 111,
       subjectId: 222,
       messageId: 42,
       createdAt: new Date(1_690_000_000_123),
-      reversible: false,
-      reversesEventId: null,
+      source: "reply",
       legacyId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     });
 

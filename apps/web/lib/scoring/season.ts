@@ -8,6 +8,13 @@ export const SEASON_TIMEZONE = "Europe/Moscow";
 export const MOSCOW_UTC_OFFSET_HOURS = 3;
 export const SEASON_GRACE_PERIOD_MS = 10 * 60 * 1000;
 
+/**
+ * How long after adding a Scoring reaction the Actor may remove it to take the
+ * Mark back. Measured against Telegram's own timestamps, like Season
+ * eligibility above, never against bot processing time (ADR-0003, ADR-0015).
+ */
+export const MARK_UNDO_WINDOW_MS = 5 * 1000;
+
 function readMoscowParts(date: Date): { year: number; month: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: SEASON_TIMEZONE,
