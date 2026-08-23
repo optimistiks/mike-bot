@@ -3,11 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Avatar, AvatarFallback } from "@/components/ui/8bit/avatar";
+import { cn } from "@/lib/utils";
 
 import { displayInitials } from "../_lib/initials";
 import { memberPhotoOptions } from "../_lib/queries";
 import type { TelegramPlatform } from "../_lib/telegram-platform";
 import { BlobImage } from "./blob-image";
+import { photoSizes, type PhotoSize } from "./photo-size";
 import { useTelegramPlatform } from "./telegram-provider";
 
 function MemberBlobPhoto({
@@ -37,20 +39,21 @@ function MemberBlobPhoto({
 export function MemberPhoto({
   userId,
   displayName,
-  className = "size-8",
+  size = "sm",
 }: {
   userId: number;
   displayName: string;
-  className?: string;
+  size?: PhotoSize;
 }) {
   const { platform } = useTelegramPlatform();
+  const { frame, initials } = photoSizes[size];
 
   return (
-    <Avatar variant="pixel" className={className}>
+    <Avatar variant="pixel" className={frame}>
       {platform ? (
         <MemberBlobPhoto userId={userId} platform={platform} />
       ) : null}
-      <AvatarFallback className="arcade-initials arcade-text-xs bg-muted">
+      <AvatarFallback className={cn("arcade-initials bg-muted", initials)}>
         {displayInitials(displayName)}
       </AvatarFallback>
     </Avatar>

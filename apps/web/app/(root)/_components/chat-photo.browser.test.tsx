@@ -11,6 +11,7 @@ import {
 import { test } from "@/test/browser/msw";
 
 import { ChatPhoto } from "./chat-photo";
+import { photoSizes } from "./photo-size";
 
 const telegram = vi.hoisted<{ context: unknown }>(() => ({
   context: null,
@@ -102,4 +103,23 @@ test("asks for nothing when the Chat has no photo", async ({ worker }) => {
       url.includes(`/chats/${String(CHAT_WITHOUT_PHOTO_ID)}/photo`),
     ),
   ).toEqual([]);
+});
+
+/**
+ * The frame and the type inside it drifted apart once already — 40px here, 48px
+ * there, the same 14px in both — and one Chat's initials filled two different
+ * fractions of the same octagon depending on the screen. Nothing but the table
+ * may decide either half of that pair.
+ */
+test("takes both its frame and its initials from one named size", async () => {
+  const screen = await renderPhoto(null, CHAT_WITHOUT_PHOTO_ID);
+
+  const fallback = screen.container.querySelector(
+    '[data-slot="avatar-fallback"]',
+  );
+  expect(fallback?.classList.contains("arcade-initials")).toBe(true);
+  expect(fallback?.classList.contains(photoSizes.md.initials)).toBe(true);
+  expect(
+    screen.container.querySelector(`.${photoSizes.md.frame}`),
+  ).toBeTruthy();
 });

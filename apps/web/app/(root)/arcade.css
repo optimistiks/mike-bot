@@ -253,6 +253,22 @@
    is exactly what pulled the pair left of the frame's centre. */
 .arcade-initials {
   letter-spacing: 0;
+  /* Press Start 2P draws in the top-left of its cell. Measured in Chromium: an
+     uppercase run inks 0.875em wide inside a 1em advance and 0.875em tall inside
+     a 1em em-box (ascent 1000, descent 0), flush left and flush top. Centring the
+     *box* therefore leaves the *ink* a sixteenth of an em up and a sixteenth left
+     of the frame's middle, at every size and for any number of glyphs. An eighth
+     of an em of padding on the two starting edges moves the centred box back by
+     exactly that sixteenth.
+     Padding rather than a transform: this element also paints the fallback's
+     filled disc, and a transform would drag the disc off the frame with it.
+     Not `line-height: 1` — the half-leading above and below is symmetric, so
+     line-height cancels out of the centring entirely and changes nothing.
+     True of every glyph but three: Д and Щ reach the right edge of their cell,
+     and Д, Ц and Щ stand on the baseline, so initials containing them land a
+     pixel off. Measured and accepted — 69 of 71 glyphs is the trade. */
+  padding-top: 0.125em;
+  padding-left: 0.125em;
 }
 
 /* Positioned, so it paints above the scanline comb and below the vignette.

@@ -48,7 +48,7 @@ export function LeaderboardHeader({
           face and name together — so the card lands as this row. */}
       <ChatMorph chatId={chat.chatId}>
         <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-          <ChatPhoto chat={chat} className="size-10" />
+          <ChatPhoto chat={chat} />
           {/* A punishing Chat name wraps here rather than truncating. */}
           <h1 className="arcade-h1 min-w-0 flex-1 break-words">{chat.title}</h1>
         </div>
