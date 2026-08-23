@@ -48,9 +48,7 @@ export function ChatCard({ chat }: { chat: MiniAppChat }) {
           <ChatPhoto chat={chat} />
         </ItemMedia>
         <ItemContent>
-          <span className="arcade-text-md leading-relaxed break-words">
-            {chat.title}
-          </span>
+          <span className="arcade-body break-words">{chat.title}</span>
         </ItemContent>
       </Item>
     </ChatMorph>

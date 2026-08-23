@@ -36,7 +36,7 @@ const Avatar = forwardRef<
   const isPixel = variant === "pixel";
 
   return (
-    <div className={cn("relative size-max", className)}>
+    <div className={cn("relative size-10 shrink-0", className)}>
       {/* Pixel frame (only show if pixel variant) */}
       {isPixel && (
         <div
@@ -97,16 +97,19 @@ const Avatar = forwardRef<
         </div>
       )}
 
+      {/* `size-full`, not the caller's className: the wrapper above already
+          took the size, and setting it in both places is what let the two
+          disagree — the wrapper shrinking inside a tight flex row while the
+          Root held its width, which pulls the pixel frame off the glyphs. */}
       <AvatarPrimitive.Root
         ref={ref}
         data-slot="avatar"
         className={cn(
-          "relative flex size-10 shrink-0 overflow-hidden text-xs",
+          "relative flex size-full overflow-hidden text-xs",
           !isPixel && "rounded-none",
           isPixel && "rounded-full",
           font !== "normal" && "retro",
           variant === "retro" && "image-rendering-pixelated",
-          className,
         )}
         {...props}
       />
@@ -161,7 +164,11 @@ const AvatarFallback = forwardRef<
     ref={ref}
     data-slot="avatar-fallback"
     className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-muted text-foreground",
+      // Absolute rather than a `w-full` flex item: as a flex item it shares the
+      // row with the image while that loads, and any sibling width nudges the
+      // initials off centre. Out of the flow it is centred on the frame and
+      // nothing else can move it.
+      "absolute inset-0 grid place-items-center rounded-full bg-muted text-center text-foreground",
       className,
     )}
     {...props}

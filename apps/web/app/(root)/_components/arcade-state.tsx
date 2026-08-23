@@ -13,18 +13,10 @@ export function ArcadeState({
   return (
     <div className="arcade-screen flex items-center justify-center px-6 text-center">
       <div className="flex max-w-sm flex-col items-center gap-4">
-        <p className="arcade-text-lg text-primary">{title}</p>
-        {hint ? (
-          <p className="arcade-text-xs leading-loose text-muted-foreground">
-            {hint}
-          </p>
-        ) : null}
+        <h1 className="arcade-h1">{title}</h1>
+        {hint ? <p className="arcade-caption">{hint}</p> : null}
         {onRetry ? (
-          <Button
-            variant="outline"
-            className="arcade-text-sm"
-            onClick={onRetry}
-          >
+          <Button variant="outline" className="arcade-label" onClick={onRetry}>
             повторить
           </Button>
         ) : null}

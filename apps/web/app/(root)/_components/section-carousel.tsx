@@ -25,9 +25,13 @@ import { useTelegramPlatform } from "./telegram-provider";
  * out-of-bounds friction supplies the rubber-band; the peek onto the next slide
  * is the slide's width, in the stylesheet.
  *
- * RC3's `dragFree: "snap"` keeps momentum after release and then settles on
- * the nearest snap. Fine-pointer devices also get explicit 8bitcn arrows;
- * touch devices retain the direct swipe without duplicate controls.
+ * Momentum is deliberately *not* free. `dragFree` would hand the flick its raw
+ * velocity, and a filmstrip this narrow then crosses every section on a flick
+ * meant for one. Left off, Embla's default `skipSnaps: false` resolves any
+ * throw past its threshold to exactly the neighbouring snap, which is the only
+ * movement the header's cross-fade can honestly describe. Fine-pointer devices
+ * also get explicit 8bitcn arrows; touch devices retain the direct swipe
+ * without duplicate controls.
  *
  * The selected index is lifted out rather than kept here, because the header —
  * which is not inside the carousel — is what has to show it. It comes back down
@@ -73,12 +77,7 @@ export function SectionCarousel({
     <Carousel
       className="arcade-filmstrip"
       setApi={setApi}
-      opts={{
-        align: "start",
-        loop: false,
-        containScroll: "trimSnaps",
-        dragFree: "snap",
-      }}
+      opts={{ align: "start", loop: false, containScroll: "trimSnaps" }}
     >
       <CarouselContent className="ml-0 h-full">
         {sections.map((section, index) => (

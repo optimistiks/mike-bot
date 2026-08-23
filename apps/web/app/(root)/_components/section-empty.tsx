@@ -59,8 +59,8 @@ export function SectionEmpty({ section }: { section: LeaderboardSection }) {
         <EmptyMedia variant="icon" className="arcade-empty-media">
           <span aria-hidden="true">{copy.media}</span>
         </EmptyMedia>
-        <EmptyTitle className="arcade-text-lg text-primary">ПУСТО</EmptyTitle>
-        <EmptyDescription className="arcade-text-xs leading-loose">
+        <EmptyTitle className="arcade-h2">ПУСТО</EmptyTitle>
+        <EmptyDescription className="arcade-caption">
           {copy.description}
         </EmptyDescription>
       </EmptyHeader>

@@ -50,7 +50,7 @@ export function MemberPhoto({
       {platform ? (
         <MemberBlobPhoto userId={userId} platform={platform} />
       ) : null}
-      <AvatarFallback className="arcade-text-xs bg-muted">
+      <AvatarFallback className="arcade-initials arcade-text-xs bg-muted">
         {displayInitials(displayName)}
       </AvatarFallback>
     </Avatar>

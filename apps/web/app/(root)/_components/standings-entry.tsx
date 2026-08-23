@@ -53,12 +53,12 @@ export function StandingsEntry({
           key={reveal}
           score={entry.score}
           delay={delay}
-          className="arcade-entry-score arcade-text-lg ml-auto text-primary"
+          className="arcade-entry-score arcade-numeral ml-auto"
         />
       </ItemHeader>
 
       <ItemContent className="basis-full">
-        <span className="arcade-entry-name arcade-text-md">
+        <span className="arcade-entry-name arcade-body">
           {entry.displayName}
         </span>
       </ItemContent>

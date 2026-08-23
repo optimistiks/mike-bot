@@ -24,10 +24,8 @@ export function SeasonEmpty({ period }: { period: LeaderboardPeriod }) {
         <EmptyMedia variant="icon" className="arcade-empty-media">
           <span aria-hidden="true">👾</span>
         </EmptyMedia>
-        <EmptyTitle className="arcade-text-lg text-primary">
-          НЕТ ДАННЫХ
-        </EmptyTitle>
-        <EmptyDescription className="arcade-text-xs leading-loose">
+        <EmptyTitle className="arcade-h2">НЕТ ДАННЫХ</EmptyTitle>
+        <EmptyDescription className="arcade-caption">
           {periodLabel(period)} — здесь пока ничего не происходило.
         </EmptyDescription>
       </EmptyHeader>

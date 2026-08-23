@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 
 import type { LeaderboardPeriod } from "@/lib/leaderboard/schema";
 
@@ -26,7 +25,6 @@ function AuthenticatedLeaderboard({
   period: LeaderboardPeriod;
   platform: TelegramPlatform;
 }) {
-  const { supportsNativeBackButton } = useTelegramPlatform();
   const chats = useQuery(chatsOptions(platform));
   const leaderboard = useQuery(leaderboardOptions(platform, chatId, period));
   const periods = useQuery(periodsOptions(platform, chatId));
@@ -38,7 +36,11 @@ function AuthenticatedLeaderboard({
     ]);
   };
 
-  if (chats.isPending || leaderboard.isPending || periods.isPending) {
+  // Only the Chat list gates the whole screen. Everything else the Leaderboard
+  // needs is rendered around, because the Chat is what the header — and with it
+  // the far end of the Chat card's morph — is made of, and it is already in
+  // cache the moment the route commits.
+  if (chats.isPending) {
     return <ArcadeLoading />;
   }
   if (chats.isError || leaderboard.isError || periods.isError) {
@@ -90,20 +92,11 @@ function AuthenticatedLeaderboard({
     // which collapses the filmstrip, and with it the area a swipe can start in,
     // whenever the sections are short or empty.
     <div className="relative flex h-full min-h-0 flex-col">
-      {!supportsNativeBackButton ? (
-        <Link
-          href="/chats"
-          replace
-          transitionTypes={["nav-back"]}
-          className="arcade-fallback-back arcade-text-xs"
-        >
-          ← чаты
-        </Link>
-      ) : null}
       <LeaderboardScreen
         chat={chat}
+        period={period}
         leaderboard={leaderboard.data}
-        availableSeasons={periods.data.seasons}
+        availableSeasons={periods.data?.seasons}
       />
     </div>
   );

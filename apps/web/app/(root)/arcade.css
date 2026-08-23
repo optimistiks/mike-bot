@@ -34,9 +34,22 @@
   --arcade-text-lg: 16px;
   --arcade-text-xl: 20px;
 
-  /* After the standings' 6px inset, 32–40px of the next card remains visible:
-     a real slice of content, not a decorative hairline. */
-  --arcade-peek: clamp(38px, calc(9vw + 6px), 46px);
+  /* One card surface, used by both a standings entry and an empty section, so
+     the two peek into view as the same kind of object. */
+  --arcade-card-border: color-mix(
+    in oklab,
+    var(--arcade-neon-alt) 65%,
+    var(--arcade-rule)
+  );
+  --arcade-card-surface: color-mix(
+    in oklab,
+    var(--arcade-neon-alt) 6%,
+    var(--arcade-void)
+  );
+
+  /* Enough of the next card's border to say the strip continues, and no more:
+     a wide peek eats the width the standings are read in. */
+  --arcade-peek: 12px;
 
   /* Telegram fills these in when the Mini App runs inside the client; the
      fallbacks keep the Mini App usable as a plain web page. */
@@ -101,15 +114,6 @@
   animation:
     var(--duration-enter) ease-out var(--duration-exit) both fade,
     var(--duration-move) ease-in-out both slide;
-}
-
-.arcade-fallback-back {
-  position: absolute;
-  z-index: 20;
-  right: calc(0.75rem + var(--arcade-inset-right));
-  bottom: calc(0.75rem + var(--arcade-inset-bottom));
-  color: var(--arcade-neon);
-  text-decoration: none;
 }
 
 .arcade {
@@ -207,6 +211,50 @@
   font-size: var(--arcade-text-xl);
 }
 
+/* Roles, not sizes. The scale above is the raw material; everything with a
+   place in the hierarchy names its role instead, so the Chat list's title and
+   the Leaderboard's Chat name cannot drift apart the way they had. */
+.arcade-h1 {
+  font-size: var(--arcade-text-lg);
+  line-height: 1.5;
+  color: var(--arcade-neon);
+}
+
+.arcade-h2 {
+  font-size: var(--arcade-text-md);
+  line-height: 1.5;
+  color: var(--arcade-neon-alt);
+}
+
+.arcade-body {
+  font-size: var(--arcade-text-md);
+  line-height: 1.8;
+}
+
+/* Anything a Member taps the words of: buttons, chips, picker cells. */
+.arcade-label {
+  font-size: var(--arcade-text-sm);
+  line-height: 1.4;
+}
+
+.arcade-caption {
+  font-size: var(--arcade-text-xs);
+  line-height: 1.8;
+  color: var(--arcade-dim);
+}
+
+.arcade-numeral {
+  font-size: var(--arcade-text-lg);
+  color: var(--arcade-neon);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two glyphs gain nothing from tracking, and the space trailing the second one
+   is exactly what pulled the pair left of the frame's centre. */
+.arcade-initials {
+  letter-spacing: 0;
+}
+
 /* Positioned, so it paints above the scanline comb and below the vignette.
    Every page's root element is one of these, which is what makes the sandwich
    hold without each page having to know about it. */
@@ -247,6 +295,14 @@
   margin: 0;
 }
 
+/* The Season is the screen's one action, so it gets the width of the screen and
+   the position a thumb rests at, rather than a chip wedged beside the title. */
+.arcade-footer {
+  flex: none;
+  border-top: 4px solid var(--arcade-rule);
+  padding: 12px 16px;
+}
+
 /* Filmstrip ------------------------------------------------------------- */
 
 /* The carousel takes every pixel the header leaves. Embla's viewport is the
@@ -261,8 +317,12 @@
 }
 
 /* Full-bleed but for the peek: the next section's edge is what advertises that
-   the gesture exists at all. */
+   the gesture exists at all. A column, so that whichever of the two things a
+   slide can hold — a scroller or an empty card — takes the height from a
+   `flex: 1` rather than each having to restate `height: 100%`. */
 .arcade-slide {
+  display: flex;
+  flex-direction: column;
   flex-basis: calc(100% - var(--arcade-peek));
   height: 100%;
 }
@@ -298,7 +358,8 @@
    which is what puts a sliver of the next section's cards inside the peek
    rather than a strip of empty background. */
 .arcade-slide-scroll {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 0 32px;
@@ -306,12 +367,19 @@
 
 /* A section with no entries keeps its slide but has nothing to scroll, so the
    empty state is centred in the slide's full height instead of sitting at the
-   top of a scroll container. */
+   top of a scroll container.
+   It is drawn as a card because of the peek: with nothing but background at the
+   slide's edge there is no edge to see, and the gesture stops advertising
+   itself on exactly the sections a Member is least sure are there. The 6px
+   margin matches the standings' own inset, so both peek by the same sliver. */
 .arcade-slide-empty {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
+  margin: 12px 6px 32px;
+  border: 2px solid var(--arcade-card-border);
+  background: var(--arcade-card-surface);
 }
 
 /* Standings ------------------------------------------------------------- */
@@ -328,16 +396,8 @@
 /* The low violet surface makes the neighbouring card read as content when it
    peeks in, while keeping the name, avatar, and score as the loudest objects. */
 .arcade-entry {
-  border-color: color-mix(
-    in oklab,
-    var(--arcade-neon-alt) 65%,
-    var(--arcade-rule)
-  );
-  background: color-mix(
-    in oklab,
-    var(--arcade-neon-alt) 6%,
-    var(--arcade-void)
-  );
+  border-color: var(--arcade-card-border);
+  background: var(--arcade-card-surface);
 }
 
 /* Line 2 exists precisely so a 30-character handle can wrap. `anywhere` rather

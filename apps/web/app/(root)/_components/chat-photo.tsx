@@ -42,7 +42,7 @@ export function ChatPhoto({
           platform={platform}
         />
       ) : null}
-      <AvatarFallback className="arcade-text-md bg-primary">
+      <AvatarFallback className="arcade-initials arcade-text-md bg-primary">
         {displayInitials(chat.title)}
       </AvatarFallback>
     </Avatar>

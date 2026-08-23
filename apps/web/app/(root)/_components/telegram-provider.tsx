@@ -23,7 +23,6 @@ interface TelegramContextValue {
   launch: MiniAppLaunch | null;
   platform: TelegramPlatform | null;
   isInitialized: boolean;
-  supportsNativeBackButton: boolean;
   hapticImpact: VoidFunction;
   hapticSelection: VoidFunction;
   hapticNotificationSuccess: VoidFunction;
@@ -73,7 +72,6 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       launch,
       platform,
       isInitialized: platform !== null,
-      supportsNativeBackButton: platform?.supportsNativeBackButton ?? false,
       hapticImpact: platform?.impact ?? doNothing,
       hapticSelection: platform?.selection ?? doNothing,
       hapticNotificationSuccess: platform?.notificationSuccess ?? doNothing,

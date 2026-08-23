@@ -41,7 +41,12 @@ export function SeasonDrawer({
 }: {
   chatId: number;
   period: LeaderboardPeriod;
-  availableSeasons: Season[];
+  /**
+   * Undefined until the Seasons request lands. The trigger still shows the
+   * Season the URL names — it is read from the address, not the response — but
+   * refuses to open onto a picker with no years in it.
+   */
+  availableSeasons?: Season[];
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -60,21 +65,23 @@ export function SeasonDrawer({
     <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
       <DrawerTrigger
         render={
-          <Button variant="outline" size="sm" className="arcade-text-xs" />
+          <Button
+            variant="outline"
+            className="arcade-label w-full"
+            disabled={availableSeasons === undefined}
+          />
         }
       >
         {periodLabel(period)}
       </DrawerTrigger>
       <DrawerContent className="arcade-drawer" aria-label="Сезон">
         <DrawerHeader>
-          <DrawerTitle className="arcade-text-md text-primary">
-            Сезон
-          </DrawerTitle>
+          <DrawerTitle className="arcade-h2">Сезон</DrawerTitle>
         </DrawerHeader>
         <div className="min-h-0 overflow-y-auto px-4 pt-2 pb-8">
           <SeasonPicker
             period={period}
-            availableSeasons={availableSeasons}
+            availableSeasons={availableSeasons ?? []}
             onSelect={(chosen) => {
               hapticSelection();
               setOpen(false);

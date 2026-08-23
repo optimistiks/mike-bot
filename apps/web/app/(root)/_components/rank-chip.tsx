@@ -17,7 +17,7 @@ export function RankChip({
 }) {
   return (
     <Badge variant={isCrown ? "default" : "outline"} className="border-primary">
-      <span className="arcade-text-sm">{String(rank).padStart(2, "0")}</span>
+      <span className="arcade-label">{String(rank).padStart(2, "0")}</span>
     </Badge>
   );
 }

@@ -98,7 +98,7 @@ export function StandingsList({
           >
             <Button
               variant="outline"
-              className="arcade-text-sm"
+              className="arcade-label"
               onClick={() => {
                 setIsExpanded(true);
               }}

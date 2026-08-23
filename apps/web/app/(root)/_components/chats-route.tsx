@@ -47,7 +47,7 @@ function AuthenticatedChats({ platform }: { platform: TelegramPlatform }) {
 
   return (
     <div className="arcade-screen gap-6 overflow-y-auto px-4 py-8">
-      <h1 className="arcade-text-lg text-primary">Выбери чат</h1>
+      <h1 className="arcade-h1">Выбери чат</h1>
       <div className="flex flex-col gap-2">
         {query.data.chats.map((chat) => (
           <ChatCard key={chat.chatId} chat={chat} />

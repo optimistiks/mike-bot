@@ -25,8 +25,8 @@ export function SeasonPickerCell({
       value={value}
       className={
         hasData
-          ? "arcade-picker-cell arcade-text-sm"
-          : "arcade-picker-cell arcade-picker-cell-empty arcade-text-sm"
+          ? "arcade-picker-cell arcade-label"
+          : "arcade-picker-cell arcade-picker-cell-empty arcade-label"
       }
     >
       {children}
