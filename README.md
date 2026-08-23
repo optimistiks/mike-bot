@@ -236,7 +236,7 @@ Repeat for every supergroup that should use v2.
 3. Confirm privacy mode is **off** (step 3) — bot must see messages to cache authors.
 4. **Mark `/stats` and `/register` ephemeral** in @BotFather so the command messages stay invisible to the rest of the group. `set-webhook` publishes them with `is_ephemeral` for the group scope.
 5. **Members** send `/stats` (or its `/register` alias). In a group it creates Registration and replies ephemerally — visible only to the caller — with a deep link to that Chat's current Leaderboard; private `/stats` opens the Chat picker.
-6. **Scoring:** Members use 👍 👎 🤣 reactions, or exact `+`, `-`, `лол` replies, on others' messages. An accepted reply is deleted and the bot answers under the marked message with `➕ (@name)`, `➖ (@name)`, or `лол (@name)`. Reaction Marks can be undone; reply and imported Marks cannot.
+6. **Scoring:** Members use 👍 👎 🤣 reactions, or exact `+`, `-`, `лол` replies, on others' messages. An accepted reply is deleted and the bot answers under the marked message with `➕ (name)`, `➖ (name)`, or `лол (name)` — the name is not an `@` mention, so nobody is notified. Reaction Marks can be undone; reply and imported Marks cannot.
 
 When a member leaves or is kicked, their registration row is removed automatically (`chat_member` updates).
 

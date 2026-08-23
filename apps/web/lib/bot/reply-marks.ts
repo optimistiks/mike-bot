@@ -5,7 +5,6 @@ import type { EventType } from "@/lib/domain/event";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
 import { isGroupChat } from "./chat";
-import { memberDisplayName } from "./display-name";
 import { applyMarkChanges } from "./marks";
 
 /** What the bot says in the Chat once it has taken the Scoring reply's place. */
@@ -29,11 +28,23 @@ export function replyTextToEventType(text: string): EventType | null {
   return null;
 }
 
+/**
+ * Name the Actor without mentioning them. Deliberately not `memberDisplayName`:
+ * its `@username` is a real mention, and the bot answers every Mark an Actor
+ * gives, so that would notify them for their own routine reactions.
+ */
+export function acknowledgementName(actor: {
+  username?: string;
+  first_name: string;
+}): string {
+  return actor.username ?? actor.first_name;
+}
+
 export function acknowledgementText(
   type: EventType,
   actor: { username?: string; first_name: string },
 ): string {
-  return `${ACKNOWLEDGEMENT_LABEL[type]} (${memberDisplayName(actor)})`;
+  return `${ACKNOWLEDGEMENT_LABEL[type]} (${acknowledgementName(actor)})`;
 }
 
 /**

@@ -6,7 +6,11 @@ import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import { events, messageAuthors } from "@/lib/db/schema";
 
 import { createBot } from "./bot";
-import { handleReplyMark, replyTextToEventType } from "./reply-marks";
+import {
+  acknowledgementText,
+  handleReplyMark,
+  replyTextToEventType,
+} from "./reply-marks";
 
 const CHAT_ID = -100_123;
 const MESSAGE_DATE = Math.floor(
@@ -81,6 +85,20 @@ describe("reply Marks", () => {
     ["++", null],
   ])("maps exact reply %j to %s", (text, expected) => {
     expect(replyTextToEventType(text)).toBe(expected);
+  });
+
+  it("names the Actor without mentioning them", () => {
+    // An "@" here is a real mention: the bot answers every Mark an Actor
+    // gives, so it would notify them for their own routine reactions.
+    expect(
+      acknowledgementText("humor.add", {
+        username: "actor",
+        first_name: "Actor",
+      }),
+    ).toBe("лол (actor)");
+    expect(acknowledgementText("karma.plus", { first_name: "Actor" })).toBe(
+      "➕ (Actor)",
+    );
   });
 
   it("creates one permanent Event and suppresses duplicate acknowledgement", async () => {
@@ -178,7 +196,7 @@ describe("reply Marks", () => {
           method: "sendMessage",
           payload: {
             chat_id: CHAT_ID,
-            text: "лол (@actor)",
+            text: "лол (actor)",
             reply_parameters: { message_id: 30 },
           },
         },
