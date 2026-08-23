@@ -1,8 +1,23 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import { ArcadeLoading } from "../../../../../_components/arcade-state";
 import { LeaderboardRoute } from "../../../../../_components/leaderboard-route";
 
-export default async function MonthLeaderboardPage({
+/** Same shape as the annual page: see the note there. */
+export default function MonthLeaderboardPage({
+  params,
+}: {
+  params: Promise<{ chatId: string; year: string; month: string }>;
+}) {
+  return (
+    <Suspense fallback={<ArcadeLoading />}>
+      <MonthLeaderboard params={params} />
+    </Suspense>
+  );
+}
+
+async function MonthLeaderboard({
   params,
 }: {
   params: Promise<{ chatId: string; year: string; month: string }>;

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Press_Start_2P } from "next/font/google";
+import { Suspense } from "react";
 
 import "./globals.css";
 import "./arcade.css";
@@ -42,7 +43,12 @@ export default function RootLayout({
           <TelegramProvider>
             <div className="arcade">
               {children}
-              <SeasonGlitch />
+              {/* Reads the pathname to notice a Season change, so it suspends
+                  while the shell is built for a route whose params are still
+                  unknown. It draws nothing until the second Season anyway. */}
+              <Suspense fallback={null}>
+                <SeasonGlitch />
+              </Suspense>
               <CrtBoot />
             </div>
           </TelegramProvider>

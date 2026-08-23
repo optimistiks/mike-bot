@@ -1,0 +1,9 @@
+# Enable Cache Components, so the arcade frame paints before the data arrives
+
+The Mini App fetches everything from the client: Telegram initializes in the browser, and no server component has ever touched the database. That left every Leaderboard URL server-rendered on demand to produce markup that never depended on the request. Enabling Next 16's `cacheComponents` splits each of those routes in two — a prerendered static shell holding the CRT frame, the pixel font, and the loading skeleton, and the route's own content streamed in after — so a Member sees the arcade rather than white while Telegram hands over its launch parameters.
+
+Two shapes in the app had to change for it. Route hooks are pushed down to leaves: `usePathname` cannot resolve while a shell is built for a route whose params are unknown, so reading it inside the provider that wraps the whole app would have suspended the whole app. The back-button sync now lives in a leaf that renders nothing, behind its own boundary, and the Season glitch overlay sits behind another. The two redirect-only routes — the Telegram entry point and the Season index — declare `instant = false` instead, because a route that renders no UI has no shell to prerender, and keeping them blocking is what keeps their redirects real 3xx responses rather than something delivered mid-stream after a 200.
+
+This also buys the thing that motivated it: `use cache` exists only under this flag, and ADR-0012 records what it is used for.
+
+The cost is a build that fails on code the previous model accepted, in an app whose team is one person. Request-time reads outside a boundary and clock reads during prerender are now build errors, not slow paths — `getCurrentSeason()` in the Season index needs an explicit `connection()` to stay legal. That trade is worth taking while the app is small enough to convert in a sitting.

@@ -1,8 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -16,6 +17,7 @@ import {
   type MiniAppLaunch,
   type TelegramPlatform,
 } from "../_lib/telegram-platform";
+import { BackButtonSync } from "./back-button-sync";
 
 interface TelegramContextValue {
   launch: MiniAppLaunch | null;
@@ -31,17 +33,11 @@ interface TelegramContextValue {
 const TelegramContext = createContext<TelegramContextValue | null>(null);
 const doNothing = () => undefined;
 
-function isLeaderboardPath(pathname: string): boolean {
-  return /^\/chats\/-?\d+\/leaderboards(?:\/|$)/.test(pathname);
-}
-
 export function TelegramProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [launch, setLaunch] = useState<MiniAppLaunch | null>(null);
   const backInterceptor = useRef<VoidFunction | null>(null);
   const platform = launch?.kind === "telegram" ? launch.platform : null;
-  const showsBackButton = isLeaderboardPath(pathname);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,11 +60,6 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     }
     router.replace("/chats", { transitionTypes: ["nav-back"] });
   }, [router]);
-
-  useEffect(
-    () => platform?.setBackButton(showsBackButton, handleBack),
-    [handleBack, platform, showsBackButton],
-  );
 
   const interceptBack = useCallback((handler: VoidFunction) => {
     backInterceptor.current = handler;
@@ -94,6 +85,9 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   return (
     <TelegramContext.Provider value={value}>
       {children}
+      <Suspense fallback={null}>
+        <BackButtonSync platform={platform} onBack={handleBack} />
+      </Suspense>
     </TelegramContext.Provider>
   );
 }
