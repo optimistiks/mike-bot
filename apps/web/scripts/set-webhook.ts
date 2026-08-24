@@ -127,10 +127,13 @@ async function registerWebhook(): Promise<void> {
  * Hand the bot back to the v1 AWS Lambda (`master:src/index.ts`).
  *
  * That handler reads `event.body` and nothing else — it never inspects
- * `X-Telegram-Bot-Api-Secret-Token` — so a secret registered here would be a
- * header no one checks. Its Telegraf bot likewise expects whatever Telegram's
- * default update set delivers, not v2's narrowed list. Omitting both fields is
- * what restores v1's state, because `setWebhook` resets anything left unsent.
+ * `X-Telegram-Bot-Api-Secret-Token` — so omitting the secret both matches what
+ * v1 expects and clears the one v2 registered.
+ *
+ * `allowed_updates`, unlike the secret, is sticky: the Bot API documents "if
+ * not specified, the previous setting will be used", so leaving it out would
+ * strand v1's Telegraf bot on v2's narrowed list. The empty list is not a
+ * no-op here — it is the documented way to ask for the default set.
  */
 async function recoverLegacyWebhook(): Promise<void> {
   const token = requireEnv("LEGACY_BOT_TOKEN");
@@ -138,7 +141,7 @@ async function recoverLegacyWebhook(): Promise<void> {
 
   const bot = new Bot(token);
 
-  await bot.api.setWebhook(webhookUrl);
+  await bot.api.setWebhook(webhookUrl, { allowed_updates: [] });
 
   // v1 registered no commands at all. Leaving v2's behind would keep
   // advertising /stats and /register in a menu the Lambda ignores.
@@ -148,9 +151,16 @@ async function recoverLegacyWebhook(): Promise<void> {
 
   const info = await bot.api.getWebhookInfo();
 
-  // No update types to expect: omitting `allowed_updates` restores Telegram's
-  // default set, which `getWebhookInfo` reports by omitting the field.
   assertWebhookRegistered(info, { url: webhookUrl, allowedUpdates: [] });
+
+  // Telegram reports the default set by omitting the field, so anything left
+  // here is v2's list surviving the handover — the failure this mode exists to
+  // prevent, and one `assertWebhookRegistered` cannot see with no expectations.
+  if (info.allowed_updates && info.allowed_updates.length > 0) {
+    throw new Error(
+      `Webhook still restricted to ${JSON.stringify(info.allowed_updates)}; expected Telegram's default set`,
+    );
+  }
 
   console.log("Webhook handed back to the legacy AWS endpoint");
   logWebhook(info);
