@@ -1,0 +1,11 @@
+# Credit Imported Marks like every other Mark
+
+ADR-0003 says an Imported Mark keeps its own v1 timestamp for Season attribution, while a live Mark is credited by its Message's post time. That one exception is retired: **a Mark belongs to the Season of its Message's post time**, whatever its provenance. Every other claim in ADR-0003 stands — Message-based Seasons, the ten-minute grace, Telegram's timestamps over processing time — so it is amended here rather than superseded.
+
+The exception was already redundant. The v1 import resolves one author and one post time per Message and writes the earliest v1 Mark's timestamp as that Message's post time, so an Imported Mark's Message already sits in the Season the Mark belonged to. Reading the Mark's own timestamp instead produced the same answer in every case but one, and cost a provenance branch on the read path that had spread to four places: the Season Leaderboard query, the available-Seasons query, the import dump tooling, and — as a `legacy_id` test the model had to be taught — the planned agent SQL boundary.
+
+The one case where the answers differ is a v1 Message marked in two calendar months, which v1 permitted. Its later Mark now follows the Message into the earlier Season instead of counting in its own. That is a correction rather than a regression: a Message belongs to one Season, and the Marks on it are Marks on that Message. Historical totals were already best-effort about Message dates, and there are no users to migrate.
+
+Two other things fall out and are deliberate. The read-side cutoff comparing a Mark's creation time against the Season's close is deleted: both ingestion adapters already refuse to place a Mark whose Season has shut, so the clause filtered rows that cannot exist. Eligibility is a write-time gate and attribution is a read-time lookup; they were sharing an expression and no longer do, which is why the gate is now named for the question it answers. And the join from Marks to cached Messages becomes an inner join, so a Mark with no cached Message has no Season and does not appear — which is correct, and previously only reachable for Imported Marks through the branch now gone.
+
+After this, a Mark's creation time is read by nothing on the Leaderboard path. It keeps only the job ADR-0015 gave it: ordering the Undo window.

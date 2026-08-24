@@ -62,7 +62,7 @@ The canonical value a Mark carries: `karma.plus`, `karma.minus`, or `humor.add`.
 _Avoid_: Event type, kind
 
 **Imported Mark**:
-A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew only Scoring replies, so an Imported Mark is one, and is therefore permanent like any other. It keeps its v1 timestamp for Season attribution, which is the only thing that distinguishes it — nothing else in the model treats it specially. v1 allowed a Member to mark one Message repeatedly, so the import admits only the earliest Mark per slot.
+A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew only Scoring replies, so an Imported Mark is one, and is therefore permanent like any other. Nothing distinguishes it in the model: its v1 timestamp became its Message's post time at import, so it is credited to a Season exactly like every other Mark, and `legacyId` is import provenance that no scoring rule reads. v1 allowed a Member to mark one Message repeatedly, so the import admits only the earliest Mark per slot, and where those repeats crossed a month the later ones follow the Message into the earlier Season (ADR-0017).
 _Avoid_: Legacy row, migration
 
 ## Community and access
@@ -94,7 +94,7 @@ _Avoid_: Signup, invite
 ## Leaderboards
 
 **Season**:
-A calendar month in `Europe/Moscow` to which live Marks are credited according to the marked Message's post time. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one has no effect on it. Imported Marks are credited by their v1 timestamp instead.
+A calendar month in `Europe/Moscow` to which Marks are credited according to the marked Message's post time. Every Mark follows that rule, with no exceptions. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one places no Mark at all. Eligibility is settled when the Mark is placed and never revisited, so where a Mark counts depends only on its Message.
 _Avoid_: Rolling window
 
 **Leaderboard period**:

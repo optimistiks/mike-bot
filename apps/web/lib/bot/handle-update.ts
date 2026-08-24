@@ -9,7 +9,7 @@ import {
   processedUpdates,
 } from "@/lib/db/schema";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
-import { creditedSeasonForReaction } from "@/lib/scoring";
+import { isSeasonOpenForAction } from "@/lib/scoring";
 
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
@@ -245,7 +245,7 @@ async function handleMessageReactionUpdate(
   }
 
   const messageDate = new Date(author.messageDate * 1000);
-  if (creditedSeasonForReaction(messageDate, createdAt) === null) {
+  if (!isSeasonOpenForAction(messageDate, createdAt)) {
     return;
   }
 

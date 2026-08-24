@@ -2,7 +2,7 @@ import type { Context } from "grammy";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 import type { MarkType } from "@/lib/domain/mark";
-import { creditedSeasonForReaction } from "@/lib/scoring";
+import { isSeasonOpenForAction } from "@/lib/scoring";
 
 import { applyMarkChanges } from "./marks";
 
@@ -81,7 +81,7 @@ export async function handleReplyMark(
 
   const createdAt = new Date(message.date * 1_000);
   const messageDate = new Date(repliedTo.date * 1_000);
-  if (creditedSeasonForReaction(messageDate, createdAt) === null) return null;
+  if (!isSeasonOpenForAction(messageDate, createdAt)) return null;
 
   const result = await applyMarkChanges(db, {
     identity: {

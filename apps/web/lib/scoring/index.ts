@@ -1,13 +1,14 @@
 export { aggregateLeaderboard } from "./aggregate";
 export { markTypeToContributions } from "./contributions";
 export {
-  creditedSeasonForReaction,
   formatSeasonLabel,
   getCurrentSeason,
+  isSeasonOpenForAction,
   MARK_UNDO_WINDOW_MS,
   MOSCOW_UTC_OFFSET_HOURS,
   SEASON_GRACE_PERIOD_MS,
   seasonDateRange,
+  seasonDateRangeInSeconds,
   seasonForDate,
   seasonsEqual,
   SEASON_TIMEZONE,

@@ -36,15 +36,20 @@ export function getCurrentSeason(now = new Date()): Season {
   return seasonForDate(now);
 }
 
-export function creditedSeasonForReaction(
+/**
+ * Whether a Scoring action is still in time to place a Mark on this Message.
+ *
+ * A write-time gate, and the only place the grace period is applied. Where a
+ * Mark is *credited* is a separate question with a separate answer — the Season
+ * of the Message's post time — so nothing on the read path consults this.
+ */
+export function isSeasonOpenForAction(
   messageDate: Date,
   actionDate: Date,
-): Season | null {
-  const season = seasonForDate(messageDate);
-  const { end } = seasonDateRange(season);
-  const closesAt = end.getTime() + SEASON_GRACE_PERIOD_MS;
+): boolean {
+  const { end } = seasonDateRange(seasonForDate(messageDate));
 
-  return actionDate.getTime() < closesAt ? season : null;
+  return actionDate.getTime() < end.getTime() + SEASON_GRACE_PERIOD_MS;
 }
 
 export function seasonsEqual(left: Season, right: Season): boolean {
@@ -62,6 +67,19 @@ export function seasonDateRange(season: Season): {
     end: new Date(
       Date.UTC(season.year, season.month, 1, -MOSCOW_UTC_OFFSET_HOURS),
     ),
+  };
+}
+
+/** A Season's bounds as Telegram-style epoch seconds, for message-date queries. */
+export function seasonDateRangeInSeconds(season: Season): {
+  start: number;
+  end: number;
+} {
+  const { start, end } = seasonDateRange(season);
+
+  return {
+    start: Math.floor(start.getTime() / 1000),
+    end: Math.floor(end.getTime() / 1000),
   };
 }
 

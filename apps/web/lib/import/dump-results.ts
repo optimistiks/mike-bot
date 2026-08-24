@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/lib/db/runtime";
 import { displayIdentities, marks, messageAuthors } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
-import { creditedSeasonForReaction, seasonForDate } from "@/lib/scoring/season";
+import { seasonForDate } from "@/lib/scoring/season";
 
 export interface DumpImportResultsOptions {
   outDir: string;
@@ -74,18 +74,11 @@ export async function dumpImportResults(
         continue;
       }
 
-      const season =
-        row.mark.legacyId !== null
-          ? seasonForDate(row.mark.createdAt)
-          : row.messageDate === null
-            ? null
-            : creditedSeasonForReaction(
-                new Date(row.messageDate * 1000),
-                row.mark.createdAt,
-              );
-      if (season === null) {
+      if (row.messageDate === null) {
         continue;
       }
+
+      const season = seasonForDate(new Date(row.messageDate * 1000));
       seasons.set(seasonKey(season), season);
     }
 

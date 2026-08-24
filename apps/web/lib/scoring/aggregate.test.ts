@@ -4,8 +4,8 @@ import type { MarkType } from "@/lib/domain/mark";
 
 import { aggregateLeaderboard } from "./aggregate";
 import {
-  creditedSeasonForReaction,
   getCurrentSeason,
+  isSeasonOpenForAction,
   seasonDateRange,
   seasonForDate,
 } from "./season";
@@ -42,17 +42,11 @@ describe("season bucketing", () => {
     const messageDate = new Date("2026-01-31T20:00:00.000Z");
 
     expect(
-      creditedSeasonForReaction(
-        messageDate,
-        new Date("2026-01-31T21:09:59.999Z"),
-      ),
-    ).toEqual({ year: 2026, month: 1 });
+      isSeasonOpenForAction(messageDate, new Date("2026-01-31T21:09:59.999Z")),
+    ).toBe(true);
     expect(
-      creditedSeasonForReaction(
-        messageDate,
-        new Date("2026-01-31T21:10:00.000Z"),
-      ),
-    ).toBeNull();
+      isSeasonOpenForAction(messageDate, new Date("2026-01-31T21:10:00.000Z")),
+    ).toBe(false);
   });
 });
 

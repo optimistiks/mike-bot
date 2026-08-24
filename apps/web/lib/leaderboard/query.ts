@@ -1,14 +1,12 @@
-import { and, eq, gte, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, eq, gte, isNull, lt } from "drizzle-orm";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 import { displayIdentities, marks, messageAuthors } from "@/lib/db/schema";
 import { markTypeSchema } from "@/lib/domain/mark";
 import {
   aggregateLeaderboard,
-  creditedSeasonForReaction,
   getCurrentSeason,
-  SEASON_GRACE_PERIOD_MS,
-  seasonDateRange,
+  seasonDateRangeInSeconds,
   seasonForDate,
   type Season,
 } from "@/lib/scoring";
@@ -48,10 +46,10 @@ async function querySeasonLeaderboard(
   chatId: number,
   season: Season,
 ): Promise<LeaderboardResponse> {
-  const range = seasonDateRange(season);
-  const startSeconds = Math.floor(range.start.getTime() / 1000);
-  const endSeconds = Math.floor(range.end.getTime() / 1000);
-  const closesAt = new Date(range.end.getTime() + SEASON_GRACE_PERIOD_MS);
+  // A Mark belongs to the Season of its Message's post time — the whole rule.
+  // Whether the Scoring action was in time to place it at all was settled at
+  // write time, so nothing here re-checks it (ADR-0017).
+  const range = seasonDateRangeInSeconds(season);
   const [markRows, identityRows] = await Promise.all([
     db
       .select({
@@ -60,7 +58,7 @@ async function querySeasonLeaderboard(
         subjectId: marks.subjectId,
       })
       .from(marks)
-      .leftJoin(
+      .innerJoin(
         messageAuthors,
         and(
           eq(marks.chatId, messageAuthors.chatId),
@@ -71,19 +69,8 @@ async function querySeasonLeaderboard(
         and(
           eq(marks.chatId, chatId),
           isNull(marks.undoneAt),
-          or(
-            and(
-              isNotNull(marks.legacyId),
-              gte(marks.createdAt, range.start),
-              lt(marks.createdAt, range.end),
-            ),
-            and(
-              isNull(marks.legacyId),
-              gte(messageAuthors.messageDate, startSeconds),
-              lt(messageAuthors.messageDate, endSeconds),
-              lt(marks.createdAt, closesAt),
-            ),
-          ),
+          gte(messageAuthors.messageDate, range.start),
+          lt(messageAuthors.messageDate, range.end),
         ),
       ),
     db
@@ -173,13 +160,9 @@ export async function queryAvailableSeasons(
   chatId: number,
 ): Promise<Season[]> {
   const rows = await db
-    .select({
-      legacyId: marks.legacyId,
-      createdAt: marks.createdAt,
-      messageDate: messageAuthors.messageDate,
-    })
+    .select({ messageDate: messageAuthors.messageDate })
     .from(marks)
-    .leftJoin(
+    .innerJoin(
       messageAuthors,
       and(
         eq(marks.chatId, messageAuthors.chatId),
@@ -190,17 +173,8 @@ export async function queryAvailableSeasons(
 
   const seasons = new Map<string, Season>();
   for (const row of rows) {
-    const season = row.legacyId
-      ? seasonForDate(row.createdAt)
-      : row.messageDate === null
-        ? null
-        : creditedSeasonForReaction(
-            new Date(row.messageDate * 1_000),
-            row.createdAt,
-          );
-    if (season) {
-      seasons.set(`${String(season.year)}-${String(season.month)}`, season);
-    }
+    const season = seasonForDate(new Date(row.messageDate * 1_000));
+    seasons.set(`${String(season.year)}-${String(season.month)}`, season);
   }
 
   return [...seasons.values()].toSorted(
