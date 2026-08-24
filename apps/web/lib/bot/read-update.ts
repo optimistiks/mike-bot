@@ -4,6 +4,7 @@ import type { MarkSource, MarkType } from "@/lib/domain/mark";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { isSeasonOpenForAction } from "@/lib/scoring";
 
+import { isScorableChatType } from "./chat-type";
 import { memberDisplayName } from "./display-name";
 import type { MarkChange, MarkIdentity } from "./marks";
 import {
@@ -159,14 +160,18 @@ function readMessage(
   updateId: number,
   botUsername: string,
 ): ChatFacts {
-  if (message.chat.type !== "supergroup") {
+  if (!isScorableChatType(message.chat.type)) {
     return nothing();
   }
 
   if (message.migrate_to_chat_id !== undefined) {
-    // Mike-bot serves supergroups, so an upgrade cannot bring history with it
-    // and there is nothing to move (ADR-0016).
-    return nothing();
+    // A group Mike-bot has scored does have history, and an upgrade strands it
+    // under the dead id. Knowingly unhandled: the repair is a one-time move
+    // between two ids, not a code path (ADR-0016).
+    return nothing("skip chat upgrade; history stays under the old id", {
+      chat_id: message.chat.id,
+      migrate_to_chat_id: message.migrate_to_chat_id,
+    });
   }
 
   const chatId = message.chat.id;
@@ -294,7 +299,7 @@ function readScoringReply(
 }
 
 function readChatMember(update: NonNullable<Update["chat_member"]>): ChatFacts {
-  if (update.chat.type !== "supergroup") {
+  if (!isScorableChatType(update.chat.type)) {
     return nothing();
   }
 
@@ -324,7 +329,7 @@ function readReaction(
   updateId: number,
   cachedMessage: CachedMessage | null,
 ): ChatFacts {
-  if (reaction.chat.type !== "supergroup") {
+  if (!isScorableChatType(reaction.chat.type)) {
     return nothing();
   }
 

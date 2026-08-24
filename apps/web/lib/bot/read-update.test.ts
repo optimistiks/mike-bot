@@ -138,14 +138,16 @@ describe("readUpdate", () => {
         null,
       ],
       [
-        "a plain group message",
-        messageUpdate({ chat: { id: CHAT_ID, type: "group", title: "Test" } }),
+        "a channel post",
+        messageUpdate({
+          chat: { id: CHAT_ID, type: "channel", title: "Test" },
+        }),
         null,
       ],
       [
-        "a chat-member update outside a supergroup",
+        "a chat-member update in a private chat",
         chatMemberUpdate("left", {
-          chat: { id: CHAT_ID, type: "group", title: "Test" },
+          chat: { id: CHAT_ID, type: "private", first_name: "Bob" },
         }),
         null,
       ],
@@ -202,6 +204,67 @@ describe("readUpdate", () => {
       expect(writesNothing(facts)).toBe(true);
       expect(facts.announcement).toBeNull();
       expect(facts.acknowledgement).toBeNull();
+    });
+  });
+
+  describe("in a plain group", () => {
+    const group = { id: CHAT_ID, type: "group", title: "Test" };
+
+    it("caches Messages and mirrors the Chat, as in a supergroup", () => {
+      const facts = read(messageUpdate({ chat: group }));
+
+      expect(facts.metadata).toMatchObject({ chat: group });
+      expect(facts.messages).toHaveLength(1);
+      expect(facts.identities).toHaveLength(1);
+    });
+
+    it("places a Mark from a Scoring reply", () => {
+      const facts = read(
+        messageUpdate({
+          chat: group,
+          message_id: 61,
+          from: ACTOR,
+          text: "+",
+          reply_to_message: {
+            message_id: 60,
+            date: AUGUST_MESSAGE,
+            chat: group,
+            from: AUTHOR,
+          },
+        }),
+      );
+
+      expect(facts.markChanges).toMatchObject({
+        identity: { chatId: CHAT_ID, actorId: ACTOR.id, subjectId: AUTHOR.id },
+        source: "reply",
+      });
+    });
+
+    it("places a Mark from a Scoring reaction", () => {
+      const facts = read(reactionUpdate(undefined, { chat: group }), CACHED);
+
+      expect(facts.markChanges).toMatchObject({
+        changes: [{ action: "add", type: "karma.plus" }],
+        source: "reaction",
+      });
+    });
+
+    it("drops a Registration when a Member leaves", () => {
+      const facts = read(chatMemberUpdate("left", { chat: group }));
+
+      expect(facts.removeRegistration).toEqual({
+        chatId: CHAT_ID,
+        userId: ACTOR.id,
+      });
+    });
+
+    it("writes nothing for an upgrade, leaving history under the old id", () => {
+      const facts = read(
+        messageUpdate({ chat: group, migrate_to_chat_id: -100_999 }),
+      );
+
+      expect(writesNothing(facts)).toBe(true);
+      expect(facts.skipped?.reason).toContain("upgrade");
     });
   });
 

@@ -74,6 +74,18 @@ describe("Chat metadata", () => {
       );
     });
 
+    it("mirrors a plain group", async () => {
+      await upsertChatFromTelegramUpdate(db, {
+        id: -444,
+        type: "group",
+        title: "Плейн",
+      });
+
+      expect(await getStoredChatMetadata(db, -444)).toMatchObject({
+        title: "Плейн",
+      });
+    });
+
     it("ignores private chats", async () => {
       await upsertChatFromTelegramUpdate(db, {
         id: 555,

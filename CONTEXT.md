@@ -72,7 +72,7 @@ _Avoid_: Legacy row, migration
 ## Community and access
 
 **Chat**:
-A Telegram supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither. Mike-bot ignores every other kind of Telegram chat, and does not carry a Chat's history across a Telegram upgrade from a plain group: the upgraded supergroup has a different id and starts empty (ADR-0016).
+A Telegram group or supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither. Mike-bot ignores private chats and channels, where no Mark is possible, and does not carry a Chat's history across a Telegram upgrade from a group to a supergroup: the upgraded supergroup has a different id and starts empty (ADR-0018).
 _Avoid_: Room, group
 
 **Member**:

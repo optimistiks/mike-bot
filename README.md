@@ -56,7 +56,7 @@ Everything you need to run v2 in a real Telegram group. Work through the steps i
 
 v1 (`master`, AWS Lambda) stays live until a separate cutover — v2 is a **new BotFather bot** on Vercel. You can run v2 alongside v1 in the same group only if you use the new bot (do not point both bots at the same webhook URL).
 
-**Prerequisites:** Vercel account, repo cloned (`pnpm install`), and group admin rights in each target supergroup. You do **not** need a separate Neon account — provision Postgres through Vercel (Vercel-managed integration; billing on your Vercel invoice).
+**Prerequisites:** Vercel account, repo cloned (`pnpm install`), and group admin rights in each target group or supergroup. You do **not** need a separate Neon account — provision Postgres through Vercel (Vercel-managed integration; billing on your Vercel invoice).
 
 Before publishing `v2`, run `pnpm fmt:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm test` from the repository root. All five commands must pass on the exact commit deployed to Vercel.
 
@@ -231,7 +231,9 @@ Use the **production** URL users will hit long-term — preview deployment URLs 
 
 ### 8. Each target Telegram group
 
-Repeat for every supergroup that should use v2.
+Repeat for every group or supergroup that should use v2. Private chats and channels are ignored — the bot scores only in groups.
+
+> A plain group that Telegram later upgrades to a supergroup gets a new chat id, and its stored history stays under the old one (ADR-0018). Its Leaderboards will read zero until those rows are moved by hand.
 
 1. **Add the bot** to the group.
 2. **Promote to administrator, with _Delete messages_** — admin is required for `message_reaction` updates (without it, reactions work in the client but the bot receives nothing), and the delete permission is what lets the bot replace an accepted `+`/`-`/`лол` reply with its own message.

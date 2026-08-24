@@ -5,6 +5,8 @@ import type { Chat, ChatFullInfo, PhotoSize } from "grammy/types";
 import type { AppDatabase } from "@/lib/db/runtime";
 import { chats } from "@/lib/db/schema";
 
+import { isScorableChatType } from "./chat-type";
+
 const METADATA_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
 
 export interface ChatMetadata {
@@ -41,7 +43,7 @@ export async function upsertChatFromTelegramUpdate(
     deletePhoto?: boolean;
   } = {},
 ): Promise<"written" | "unchanged" | "ignored"> {
-  if (chat.type !== "supergroup") return "ignored";
+  if (!isScorableChatType(chat.type)) return "ignored";
 
   const title = options.newTitle ?? ("title" in chat ? chat.title : undefined);
   if (!title) return "ignored";
@@ -88,7 +90,7 @@ export async function storeChatFullInfo(
   chat: ChatFullInfo,
   checkedAt = new Date(),
 ): Promise<ChatMetadata | null> {
-  if (chat.type !== "supergroup") return null;
+  if (!isScorableChatType(chat.type)) return null;
 
   const title = "title" in chat ? chat.title : undefined;
   if (!title) return null;
