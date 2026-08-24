@@ -4,7 +4,6 @@ import type { AppDatabase } from "@/lib/db/runtime";
 import type { MarkType } from "@/lib/domain/mark";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
-import { isGroupChat } from "./chat";
 import { applyMarkChanges } from "./marks";
 
 /** What the bot says in the Chat once it has taken the Scoring reply's place. */
@@ -64,8 +63,7 @@ export async function handleReplyMark(
     !message?.text ||
     !actor ||
     actor.is_bot ||
-    !ctx.chat ||
-    !isGroupChat(ctx.chat.type) ||
+    ctx.chat?.type !== "supergroup" ||
     !repliedTo ||
     // In a forum, Telegram fills reply_to_message with the topic's opening
     // message for every message in the topic, so a bare "+" replying to nobody

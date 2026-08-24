@@ -68,8 +68,8 @@ _Avoid_: Legacy row, migration
 ## Community and access
 
 **Chat**:
-A Telegram group or supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither.
-_Avoid_: Room
+A Telegram supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither. Mike-bot ignores every other kind of Telegram chat, and does not carry a Chat's history across a Telegram upgrade from a plain group: the upgraded supergroup has a different id and starts empty (ADR-0016).
+_Avoid_: Room, group
 
 **Member**:
 A non-bot person identified by their stable Telegram identity.
@@ -114,7 +114,7 @@ One of a Leaderboard's five rankings, always in this order: Karma received (Ув
 _Avoid_: Category, tab, board
 
 **Stats command**:
-The `/stats` command that opens the Mini App. In a Chat it also establishes Registration and links directly to that Chat's current Leaderboard, replying ephemerally so only the caller sees it; privately it opens the Chat selector.
+The `/stats` command that opens the Mini App. Called in a Chat it establishes Registration and links directly to that Chat's current Leaderboard, replying ephemerally so only the caller sees it. Called anywhere else it does nothing at all — Registration is authorization to view one Chat, so it has nothing to mean outside one, and the Chat selector is reached by launching the Mini App.
 _Avoid_: Stats question, report
 
 **Crown**:

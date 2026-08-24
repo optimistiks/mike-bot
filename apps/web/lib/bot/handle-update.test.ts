@@ -493,57 +493,6 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("carries a Chat's history over when it is upgraded to a supergroup", async () => {
-    const pglite = await createPgliteDb();
-    const MIGRATED_CHAT_ID = -100_999_888;
-
-    try {
-      await handleTelegramUpdate(
-        pglite.db,
-        messageUpdate(40, 60, { id: 201, first_name: "Bob", username: "bob" }),
-      );
-      await handleTelegramUpdate(
-        pglite.db,
-        reactionUpdate(
-          41,
-          60,
-          { id: 301, first_name: "Alice" },
-          [],
-          [{ type: "emoji", emoji: "👍" }],
-        ),
-      );
-
-      await handleTelegramUpdate(pglite.db, {
-        update_id: 42,
-        message: {
-          message_id: 61,
-          date: Math.floor(
-            new Date("2026-08-10T13:00:00.000Z").getTime() / 1000,
-          ),
-          chat: { id: TEST_CHAT_ID, type: "group", title: "Test" },
-          from: { id: 201, is_bot: false, first_name: "Bob" },
-          migrate_to_chat_id: MIGRATED_CHAT_ID,
-        },
-      });
-
-      const leaderboard = await queryLeaderboard(pglite.db, MIGRATED_CHAT_ID, {
-        year: 2026,
-        month: 8,
-      });
-      expect(leaderboard.sections[0]?.entries ?? []).toContainEqual(
-        expect.objectContaining({ displayName: "@bob", score: 1 }),
-      );
-
-      const stranded = await queryLeaderboard(pglite.db, TEST_CHAT_ID, {
-        year: 2026,
-        month: 8,
-      });
-      expect(stranded.sections[0]?.entries ?? []).toEqual([]);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
   it("ignores concurrently delivered duplicate update_id", async () => {
     const pglite = await createPgliteDb();
 
@@ -663,44 +612,50 @@ describe("telegram webhook integration", () => {
     }
   });
 
-  it("ignores private-chat messages and reactions", async () => {
-    const pglite = await createPgliteDb();
+  // Mike-bot serves supergroups. Every other Chat type is ignored outright, so
+  // nothing it says reaches any table — not a Message row, not a Display
+  // identity, not a Mark.
+  it.each(["private", "group"] as const)(
+    "ignores %s messages and reactions",
+    async (chatType) => {
+      const pglite = await createPgliteDb();
 
-    try {
-      await handleTelegramUpdate(
-        pglite.db,
-        messageUpdate(
-          8,
-          45,
-          { id: 201, first_name: "Bob" },
-          undefined,
-          "private",
-        ),
-      );
-      await handleTelegramUpdate(
-        pglite.db,
-        reactionUpdate(
-          9,
-          45,
-          { id: 301, first_name: "Alice" },
-          [],
-          [{ type: "emoji", emoji: "👍" }],
-          undefined,
-          "private",
-        ),
-      );
+      try {
+        await handleTelegramUpdate(
+          pglite.db,
+          messageUpdate(
+            8,
+            45,
+            { id: 201, first_name: "Bob" },
+            undefined,
+            chatType,
+          ),
+        );
+        await handleTelegramUpdate(
+          pglite.db,
+          reactionUpdate(
+            9,
+            45,
+            { id: 301, first_name: "Alice" },
+            [],
+            [{ type: "emoji", emoji: "👍" }],
+            undefined,
+            chatType,
+          ),
+        );
 
-      await expect(
-        getMessageAuthor(pglite.db, TEST_CHAT_ID, 45),
-      ).resolves.toBeUndefined();
-      await expect(pglite.db.select().from(displayIdentities)).resolves.toEqual(
-        [],
-      );
-      await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
+        await expect(
+          getMessageAuthor(pglite.db, TEST_CHAT_ID, 45),
+        ).resolves.toBeUndefined();
+        await expect(
+          pglite.db.select().from(displayIdentities),
+        ).resolves.toEqual([]);
+        await expect(pglite.db.select().from(marks)).resolves.toEqual([]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    },
+  );
 
   it("caches bot-authored messages without creating a Display identity", async () => {
     const pglite = await createPgliteDb();

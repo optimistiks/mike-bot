@@ -4,12 +4,10 @@ import { addRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
 
 import type { AfterCommit } from "./bot";
-import { isGroupChat } from "./chat";
 
 export const STATS_BUTTON_TEXT = "Открыть таблицы лидеров";
 export const STATS_MESSAGE_TEXT =
   "Готово! Откройте таблицы лидеров этой группы:";
-export const PRIVATE_STATS_MESSAGE_TEXT = "Выберите группу в приложении:";
 
 export function miniAppLink(botUsername: string, chatId?: number): string {
   const base = `https://t.me/${botUsername}`;
@@ -23,6 +21,10 @@ export function miniAppLink(botUsername: string, chatId?: number): string {
  * Mini App. The reply is returned rather than sent so it happens after the
  * transaction commits: a Registration is a fact about the caller, and a send
  * the bot has no rights for must not roll it back.
+ *
+ * Only a supergroup call does anything. Registration is authorization to view
+ * one Chat, so there is nothing for it to mean outside one — a private caller
+ * reaches the Chat selector by launching the Mini App.
  */
 export async function handleStatsCommand(
   db: AppDatabase,
@@ -30,30 +32,16 @@ export async function handleStatsCommand(
 ): Promise<AfterCommit | null> {
   const chat = ctx.chat;
   const from = ctx.from;
-  if (!chat || !from) return null;
+  if (!chat || !from || chat.type !== "supergroup") return null;
 
-  if (isGroupChat(chat.type)) {
-    await addRegistration(db, chat.id, from.id);
-    const link = miniAppLink(ctx.me.username, chat.id);
+  await addRegistration(db, chat.id, from.id);
+  const link = miniAppLink(ctx.me.username, chat.id);
 
-    return async () => {
-      await ctx.reply(STATS_MESSAGE_TEXT, {
-        // Ephemeral reply: only the caller sees it, so the group stays uncluttered.
-        receiver_user_id: from.id,
-        reply_markup: new InlineKeyboard().url(STATS_BUTTON_TEXT, link),
-      });
-    };
-  }
-
-  if (chat.type === "private") {
-    const link = miniAppLink(ctx.me.username);
-
-    return async () => {
-      await ctx.reply(PRIVATE_STATS_MESSAGE_TEXT, {
-        reply_markup: new InlineKeyboard().url(STATS_BUTTON_TEXT, link),
-      });
-    };
-  }
-
-  return null;
+  return async () => {
+    await ctx.reply(STATS_MESSAGE_TEXT, {
+      // Ephemeral reply: only the caller sees it, so the group stays uncluttered.
+      receiver_user_id: from.id,
+      reply_markup: new InlineKeyboard().url(STATS_BUTTON_TEXT, link),
+    });
+  };
 }

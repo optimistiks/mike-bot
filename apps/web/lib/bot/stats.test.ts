@@ -7,12 +7,7 @@ import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import { registrations } from "@/lib/db/schema";
 
 import { createBot } from "./bot";
-import {
-  handleStatsCommand,
-  miniAppLink,
-  PRIVATE_STATS_MESSAGE_TEXT,
-  STATS_MESSAGE_TEXT,
-} from "./stats";
+import { handleStatsCommand, miniAppLink, STATS_MESSAGE_TEXT } from "./stats";
 
 const BOT_INFO: UserFromGetMe = {
   id: 777,
@@ -77,28 +72,16 @@ describe("/stats", () => {
     }
   });
 
-  it("sends the generic selector privately without Registration", async () => {
+  it("ignores the Stats command sent privately", async () => {
     const pglite = await createPgliteDb();
     const ctx = context("private");
 
     try {
-      await (
-        await handleStatsCommand(pglite.db, ctx)
-      )?.();
+      // Mike-bot serves supergroups. A private caller gets no Registration and
+      // no reply; the Mini App's Chat selector is reached by launching it.
+      await expect(handleStatsCommand(pglite.db, ctx)).resolves.toBeNull();
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
-      // No receiver_user_id: ephemeral replies are a group-only concept.
-      expect(ctx.reply).toHaveBeenCalledWith(PRIVATE_STATS_MESSAGE_TEXT, {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "Открыть таблицы лидеров",
-                url: "https://t.me/mike_bot?startapp",
-              },
-            ],
-          ],
-        },
-      });
+      expect(ctx.reply).not.toHaveBeenCalled();
       expect(miniAppLink("mike_bot")).toBe("https://t.me/mike_bot?startapp");
     } finally {
       await closePgliteDb(pglite);

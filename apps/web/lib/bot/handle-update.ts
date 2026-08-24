@@ -1,20 +1,16 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Update } from "grammy/types";
 
 import { removeRegistration } from "@/lib/db/registrations";
 import type { AppDatabase } from "@/lib/db/runtime";
 import {
-  chats,
   displayIdentities,
-  marks,
   messageAuthors,
   processedUpdates,
-  registrations,
 } from "@/lib/db/schema";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { creditedSeasonForReaction } from "@/lib/scoring";
 
-import { isGroupChat } from "./chat";
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
 import { memberDisplayName } from "./display-name";
 import { applyMarkChanges } from "./marks";
@@ -97,62 +93,11 @@ export function messageDisplayIdentities(message: {
   return [...members.values()].sort((left, right) => left.id - right.id);
 }
 
-/**
- * Move a Chat's whole history to the id Telegram gave it on upgrade.
- *
- * Everything Mike-bot stores is keyed on `chat_id`, so without this the upgrade
- * strands every Mark and every Leaderboard reads zero. The `not exists` guard
- * is defensive — an upgraded supergroup is new and should hold nothing yet —
- * and moving rows rather than copying them keeps `legacy_id` unique.
- */
-async function migrateChat(
-  db: AppDatabase,
-  fromChatId: number,
-  toChatId: number,
-): Promise<void> {
-  const moves = [
-    sql`update ${marks} m set chat_id = ${toChatId} where m.chat_id = ${fromChatId}
-        and not exists (select 1 from ${marks} o where o.chat_id = ${toChatId}
-          and o.actor_id = m.actor_id and o.message_id = m.message_id and o.slot = m.slot)`,
-    sql`update ${messageAuthors} a set chat_id = ${toChatId} where a.chat_id = ${fromChatId}
-        and not exists (select 1 from ${messageAuthors} o where o.chat_id = ${toChatId}
-          and o.message_id = a.message_id)`,
-    sql`update ${displayIdentities} d set chat_id = ${toChatId} where d.chat_id = ${fromChatId}
-        and not exists (select 1 from ${displayIdentities} o where o.chat_id = ${toChatId}
-          and o.user_id = d.user_id)`,
-    sql`update ${registrations} r set chat_id = ${toChatId} where r.chat_id = ${fromChatId}
-        and not exists (select 1 from ${registrations} o where o.chat_id = ${toChatId}
-          and o.user_id = r.user_id)`,
-    sql`update ${chats} c set chat_id = ${toChatId} where c.chat_id = ${fromChatId}
-        and not exists (select 1 from ${chats} o where o.chat_id = ${toChatId})`,
-  ];
-
-  for (const move of moves) {
-    await db.execute(move);
-  }
-
-  // Anything the guards refused already exists under the new id.
-  for (const table of [
-    marks,
-    messageAuthors,
-    displayIdentities,
-    registrations,
-    chats,
-  ]) {
-    await db.execute(sql`delete from ${table} where chat_id = ${fromChatId}`);
-  }
-}
-
 async function handleMessageUpdate(
   db: AppDatabase,
   message: NonNullable<Update["message"]>,
 ): Promise<void> {
-  if (!isGroupChat(message.chat.type)) {
-    return;
-  }
-
-  if (message.migrate_to_chat_id !== undefined) {
-    await migrateChat(db, message.chat.id, message.migrate_to_chat_id);
+  if (message.chat.type !== "supergroup") {
     return;
   }
 
@@ -206,7 +151,7 @@ async function handleChatMemberUpdate(
   db: AppDatabase,
   update: NonNullable<Update["chat_member"]>,
 ): Promise<void> {
-  if (!isGroupChat(update.chat.type)) {
+  if (update.chat.type !== "supergroup") {
     return;
   }
 
@@ -231,7 +176,7 @@ async function handleMessageReactionUpdate(
   reaction: NonNullable<Update["message_reaction"]>,
   updateId: number,
 ): Promise<void> {
-  if (!isGroupChat(reaction.chat.type)) {
+  if (reaction.chat.type !== "supergroup") {
     return;
   }
 
