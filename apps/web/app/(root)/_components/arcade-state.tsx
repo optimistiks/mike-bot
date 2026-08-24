@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/8bit/button";
-import { Skeleton } from "@/components/ui/8bit/skeleton";
+import { Spinner } from "@/components/ui/8bit/spinner";
 
 export function ArcadeState({
   title,
@@ -27,11 +27,8 @@ export function ArcadeState({
 
 export function ArcadeLoading() {
   return (
-    <div className="arcade-screen flex flex-col gap-4 px-4 py-8">
-      <Skeleton className="h-5 w-36" />
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-20 w-full" />
+    <div className="arcade-screen items-center justify-center">
+      <Spinner className="size-10" />
     </div>
   );
 }
