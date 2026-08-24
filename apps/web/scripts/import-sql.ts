@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     console.warn(`Skipped ${String(parsed.skipped)} malformed rows.`);
   }
 
-  const { sql, stats } = buildImportSql(
+  const { sql, stats, skipped } = buildImportSql(
     parsed.rows,
     batchSize === undefined ? {} : { batchSize },
   );
@@ -67,6 +67,24 @@ async function main(): Promise<void> {
   console.log(`  skipped messages: ${String(stats.skippedMessages)}`);
   console.log(`  skipped marks: ${String(stats.skippedMarks)}`);
   console.log(`  statements: ${String(stats.statements)}`);
+
+  for (const message of skipped.messages) {
+    console.warn("Skipped v1 Message with conflicting source authors", {
+      chatId: message.chatId,
+      messageId: message.messageId,
+      authorIds: message.authorIds,
+    });
+  }
+
+  for (const row of skipped.marks) {
+    console.warn("Skipped v1 row: the Actor already spent that grant", {
+      chatId: row.chatId,
+      actorId: row.fromUser.id,
+      messageId: row.toMessageId,
+      lolType: row.lolType,
+      legacyId: row.id,
+    });
+  }
 }
 
 main().catch((error: unknown) => {

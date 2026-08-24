@@ -222,7 +222,7 @@ describe("buildImportSql", () => {
     };
 
     const rows = [later, SAMPLE_ROW, opposite, humor];
-    expect(eligibleMarkRows(rows).map((row) => row.id)).toEqual([
+    expect(eligibleMarkRows(rows).kept.map((row) => row.id)).toEqual([
       SAMPLE_ROW.id,
       humor.id,
     ]);

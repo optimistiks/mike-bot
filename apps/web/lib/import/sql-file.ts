@@ -23,9 +23,24 @@ export interface BuildImportSqlStats {
   statements: number;
 }
 
+/** What the transformation left out, for the caller to report as it likes. */
+export interface BuildImportSqlSkipped {
+  /** v1 rows whose grant was already spent by an earlier row. */
+  marks: V1LolRow[];
+  /** Messages whose v1 rows disagree about who wrote them. */
+  messages: { chatId: number; messageId: number; authorIds: number[] }[];
+}
+
 export interface BuildImportSqlResult {
   sql: string;
   stats: BuildImportSqlStats;
+  skipped: BuildImportSqlSkipped;
+}
+
+/** The v1 rows that survive the grant model, and the ones that do not. */
+export interface EligibleMarkRows {
+  kept: V1LolRow[];
+  skipped: V1LolRow[];
 }
 
 interface DisplayIdentityCandidate {
@@ -111,7 +126,7 @@ export function messageCandidates(rows: V1LolRow[]): MessageCandidate[] {
  * so the earliest wins, tie-broken by legacy id. The survivors come back in
  * that same order, so the generated file does not depend on scan order.
  */
-export function eligibleMarkRows(rows: V1LolRow[]): V1LolRow[] {
+export function eligibleMarkRows(rows: V1LolRow[]): EligibleMarkRows {
   const winners = new Map<string, V1LolRow>();
 
   for (const row of rows) {
@@ -122,21 +137,14 @@ export function eligibleMarkRows(rows: V1LolRow[]): V1LolRow[] {
     }
   }
 
-  const kept = new Set([...winners.values()].map((row) => row.id));
-  for (const row of rows) {
-    if (kept.has(row.id)) continue;
-    console.warn("Skipping v1 row: the Actor already spent that grant", {
-      chatId: row.chatId,
-      actorId: row.fromUser.id,
-      messageId: row.toMessageId,
-      lolType: row.lolType,
-      legacyId: row.id,
-    });
-  }
+  const keptIds = new Set([...winners.values()].map((row) => row.id));
 
-  return [...winners.values()].toSorted((left, right) =>
-    isEarlier(left, right) ? -1 : 1,
-  );
+  return {
+    kept: [...winners.values()].toSorted((left, right) =>
+      isEarlier(left, right) ? -1 : 1,
+    ),
+    skipped: rows.filter((row) => !keptIds.has(row.id)),
+  };
 }
 
 function markSlotKey(row: V1LolRow): string {
@@ -187,16 +195,15 @@ export function buildImportSql(
   );
 
   const messageTuples: string[] = [];
-  let skippedMessages = 0;
+  const skippedMessages: BuildImportSqlSkipped["messages"] = [];
   for (const candidate of messageCandidates(rows)) {
     const authorId = [...candidate.authorIds].at(0);
     if (candidate.authorIds.size !== 1 || authorId === undefined) {
-      console.warn("Skipping v1 Message with conflicting source authors", {
+      skippedMessages.push({
         chatId: candidate.chatId,
         messageId: candidate.messageId,
         authorIds: [...candidate.authorIds],
       });
-      skippedMessages += 1;
       continue;
     }
 
@@ -206,8 +213,7 @@ export function buildImportSql(
   }
 
   const eligibleRows = eligibleMarkRows(rows);
-  const skippedMarks = rows.length - eligibleRows.length;
-  const markTuples = eligibleRows.map((row) => {
+  const markTuples = eligibleRows.kept.map((row) => {
     const { mark } = convertV1Row(row);
     return `(${quote(mark.type)}, ${String(mark.chatId)}, ${String(mark.actorId)}, ${String(mark.subjectId)}, ${String(mark.messageId)}, ${timestamp(mark.createdAt)}, ${quote(mark.source)}, ${quote(mark.legacyId)})`;
   });
@@ -260,10 +266,11 @@ export function buildImportSql(
       marks: markTuples.length,
       messages: messageTuples.length,
       displayIdentities: identityTuples.length,
-      skippedMessages,
-      skippedMarks,
+      skippedMessages: skippedMessages.length,
+      skippedMarks: eligibleRows.skipped.length,
       statements: statements.length,
     },
+    skipped: { marks: eligibleRows.skipped, messages: skippedMessages },
   };
 }
 
