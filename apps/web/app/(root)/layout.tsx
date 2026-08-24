@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import "./arcade.css";
 
+import { Analytics } from "@vercel/analytics/next";
 import { CrtBoot } from "./_components/crt-boot";
 import { MiniAppQueryProvider } from "./_components/query-provider";
 import { SeasonGlitch } from "./_components/season-glitch";
@@ -53,6 +54,7 @@ export default function RootLayout({
             </div>
           </TelegramProvider>
         </MiniAppQueryProvider>
+        <Analytics />
       </body>
     </html>
   );
