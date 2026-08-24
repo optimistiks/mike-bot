@@ -1,10 +1,9 @@
-import { Bot, Context } from "grammy";
+import { Bot, InlineKeyboard, type Context } from "grammy";
 
 import type { AppDatabase } from "@/lib/db/runtime";
 
 import { handleTelegramUpdate } from "./handle-update";
-import { handleReplyMark } from "./reply-marks";
-import { handleStatsCommand } from "./stats";
+import type { Announcement } from "./read-update";
 
 export interface BotDependencies {
   db: AppDatabase;
@@ -12,49 +11,58 @@ export interface BotDependencies {
 }
 
 /**
- * Something to say in the Chat once the transaction has committed.
+ * Say the one thing this update owes the Chat.
  *
- * The record — the Mark, the Registration — is always stored first, so a
- * Telegram call the bot has no rights for costs the announcement and never the
- * record (ADR-0014). It also keeps network round trips out of the transaction,
- * which would otherwise hold its locks for their duration.
+ * Always after the transaction has committed, so a Telegram call the bot has no
+ * rights for costs the announcement and never the record (ADR-0014). It also
+ * keeps network round trips out of the transaction, which would otherwise hold
+ * its locks for their duration.
  */
-export type AfterCommit = () => Promise<void>;
+async function announce(
+  ctx: Context,
+  announcement: Announcement,
+): Promise<void> {
+  if (announcement.kind === "stats") {
+    await ctx.reply(announcement.text, {
+      // Ephemeral reply: only the caller sees it, so the group stays uncluttered.
+      receiver_user_id: announcement.receiverUserId,
+      reply_markup: new InlineKeyboard().url(
+        announcement.buttonText,
+        announcement.url,
+      ),
+    });
+
+    return;
+  }
+
+  try {
+    await ctx.api.deleteMessage(
+      ctx.chat?.id ?? 0,
+      announcement.deleteMessageId,
+    );
+  } catch (error) {
+    console.error("failed to delete Scoring reply", error);
+  }
+
+  await ctx.reply(announcement.text, {
+    reply_parameters: { message_id: announcement.replyToMessageId },
+  });
+}
 
 export function createBot({ db, token }: BotDependencies): Bot {
   const bot = new Bot(token);
-  const isRegisterCommand = Context.has.command("register");
-  const isStatsCommand = Context.has.command("stats");
 
   bot.use(async (ctx) => {
-    const announcement: { pending: AfterCommit | null } = { pending: null };
+    const { announcement } = await handleTelegramUpdate(
+      db,
+      ctx.update,
+      ctx.me.username,
+    );
 
-    await handleTelegramUpdate(db, ctx.update, async (transactionDb) => {
-      // /register is an alias of /stats: both register the caller and reply
-      // with the same Mini App deep link.
-      if (isRegisterCommand(ctx) || isStatsCommand(ctx)) {
-        announcement.pending = await handleStatsCommand(transactionDb, ctx);
-        return;
-      }
-
-      const acknowledgement = await handleReplyMark(transactionDb, ctx);
-      if (!acknowledgement) return;
-
-      announcement.pending = async () => {
-        try {
-          await ctx.deleteMessage();
-        } catch (error) {
-          console.error("failed to delete Scoring reply", error);
-        }
-
-        await ctx.reply(acknowledgement.text, {
-          reply_parameters: { message_id: acknowledgement.replyToMessageId },
-        });
-      };
-    });
+    if (!announcement) return;
 
     try {
-      await announcement.pending?.();
+      await announce(ctx, announcement);
     } catch (error) {
       console.error("failed to answer in the Chat", error);
     }

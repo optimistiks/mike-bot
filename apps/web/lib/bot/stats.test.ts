@@ -1,13 +1,11 @@
-/* eslint-disable @typescript-eslint/unbound-method */
-import { describe, expect, it, vi } from "vitest";
-import type { Context } from "grammy";
+import { describe, expect, it } from "vitest";
 import type { Update, UserFromGetMe } from "grammy/types";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import { registrations } from "@/lib/db/schema";
 
 import { createBot } from "./bot";
-import { handleStatsCommand, miniAppLink, STATS_MESSAGE_TEXT } from "./stats";
+import { miniAppLink, STATS_MESSAGE_TEXT } from "./stats";
 
 const BOT_INFO: UserFromGetMe = {
   id: 777,
@@ -25,67 +23,15 @@ const BOT_INFO: UserFromGetMe = {
   supports_join_request_queries: false,
 };
 
-function context(chatType: "private" | "supergroup"): Context {
-  return {
-    chat:
-      chatType === "private"
-        ? { id: 100, type: "private", first_name: "User" }
-        : { id: -100_123, type: "supergroup", title: "Test" },
-    from: { id: 42, is_bot: false, first_name: "User" },
-    me: { id: 777, is_bot: true, first_name: "Mike", username: "mike_bot" },
-    reply: vi.fn().mockResolvedValue({}),
-  } as unknown as Context;
-}
-
+// Who may call /stats, and what it establishes, is decided by `readUpdate` and
+// covered without a database in read-update.test.ts. These are the paths that
+// reach Telegram.
 describe("/stats", () => {
-  it("registers a group caller and sends a Chat deep link idempotently", async () => {
-    const pglite = await createPgliteDb();
-    const ctx = context("supergroup");
-
-    try {
-      // The reply is returned, not sent, so it lands after the transaction.
-      await (
-        await handleStatsCommand(pglite.db, ctx)
-      )?.();
-      await (
-        await handleStatsCommand(pglite.db, ctx)
-      )?.();
-
-      await expect(pglite.db.select().from(registrations)).resolves.toEqual([
-        { chatId: -100_123, userId: 42 },
-      ]);
-      expect(ctx.reply).toHaveBeenCalledWith(STATS_MESSAGE_TEXT, {
-        receiver_user_id: 42,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "Открыть таблицы лидеров",
-                url: "https://t.me/mike_bot?startapp=chat_-100123",
-              },
-            ],
-          ],
-        },
-      });
-    } finally {
-      await closePgliteDb(pglite);
-    }
-  });
-
-  it("ignores the Stats command sent privately", async () => {
-    const pglite = await createPgliteDb();
-    const ctx = context("private");
-
-    try {
-      // Mike-bot serves supergroups. A private caller gets no Registration and
-      // no reply; the Mini App's Chat selector is reached by launching it.
-      await expect(handleStatsCommand(pglite.db, ctx)).resolves.toBeNull();
-      await expect(pglite.db.select().from(registrations)).resolves.toEqual([]);
-      expect(ctx.reply).not.toHaveBeenCalled();
-      expect(miniAppLink("mike_bot")).toBe("https://t.me/mike_bot?startapp");
-    } finally {
-      await closePgliteDb(pglite);
-    }
+  it("builds the Chat-scoped and generic Mini App links", () => {
+    expect(miniAppLink("mike_bot", -100_123)).toBe(
+      "https://t.me/mike_bot?startapp=chat_-100123",
+    );
+    expect(miniAppLink("mike_bot")).toBe("https://t.me/mike_bot?startapp");
   });
 
   it.each(["/stats", "/register"] as const)(

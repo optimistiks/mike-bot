@@ -66,7 +66,11 @@ describe("GET /api/chats", () => {
   it("returns a registered Chat after the opener registers in a group", async () => {
     const db = await getRuntimeDb();
 
-    await handleTelegramUpdate(db, groupMessageUpdate(1, OPENER_ID));
+    await handleTelegramUpdate(
+      db,
+      groupMessageUpdate(1, OPENER_ID),
+      "mike_bot",
+    );
     await addRegistration(db, TEST_CHAT_ID, OPENER_ID);
 
     const response = await GET(

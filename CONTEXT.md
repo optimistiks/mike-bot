@@ -17,6 +17,10 @@ _Avoid_: Kind, category, budget
 The five seconds after a Scoring reaction's Mark during which removing that reaction deletes the Mark and refunds its slot. Telegram's own timestamps for the two actions decide, not the moment Mike-bot processes them. Once it closes the Mark is permanent, and reaction removal has no effect. Scoring replies never have one.
 _Avoid_: Grace period, cooldown, undo period
 
+**Chat facts**:
+Everything one Telegram update tells Mike-bot about a Chat: the Messages worth caching, the Display identities to name, the Mark changes to apply, the Registration to establish or drop, the Chat metadata to mirror, and whatever the bot owes the Chat in reply. Reading an update into its Chat facts is a decision; writing them is not, so the two are separate and only the first knows any rules.
+_Avoid_: Event, payload, command
+
 **Scoring action**:
 An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scoring reply. Its Telegram timestamp, not the moment Mike-bot processes it, decides whether it is still eligible for the Message's Season.
 _Avoid_: Webhook update, request

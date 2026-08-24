@@ -1,10 +1,4 @@
-import type { Context } from "grammy";
-
-import type { AppDatabase } from "@/lib/db/runtime";
 import type { MarkType } from "@/lib/domain/mark";
-import { isSeasonOpenForAction } from "@/lib/scoring";
-
-import { applyMarkChanges } from "./marks";
 
 /** What the bot says in the Chat once it has taken the Scoring reply's place. */
 const ACKNOWLEDGEMENT_LABEL: Record<MarkType, string> = {
@@ -12,12 +6,6 @@ const ACKNOWLEDGEMENT_LABEL: Record<MarkType, string> = {
   "karma.minus": "➖",
   "humor.add": "лол",
 };
-
-export interface ReplyMarkAcknowledgement {
-  /** The marked Message, which the acknowledgement replies to in the reply's place. */
-  replyToMessageId: number;
-  text: string;
-}
 
 export function replyTextToMarkType(text: string): MarkType | null {
   const normalized = text.trim();
@@ -44,62 +32,4 @@ export function acknowledgementText(
   actor: { username?: string; first_name: string },
 ): string {
   return `${ACKNOWLEDGEMENT_LABEL[type]} (${acknowledgementName(actor)})`;
-}
-
-/**
- * Create a permanent Mark for a supported reply and describe how to answer it.
- * Returns null when the reply is not a Scoring reply, or when the Actor already
- * spent that grant on this Message — including on the opposite Karma Mark.
- */
-export async function handleReplyMark(
-  db: AppDatabase,
-  ctx: Context,
-): Promise<ReplyMarkAcknowledgement | null> {
-  const message = ctx.message;
-  const actor = ctx.from;
-  const repliedTo = message?.reply_to_message;
-  const subject = repliedTo?.from;
-  if (
-    !message?.text ||
-    !actor ||
-    actor.is_bot ||
-    ctx.chat?.type !== "supergroup" ||
-    !repliedTo ||
-    // In a forum, Telegram fills reply_to_message with the topic's opening
-    // message for every message in the topic, so a bare "+" replying to nobody
-    // would mark whoever started it.
-    repliedTo.forum_topic_created !== undefined ||
-    !subject ||
-    subject.is_bot ||
-    actor.id === subject.id
-  ) {
-    return null;
-  }
-
-  const type = replyTextToMarkType(message.text);
-  if (!type) return null;
-
-  const createdAt = new Date(message.date * 1_000);
-  const messageDate = new Date(repliedTo.date * 1_000);
-  if (!isSeasonOpenForAction(messageDate, createdAt)) return null;
-
-  const result = await applyMarkChanges(db, {
-    identity: {
-      chatId: ctx.chat.id,
-      actorId: actor.id,
-      subjectId: subject.id,
-      messageId: repliedTo.message_id,
-    },
-    changes: [{ action: "add", type }],
-    createdAt,
-    source: "reply",
-    updateId: ctx.update.update_id,
-  });
-
-  if (result.added !== 1) return null;
-
-  return {
-    replyToMessageId: repliedTo.message_id,
-    text: acknowledgementText(type, actor),
-  };
 }
