@@ -22,7 +22,8 @@
     "import:sql": "tsx scripts/import-sql.ts",
     "import:run": "tsx scripts/import-run.ts",
     "import:dump": "tsx scripts/import-dump.ts",
-    "set-webhook": "tsx scripts/set-webhook.ts"
+    "set-webhook": "tsx scripts/set-webhook.ts",
+    "set-webhook:recover": "tsx scripts/set-webhook.ts --recover"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
