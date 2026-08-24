@@ -131,11 +131,7 @@ async function applyFacts(
     return facts.announcement;
   }
 
-  const { chatId, actorId, subjectId, messageId, ...rest } = facts.markChanges;
-  const result = await applyMarkChanges(db, {
-    identity: { chatId, actorId, subjectId, messageId },
-    ...rest,
-  });
+  const result = await applyMarkChanges(db, facts.markChanges);
 
   return result.added === 1 && facts.acknowledgement
     ? facts.acknowledgement

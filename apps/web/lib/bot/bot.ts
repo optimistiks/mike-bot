@@ -37,7 +37,7 @@ async function announce(
 
   try {
     await ctx.api.deleteMessage(
-      ctx.chat?.id ?? 0,
+      announcement.chatId,
       announcement.deleteMessageId,
     );
   } catch (error) {

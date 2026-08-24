@@ -10,6 +10,13 @@ const querySchema = z.object({ chatId: z.coerce.number().int() });
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
+
+  const refusal = await requireChatAccess(
+    request,
+    url.searchParams.get("chat_id"),
+  );
+  if (refusal) return refusal;
+
   const query = querySchema.safeParse({
     chatId: url.searchParams.get("chat_id") ?? undefined,
   });
@@ -19,9 +26,6 @@ export async function GET(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-
-  const refusal = await requireChatAccess(request, query.data.chatId);
-  if (refusal) return refusal;
 
   const db = await getRuntimeDb();
   const seasons = await queryAvailableSeasons(db, query.data.chatId);

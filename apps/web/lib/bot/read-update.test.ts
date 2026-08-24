@@ -123,6 +123,20 @@ describe("readUpdate", () => {
         null,
       ],
       [
+        "a chat-member update outside a supergroup",
+        {
+          update_id: 5,
+          chat_member: {
+            chat: { id: CHAT_ID, type: "group", title: "Test" },
+            from: { id: 999, is_bot: false, first_name: "Admin" },
+            date: AUGUST_MESSAGE,
+            old_chat_member: { status: "member", user: ACTOR },
+            new_chat_member: { status: "left", user: ACTOR },
+          },
+        },
+        null,
+      ],
+      [
         "a private reaction",
         reactionUpdate(undefined, {
           chat: { id: CHAT_ID, type: "private", first_name: "Bob" },
@@ -194,7 +208,10 @@ describe("readUpdate", () => {
 
     // The reply itself is never a Message; the Message it answers is.
     expect(facts.messages.map((message) => message.messageId)).toEqual([60]);
-    expect(facts.markChanges).toMatchObject({ messageId: 60, source: "reply" });
+    expect(facts.markChanges).toMatchObject({
+      identity: { messageId: 60 },
+      source: "reply",
+    });
     expect(facts.acknowledgement).toMatchObject({
       kind: "scoring-reply",
       deleteMessageId: 61,

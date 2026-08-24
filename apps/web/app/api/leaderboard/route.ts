@@ -10,6 +10,13 @@ import { requireChatAccess } from "@/lib/mini-app/request-access.server";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
+
+  const refusal = await requireChatAccess(
+    request,
+    url.searchParams.get("chat_id"),
+  );
+  if (refusal) return refusal;
+
   const parsed = leaderboardQuerySchema.safeParse({
     chat_id: url.searchParams.get("chat_id") ?? undefined,
     year: url.searchParams.get("year") ?? undefined,
@@ -22,9 +29,6 @@ export async function GET(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-
-  const refusal = await requireChatAccess(request, parsed.data.chatId);
-  if (refusal) return refusal;
 
   const db = await getRuntimeDb();
   const period = resolvePeriod(parsed.data);

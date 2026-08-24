@@ -1,11 +1,11 @@
 import type { Chat, Message, PhotoSize, Update } from "grammy/types";
 
-import type { MarkType } from "@/lib/domain/mark";
+import type { MarkSource, MarkType } from "@/lib/domain/mark";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { isSeasonOpenForAction } from "@/lib/scoring";
 
 import { memberDisplayName } from "./display-name";
-import type { MarkChange } from "./marks";
+import type { MarkChange, MarkIdentity } from "./marks";
 import {
   diffReactionStates,
   reactionDiffToMarkChanges,
@@ -20,13 +20,10 @@ export interface CachedMessage {
   messageDate: number;
 }
 
-export interface MessageToCache {
+export type MessageToCache = CachedMessage & {
   chatId: number;
   messageId: number;
-  authorId: number;
-  authorIsBot: boolean;
-  messageDate: number;
-}
+};
 
 export interface IdentityToTouch {
   chatId: number;
@@ -35,13 +32,10 @@ export interface IdentityToTouch {
 }
 
 export interface MarkChangesToApply {
-  chatId: number;
-  actorId: number;
-  subjectId: number;
-  messageId: number;
+  identity: MarkIdentity;
   changes: MarkChange[];
   createdAt: Date;
-  source: "reaction" | "reply";
+  source: MarkSource;
   updateId: number;
 }
 
@@ -64,6 +58,7 @@ export type Announcement =
     }
   | {
       kind: "scoring-reply";
+      chatId: number;
       deleteMessageId: number;
       replyToMessageId: number;
       text: string;
@@ -277,10 +272,12 @@ function readScoringReply(
 
   return {
     markChanges: {
-      chatId: message.chat.id,
-      actorId: actor.id,
-      subjectId: subject.id,
-      messageId: repliedTo.message_id,
+      identity: {
+        chatId: message.chat.id,
+        actorId: actor.id,
+        subjectId: subject.id,
+        messageId: repliedTo.message_id,
+      },
       changes: [{ action: "add", type }],
       createdAt,
       source: "reply",
@@ -288,6 +285,7 @@ function readScoringReply(
     },
     acknowledgement: {
       kind: "scoring-reply",
+      chatId: message.chat.id,
       deleteMessageId: message.message_id,
       replyToMessageId: repliedTo.message_id,
       text: acknowledgementText(type, actor),
@@ -397,10 +395,12 @@ function readReaction(
       { chatId, userId: actor.id, displayName: memberDisplayName(actor) },
     ],
     markChanges: {
-      chatId,
-      actorId: actor.id,
-      subjectId: cachedMessage.authorId,
-      messageId,
+      identity: {
+        chatId,
+        actorId: actor.id,
+        subjectId: cachedMessage.authorId,
+        messageId,
+      },
       changes: mapped.changes,
       createdAt,
       source: "reaction",

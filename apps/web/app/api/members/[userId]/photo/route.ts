@@ -27,13 +27,11 @@ export async function GET(
   context: { params: Promise<{ userId: string }> },
 ): Promise<Response> {
   const { userId: rawUserId } = await context.params;
-  const userId = Number(rawUserId);
-  if (!Number.isSafeInteger(userId)) {
-    return Response.json({ error: "Invalid Member" }, { status: 400 });
-  }
 
-  const refusal = await requireMemberAccess(request, userId);
+  const refusal = await requireMemberAccess(request, rawUserId);
   if (refusal) return refusal;
+
+  const userId = Number(rawUserId);
 
   const fileId = await resolveMemberPhotoFileId(userId);
   const photo = fileId ? await fetchTelegramFileBytes(fileId) : null;

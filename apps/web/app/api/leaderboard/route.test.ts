@@ -130,10 +130,24 @@ describe("GET /api/leaderboard", () => {
   });
 
   it("returns 400 when month is provided without year", async () => {
+    const db = await getRuntimeDb();
+    await resetAndSeedDatabase(db, FIXTURE_NOW);
+
+    // Access is settled before the rest of the query is examined, so this
+    // needs a Member who may see the Chat before it can reach the parse.
     const response = await GET(
       leaderboardRequest(`chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&month=8`),
     );
+
     expect(response.status).toBe(400);
+  });
+
+  it("refuses an unauthenticated request before parsing its query", async () => {
+    // A malformed id must not tell an unauthenticated caller that it is
+    // malformed: identity is settled first, always.
+    const response = await GET(leaderboardRequest("chat_id=not-a-number", ""));
+
+    expect(response.status).toBe(401);
   });
 
   it.each([

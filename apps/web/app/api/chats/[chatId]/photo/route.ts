@@ -17,13 +17,11 @@ export async function GET(
   context: { params: Promise<{ chatId: string }> },
 ): Promise<Response> {
   const { chatId: rawChatId } = await context.params;
-  const chatId = Number(rawChatId);
-  if (!Number.isSafeInteger(chatId)) {
-    return Response.json({ error: "Invalid Chat" }, { status: 400 });
-  }
 
-  const refusal = await requireChatAccess(request, chatId);
+  const refusal = await requireChatAccess(request, rawChatId);
   if (refusal) return refusal;
+
+  const chatId = Number(rawChatId);
 
   const db = await getRuntimeDb();
   const botToken = process.env.BOT_TOKEN?.trim();
