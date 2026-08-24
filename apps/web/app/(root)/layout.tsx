@@ -6,6 +6,7 @@ import "./globals.css";
 import "./arcade.css";
 
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CrtBoot } from "./_components/crt-boot";
 import { MiniAppQueryProvider } from "./_components/query-provider";
 import { SeasonGlitch } from "./_components/season-glitch";
@@ -55,6 +56,7 @@ export default function RootLayout({
           </TelegramProvider>
         </MiniAppQueryProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
