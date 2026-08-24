@@ -208,4 +208,140 @@ describe("queryLeaderboard", () => {
       await closePgliteDb(pglite);
     }
   });
+
+  it("sums a year from its Seasons and ranks the totals once", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      // January holds nothing; the year is February plus March.
+      await pglite.db.insert(messageAuthors).values([
+        {
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          messageId: 50,
+          authorId: 2,
+          authorIsBot: false,
+          messageDate: Math.floor(
+            new Date("2026-02-10T12:00:00.000Z").getTime() / 1000,
+          ),
+        },
+        {
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          messageId: 51,
+          authorId: 2,
+          authorIsBot: false,
+          messageDate: Math.floor(
+            new Date("2026-03-10T12:00:00.000Z").getTime() / 1000,
+          ),
+        },
+        {
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          messageId: 52,
+          authorId: 3,
+          authorIsBot: false,
+          messageDate: Math.floor(
+            new Date("2026-03-11T12:00:00.000Z").getTime() / 1000,
+          ),
+        },
+      ]);
+      await pglite.db.insert(marks).values([
+        {
+          type: "karma.plus",
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          actorId: 1,
+          subjectId: 2,
+          messageId: 50,
+          source: "reaction",
+          createdAt: new Date("2026-02-10T12:00:01.000Z"),
+        },
+        {
+          type: "karma.plus",
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          actorId: 1,
+          subjectId: 2,
+          messageId: 51,
+          source: "reaction",
+          createdAt: new Date("2026-03-10T12:00:01.000Z"),
+        },
+        {
+          type: "karma.plus",
+          chatId: PRIMARY_FIXTURE_CHAT_ID,
+          actorId: 1,
+          subjectId: 3,
+          messageId: 52,
+          source: "reaction",
+          createdAt: new Date("2026-03-11T12:00:01.000Z"),
+        },
+      ]);
+
+      const year = await queryLeaderboard(pglite.db, PRIMARY_FIXTURE_CHAT_ID, {
+        kind: "year",
+        year: 2026,
+      });
+
+      expect(year.period).toEqual({ kind: "year", year: 2026 });
+      expect(year.sections).toHaveLength(5);
+      // Flair follows the annual totals, by the same rules a Season uses.
+      expect(year.sections[0]?.entries).toEqual([
+        expect.objectContaining({
+          userId: 2,
+          score: 2,
+          isCrown: true,
+          isChicken: false,
+        }),
+        expect.objectContaining({
+          userId: 3,
+          score: 1,
+          isCrown: false,
+          isChicken: true,
+        }),
+      ]);
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
+
+  it("sums its Seasons exactly, so monthly totals reconcile with the year", async () => {
+    const pglite = await createPgliteDb();
+
+    try {
+      await resetAndSeedDatabase(
+        pglite.db,
+        new Date("2026-08-15T12:00:00.000Z"),
+      );
+
+      const year = await queryLeaderboard(pglite.db, PRIMARY_FIXTURE_CHAT_ID, {
+        kind: "year",
+        year: 2026,
+      });
+      const months = await Promise.all(
+        Array.from({ length: 12 }, (_, index) =>
+          queryLeaderboard(pglite.db, PRIMARY_FIXTURE_CHAT_ID, {
+            year: 2026,
+            month: index + 1,
+          }),
+        ),
+      );
+
+      for (const section of year.sections) {
+        const monthlyTotals = new Map<number, number>();
+        for (const month of months) {
+          const monthSection = month.sections.find(
+            ({ id }) => id === section.id,
+          );
+          for (const entry of monthSection?.entries ?? []) {
+            monthlyTotals.set(
+              entry.userId,
+              (monthlyTotals.get(entry.userId) ?? 0) + entry.score,
+            );
+          }
+        }
+
+        for (const entry of section.entries) {
+          expect(monthlyTotals.get(entry.userId)).toBe(entry.score);
+        }
+      }
+    } finally {
+      await closePgliteDb(pglite);
+    }
+  });
 });

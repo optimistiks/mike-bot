@@ -12,10 +12,10 @@ export {
   seasonForDate,
   seasonsEqual,
   SEASON_TIMEZONE,
+  yearDateRangeInSeconds,
   type Season,
 } from "./season";
 export {
-  type AggregatedLeaderboard,
   type BucketContributions,
   type LeaderboardEntry,
   type LeaderboardSection,

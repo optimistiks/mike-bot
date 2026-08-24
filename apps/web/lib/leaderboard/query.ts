@@ -8,48 +8,32 @@ import {
   getCurrentSeason,
   seasonDateRangeInSeconds,
   seasonForDate,
+  yearDateRangeInSeconds,
   type Season,
 } from "@/lib/scoring";
 
-import type {
-  LeaderboardEntry,
-  LeaderboardPeriod,
-  LeaderboardResponse,
-} from "./schema";
+import type { LeaderboardPeriod, LeaderboardResponse } from "./schema";
 
-function rankAnnualEntries(
-  entries: Map<number, { displayName: string; score: number }>,
-): LeaderboardEntry[] {
-  const ranked = [...entries.entries()]
-    .filter(([, entry]) => entry.score !== 0)
-    .sort((left, right) => {
-      if (right[1].score !== left[1].score) {
-        return right[1].score - left[1].score;
-      }
-      return left[0] - right[0];
-    });
-
-  const highestScore = ranked[0]?.[1].score;
-  const lowestScore = ranked.at(-1)?.[1].score;
-
-  return ranked.map(([userId, entry]) => ({
-    userId,
-    displayName: entry.displayName,
-    score: entry.score,
-    isCrown: entry.score === highestScore,
-    isChicken: highestScore !== lowestScore && entry.score === lowestScore,
-  }));
-}
-
-async function querySeasonLeaderboard(
+/**
+ * One Leaderboard, for one Leaderboard period.
+ *
+ * A Mark belongs to the Season of its Message's post time (ADR-0017), so a
+ * period is a range over those post times and a year is simply a wider one —
+ * one read and one aggregation, not twelve of each stitched back together.
+ * Ranking, flair, and section order all live in the scoring module.
+ */
+export async function queryLeaderboard(
   db: AppDatabase,
   chatId: number,
-  season: Season,
+  period: LeaderboardPeriod | Season,
 ): Promise<LeaderboardResponse> {
-  // A Mark belongs to the Season of its Message's post time — the whole rule.
-  // Whether the Scoring action was in time to place it at all was settled at
-  // write time, so nothing here re-checks it (ADR-0017).
-  const range = seasonDateRangeInSeconds(season);
+  const resolved: LeaderboardPeriod =
+    "kind" in period ? period : { kind: "season", ...period };
+  const range =
+    resolved.kind === "year"
+      ? yearDateRangeInSeconds(resolved.year)
+      : seasonDateRangeInSeconds(resolved);
+
   const [markRows, identityRows] = await Promise.all([
     db
       .select({
@@ -82,22 +66,19 @@ async function querySeasonLeaderboard(
   const displayNames = new Map(
     identityRows.map((identity) => [identity.userId, identity.displayName]),
   );
-  const aggregated = aggregateLeaderboard(
+  const sections = aggregateLeaderboard(
     markRows.map((row) => ({
       type: markTypeSchema.parse(row.type),
       actorId: row.actorId,
       subjectId: row.subjectId,
-      season,
     })),
-    season,
   );
 
   return {
     chatId,
-    period: { kind: "season", ...season },
-    sections: aggregated.sections.map((section) => ({
-      id: section.id,
-      title: section.title,
+    period: resolved,
+    sections: sections.map((section) => ({
+      ...section,
       entries: section.entries.map((entry) => ({
         ...entry,
         displayName:
@@ -105,54 +86,6 @@ async function querySeasonLeaderboard(
       })),
     })),
   };
-}
-
-async function queryYearLeaderboard(
-  db: AppDatabase,
-  chatId: number,
-  year: number,
-): Promise<LeaderboardResponse> {
-  const months = await Promise.all(
-    Array.from({ length: 12 }, (_, index) =>
-      querySeasonLeaderboard(db, chatId, { year, month: index + 1 }),
-    ),
-  );
-  const templateSections = months[0]?.sections ?? [];
-
-  return {
-    chatId,
-    period: { kind: "year", year },
-    sections: templateSections.map((template) => {
-      const totals = new Map<number, { displayName: string; score: number }>();
-
-      for (const month of months) {
-        const section = month.sections.find(({ id }) => id === template.id);
-        for (const entry of section?.entries ?? []) {
-          const current = totals.get(entry.userId);
-          totals.set(entry.userId, {
-            displayName: entry.displayName,
-            score: (current?.score ?? 0) + entry.score,
-          });
-        }
-      }
-
-      return { ...template, entries: rankAnnualEntries(totals) };
-    }),
-  };
-}
-
-export async function queryLeaderboard(
-  db: AppDatabase,
-  chatId: number,
-  period: LeaderboardPeriod | Season,
-): Promise<LeaderboardResponse> {
-  if (!("kind" in period) || period.kind === "season") {
-    return querySeasonLeaderboard(db, chatId, {
-      year: period.year,
-      month: period.month,
-    });
-  }
-  return queryYearLeaderboard(db, chatId, period.year);
 }
 
 export async function queryAvailableSeasons(

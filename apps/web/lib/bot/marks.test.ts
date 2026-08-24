@@ -5,11 +5,7 @@ import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
 import type { AppDatabase } from "@/lib/db/runtime";
 import { marks, messageAuthors } from "@/lib/db/schema";
 import { markTypeSchema } from "@/lib/domain/mark";
-import {
-  aggregateLeaderboard,
-  MARK_UNDO_WINDOW_MS,
-  seasonForDate,
-} from "@/lib/scoring";
+import { aggregateLeaderboard, MARK_UNDO_WINDOW_MS } from "@/lib/scoring";
 
 import { applyMarkChanges, type ApplyMarkChangesInput } from "./marks";
 
@@ -111,16 +107,14 @@ describe("applyMarkChanges", () => {
         "karma",
       ]);
 
-      const leaderboard = aggregateLeaderboard(
+      const sections = aggregateLeaderboard(
         rows.map((row) => ({
           type: markTypeSchema.parse(row.type),
           actorId: row.actorId,
           subjectId: row.subjectId,
-          season: seasonForDate(row.createdAt),
         })),
-        { year: 2026, month: 8 },
       );
-      expect(leaderboard.sections[0]?.entries).toEqual([
+      expect(sections[0]?.entries).toEqual([
         {
           userId: identity.subjectId,
           score: -1,
@@ -128,7 +122,7 @@ describe("applyMarkChanges", () => {
           isChicken: false,
         },
       ]);
-      expect(leaderboard.sections[1]?.entries).toEqual([
+      expect(sections[1]?.entries).toEqual([
         {
           userId: identity.subjectId,
           score: 1,

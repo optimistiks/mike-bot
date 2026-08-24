@@ -1,12 +1,13 @@
 import type { MarkType } from "@/lib/domain/mark";
 
-import type { Season } from "./season";
-
+/**
+ * A Mark as scoring sees it. Carries no Season: the query decides which Marks
+ * belong to the Leaderboard period, and aggregation ranks what it is given.
+ */
 export interface ScoringMark {
   type: MarkType;
   actorId: number;
   subjectId: number;
-  season: Season;
 }
 
 export interface BucketContributions {
@@ -28,10 +29,4 @@ export interface LeaderboardSection {
   id: string;
   title: string;
   entries: LeaderboardEntry[];
-}
-
-export interface AggregatedLeaderboard {
-  season: Season;
-  isCurrentSeason: boolean;
-  sections: LeaderboardSection[];
 }

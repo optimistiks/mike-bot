@@ -50,34 +50,22 @@ describe("season bucketing", () => {
   });
 });
 
-function mark(
-  type: MarkType,
-  actorId: number,
-  subjectId: number,
-  createdAt: string,
-): ScoringMark {
-  return {
-    type,
-    actorId,
-    subjectId,
-    season: seasonForDate(new Date(createdAt)),
-  };
+function mark(type: MarkType, actorId: number, subjectId: number): ScoringMark {
+  return { type, actorId, subjectId };
 }
 
 describe("aggregateLeaderboard", () => {
-  const august2026 = { year: 2026, month: 8 };
-
   it("returns five Russian sections with ranked user ids and scores", () => {
     const marks: ScoringMark[] = [
-      mark("karma.plus", 10, 20, "2026-08-05T12:00:00.000Z"),
-      mark("karma.minus", 30, 20, "2026-08-06T12:00:00.000Z"),
-      mark("humor.add", 10, 40, "2026-08-07T12:00:00.000Z"),
-      mark("karma.plus", 20, 40, "2026-08-08T12:00:00.000Z"),
+      mark("karma.plus", 10, 20),
+      mark("karma.minus", 30, 20),
+      mark("humor.add", 10, 40),
+      mark("karma.plus", 20, 40),
     ];
 
-    const result = aggregateLeaderboard(marks, august2026);
+    const sections = aggregateLeaderboard(marks);
 
-    expect(result.sections.map((section) => section.title)).toEqual([
+    expect(sections.map((section) => section.title)).toEqual([
       "Уважаемые люди",
       "Юмористы",
       "На позитиве",
@@ -85,38 +73,38 @@ describe("aggregateLeaderboard", () => {
       "Как же у них горит",
     ]);
 
-    expect(result.sections[0]?.entries).toEqual([
+    expect(sections[0]?.entries).toEqual([
       { userId: 40, score: 1, isCrown: true, isChicken: false },
     ]);
 
-    expect(result.sections[1]?.entries).toEqual([
+    expect(sections[1]?.entries).toEqual([
       { userId: 40, score: 1, isCrown: true, isChicken: false },
     ]);
 
-    expect(result.sections[2]?.entries).toEqual([
+    expect(sections[2]?.entries).toEqual([
       { userId: 10, score: 1, isCrown: true, isChicken: false },
       { userId: 20, score: 1, isCrown: true, isChicken: false },
     ]);
 
-    expect(result.sections[3]?.entries).toEqual([
+    expect(sections[3]?.entries).toEqual([
       { userId: 10, score: 1, isCrown: true, isChicken: false },
     ]);
 
-    expect(result.sections[4]?.entries).toEqual([
+    expect(sections[4]?.entries).toEqual([
       { userId: 30, score: 1, isCrown: true, isChicken: false },
     ]);
   });
 
   it("computes net karma for Уважаемые люди", () => {
     const marks: ScoringMark[] = [
-      mark("karma.plus", 1, 50, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 2, 50, "2026-08-02T12:00:00.000Z"),
-      mark("karma.minus", 3, 50, "2026-08-03T12:00:00.000Z"),
-      mark("karma.plus", 4, 60, "2026-08-04T12:00:00.000Z"),
+      mark("karma.plus", 1, 50),
+      mark("karma.plus", 2, 50),
+      mark("karma.minus", 3, 50),
+      mark("karma.plus", 4, 60),
     ];
 
-    const result = aggregateLeaderboard(marks, august2026);
-    const karmaReceived = result.sections[0]?.entries ?? [];
+    const sections = aggregateLeaderboard(marks);
+    const karmaReceived = sections[0]?.entries ?? [];
 
     expect(karmaReceived).toEqual([
       { userId: 50, score: 1, isCrown: true, isChicken: false },
@@ -124,28 +112,15 @@ describe("aggregateLeaderboard", () => {
     ]);
   });
 
-  it("filters Marks outside the requested Season", () => {
-    const marks: ScoringMark[] = [
-      mark("karma.plus", 1, 90, "2026-07-15T12:00:00.000Z"),
-      mark("karma.plus", 1, 91, "2026-08-15T12:00:00.000Z"),
-    ];
-
-    const result = aggregateLeaderboard(marks, august2026);
-
-    expect(result.sections[0]?.entries).toEqual([
-      { userId: 91, score: 1, isCrown: true, isChicken: false },
-    ]);
-  });
-
   it("gives all tied entries a Crown and no Chicken", () => {
     const marks: ScoringMark[] = [
-      mark("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 2, 101, "2026-08-02T12:00:00.000Z"),
-      mark("karma.plus", 3, 102, "2026-08-03T12:00:00.000Z"),
+      mark("karma.plus", 1, 100),
+      mark("karma.plus", 2, 101),
+      mark("karma.plus", 3, 102),
     ];
 
-    const result = aggregateLeaderboard(marks, august2026);
-    const entries = result.sections[0]?.entries ?? [];
+    const sections = aggregateLeaderboard(marks);
+    const entries = sections[0]?.entries ?? [];
 
     expect(entries[0]).toMatchObject({
       userId: 100,
@@ -169,16 +144,15 @@ describe("aggregateLeaderboard", () => {
 
   it("gives flair to every tied highest and tied lowest score", () => {
     const marks: ScoringMark[] = [
-      mark("karma.plus", 1, 100, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 2, 100, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 1, 101, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 2, 101, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 1, 102, "2026-08-01T12:00:00.000Z"),
-      mark("karma.plus", 1, 103, "2026-08-01T12:00:00.000Z"),
+      mark("karma.plus", 1, 100),
+      mark("karma.plus", 2, 100),
+      mark("karma.plus", 1, 101),
+      mark("karma.plus", 2, 101),
+      mark("karma.plus", 1, 102),
+      mark("karma.plus", 1, 103),
     ];
 
-    const entries = aggregateLeaderboard(marks, august2026).sections[0]
-      ?.entries;
+    const entries = aggregateLeaderboard(marks)[0]?.entries;
 
     expect(entries).toEqual([
       { userId: 100, score: 2, isCrown: true, isChicken: false },
@@ -186,13 +160,5 @@ describe("aggregateLeaderboard", () => {
       { userId: 102, score: 1, isCrown: false, isChicken: true },
       { userId: 103, score: 1, isCrown: false, isChicken: true },
     ]);
-  });
-
-  it("flags Current Season when the requested Season matches today in Moscow", () => {
-    const frozenNow = new Date("2026-08-19T12:00:00.000Z");
-    const result = aggregateLeaderboard([], august2026, frozenNow);
-
-    expect(result.isCurrentSeason).toBe(true);
-    expect(result.season).toEqual(august2026);
   });
 });

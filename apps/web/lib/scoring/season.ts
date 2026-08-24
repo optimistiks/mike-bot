@@ -83,6 +83,17 @@ export function seasonDateRangeInSeconds(season: Season): {
   };
 }
 
+/** A calendar year's bounds as epoch seconds, spanning its twelve Seasons. */
+export function yearDateRangeInSeconds(year: number): {
+  start: number;
+  end: number;
+} {
+  return {
+    start: seasonDateRangeInSeconds({ year, month: 1 }).start,
+    end: seasonDateRangeInSeconds({ year, month: 12 }).end,
+  };
+}
+
 export function formatSeasonLabel(season: Season): string {
   return `${String(season.year)}-${String(season.month).padStart(2, "0")}`;
 }

@@ -1,12 +1,9 @@
-import { getCurrentSeason, seasonsEqual } from "./season";
 import { markTypeToContributions } from "./contributions";
 import type {
-  AggregatedLeaderboard,
   LeaderboardEntry,
   LeaderboardSection,
   ScoringMark,
 } from "./types";
-import type { Season } from "./season";
 
 const SECTIONS = [
   { id: "karma-received", title: "Уважаемые люди", bucket: "karmaReceived" },
@@ -28,7 +25,6 @@ type BucketKey = (typeof SECTIONS)[number]["bucket"];
 
 function accumulateScores(
   marks: ScoringMark[],
-  season: Season,
 ): Record<BucketKey, Map<number, number>> {
   const scores: Record<BucketKey, Map<number, number>> = {
     karmaReceived: new Map(),
@@ -39,10 +35,6 @@ function accumulateScores(
   };
 
   for (const mark of marks) {
-    if (!seasonsEqual(mark.season, season)) {
-      continue;
-    }
-
     const contributions = markTypeToContributions(mark.type);
 
     addToBucket(
@@ -109,25 +101,21 @@ function rankBucket(bucket: Map<number, number>): LeaderboardEntry[] {
   }));
 }
 
+/**
+ * Rank one Leaderboard period's Marks into its five Leaderboard sections.
+ *
+ * Takes whatever Marks it is handed: scoping them to a period is the query's
+ * job, and a year is the same call over a wider set. Keyed on Member id — a
+ * Display identity is presentation and is attached after.
+ */
 export function aggregateLeaderboard(
   marks: ScoringMark[],
-  season: Season,
-  now = new Date(),
-): AggregatedLeaderboard {
-  const scores = accumulateScores(marks, season);
-  const currentSeason = getCurrentSeason(now);
+): LeaderboardSection[] {
+  const scores = accumulateScores(marks);
 
-  const sections: LeaderboardSection[] = SECTIONS.map((section) => ({
+  return SECTIONS.map((section) => ({
     id: section.id,
     title: section.title,
     entries: rankBucket(scores[section.bucket]),
   }));
-
-  return {
-    season,
-    isCurrentSeason:
-      season.year === currentSeason.year &&
-      season.month === currentSeason.month,
-    sections,
-  };
 }
