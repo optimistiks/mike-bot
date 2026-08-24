@@ -3,9 +3,8 @@ import {
   type ChatMetadata,
 } from "@/lib/bot/chat-metadata";
 import { fetchTelegramFileBytes } from "@/lib/bot/telegram-photo.server";
-import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
-import { authenticateTmaRequestMember } from "@/lib/mini-app/request-auth.server";
+import { requireChatAccess } from "@/lib/mini-app/request-access.server";
 
 function photoBytes(metadata: ChatMetadata | null) {
   return metadata?.photoSmallFileId
@@ -17,22 +16,16 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ chatId: string }> },
 ): Promise<Response> {
-  const member = await authenticateTmaRequestMember(
-    request.headers.get("authorization"),
-  );
-  if (!member) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
   const { chatId: rawChatId } = await context.params;
   const chatId = Number(rawChatId);
   if (!Number.isSafeInteger(chatId)) {
     return Response.json({ error: "Invalid Chat" }, { status: 400 });
   }
 
-  const db = await getRuntimeDb();
-  if (!(await hasRegistration(db, chatId, member.userId))) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const refusal = await requireChatAccess(request, chatId);
+  if (refusal) return refusal;
 
+  const db = await getRuntimeDb();
   const botToken = process.env.BOT_TOKEN?.trim();
   if (!botToken) {
     return Response.json({ error: "Photo unavailable" }, { status: 404 });

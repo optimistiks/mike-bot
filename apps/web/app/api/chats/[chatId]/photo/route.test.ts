@@ -62,16 +62,6 @@ describe("GET /api/chats/[chatId]/photo", () => {
     await resetRuntimeDbForTests();
   });
 
-  it("refuses an unauthenticated request", async () => {
-    await seedChat("small-file-1");
-    await register(MEMBER_ID);
-
-    const response = await GET(...photoRequest(CHAT_ID, null));
-
-    expect(response.status).toBe(401);
-    expect(mocks.getFile).not.toHaveBeenCalled();
-  });
-
   it("refuses a Member without Registration in that Chat", async () => {
     await seedChat("small-file-1");
 

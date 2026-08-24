@@ -39,6 +39,17 @@ describe("GET /api/leaderboard", () => {
     await resetRuntimeDbForTests();
   });
 
+  it("refuses an unauthenticated request", async () => {
+    const response = await GET(
+      leaderboardRequest(
+        `chat_id=${String(PRIMARY_FIXTURE_CHAT_ID)}&year=2026&month=8`,
+        "",
+      ),
+    );
+
+    expect(response.status).toBe(401);
+  });
+
   it("returns a leaderboard to a registered member", async () => {
     const db = await getRuntimeDb();
     await resetAndSeedDatabase(db, FIXTURE_NOW);

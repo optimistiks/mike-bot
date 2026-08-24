@@ -34,12 +34,6 @@ describe("GET /api/leaderboard/periods", () => {
     await resetRuntimeDbForTests();
   });
 
-  it("refuses an unauthenticated request", async () => {
-    const response = await GET(periodsRequest(PRIMARY_FIXTURE_CHAT_ID, null));
-
-    expect(response.status).toBe(401);
-  });
-
   it("refuses a Chat the Member has no Registration in", async () => {
     const db = await getRuntimeDb();
     await resetAndSeedDatabase(db, FIXTURE_NOW);

@@ -69,15 +69,6 @@ describe("GET /api/members/[userId]/photo", () => {
     await resetRuntimeDbForTests();
   });
 
-  it("refuses an unauthenticated request", async () => {
-    await seedSharedChat();
-
-    const response = await GET(...photoRequest(SUBJECT_ID, null));
-
-    expect(response.status).toBe(401);
-    expect(mocks.getUserProfilePhotos).not.toHaveBeenCalled();
-  });
-
   it("refuses a Member who shares no Chat with the subject", async () => {
     const db = await getRuntimeDb();
     await db

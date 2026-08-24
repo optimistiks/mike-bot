@@ -1,23 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
 import { queryLeaderboard, resolvePeriod } from "@/lib/leaderboard/query";
 import {
   leaderboardQuerySchema,
   leaderboardResponseSchema,
 } from "@/lib/leaderboard/schema";
-import { authenticateTmaRequestMember } from "@/lib/mini-app/request-auth.server";
+import { requireChatAccess } from "@/lib/mini-app/request-access.server";
 
-export async function GET(request: Request): Promise<NextResponse> {
-  const member = await authenticateTmaRequestMember(
-    request.headers.get("authorization"),
-  );
-
-  if (member === null) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const parsed = leaderboardQuerySchema.safeParse({
     chat_id: url.searchParams.get("chat_id") ?? undefined,
@@ -32,12 +23,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
   }
 
+  const refusal = await requireChatAccess(request, parsed.data.chatId);
+  if (refusal) return refusal;
+
   const db = await getRuntimeDb();
-
-  if (!(await hasRegistration(db, parsed.data.chatId, member.userId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const period = resolvePeriod(parsed.data);
   const leaderboard = await queryLeaderboard(db, parsed.data.chatId, period);
   const response = leaderboardResponseSchema.parse(leaderboard);
