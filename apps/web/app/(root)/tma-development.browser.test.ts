@@ -28,9 +28,13 @@ test("mocks a complete TMA launch from server-provided init data", async () => {
   expect(
     document.documentElement.style.getPropertyValue("--tg-theme-bg-color"),
   ).toBe("#17212b");
-  expect(
-    document.documentElement.style.getPropertyValue("--tg-viewport-height"),
-  ).toMatch(/px$/);
+  // The viewport binds after the launch resolves rather than before it: the
+  // launch does not wait for a client that may never answer.
+  await expect
+    .poll(() =>
+      document.documentElement.style.getPropertyValue("--tg-viewport-height"),
+    )
+    .toMatch(/px$/);
   expect(
     document.documentElement.style.getPropertyValue(
       "--tg-viewport-safe-area-inset-top",

@@ -58,16 +58,28 @@ function mountMiniAppChrome(): void {
   miniApp.setBottomBarColor.ifAvailable(ARCADE_CHROME_COLOR);
 }
 
-async function mountViewport(): Promise<void> {
+/**
+ * Binds the viewport's CSS variables and expands the Mini App — when the client
+ * gets around to it.
+ *
+ * Deliberately not awaited. Mounting the viewport asks Telegram for the safe
+ * area insets, and Telegram Desktop reports Bot API 8.0 support while never
+ * answering `web_app_request_safe_area`; the SDK's mount has no timeout, so the
+ * promise stays pending for the whole session. Blocking the launch on it left
+ * Desktop on the loading screen forever with nothing to report. Every variable
+ * bound here has a fallback in `arcade.css`, so the app is correct whether this
+ * resolves late or never.
+ */
+function mountViewport(): void {
   const mounted = viewport.mount.ifAvailable();
   if (!mounted.ok) return;
-  try {
-    await mounted.data;
-  } catch {
-    return;
-  }
-  if (!viewport.isCssVarsBound()) viewport.bindCssVars.ifAvailable();
-  viewport.expand.ifAvailable();
+  void mounted.data.then(
+    () => {
+      if (!viewport.isCssVarsBound()) viewport.bindCssVars.ifAvailable();
+      viewport.expand.ifAvailable();
+    },
+    () => undefined,
+  );
 }
 
 async function launchTelegramPlatform(): Promise<MiniAppLaunch> {
@@ -92,7 +104,7 @@ async function launchTelegramPlatform(): Promise<MiniAppLaunch> {
     swipeBehavior.mount.ifAvailable();
     swipeBehavior.disableVertical.ifAvailable();
     const backMounted = backButton.mount.ifAvailable();
-    await mountViewport();
+    mountViewport();
 
     let ready = false;
     return {
