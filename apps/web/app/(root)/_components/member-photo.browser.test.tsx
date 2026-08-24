@@ -59,14 +59,19 @@ test("shows the Member's Telegram photo once it arrives", async ({
 test("keeps the initials when the Member has no photo to show", async ({
   worker,
 }) => {
+  // The initials are on screen before the request is even sent, so waiting on
+  // them alone would assert nothing about the 404 — and would let the test end
+  // with the request still in flight, to arrive after its handler is gone.
+  let answered = 0;
   worker.use(
-    http.get(
-      "*/api/members/909/photo",
-      () => new HttpResponse(null, { status: 404 }),
-    ),
+    http.get("*/api/members/909/photo", () => {
+      answered += 1;
+      return new HttpResponse(null, { status: 404 });
+    }),
   );
 
   const screen = await renderPhoto();
+  await expect.poll(() => answered).toBe(1);
 
   await expect.element(screen.getByText("FM")).toBeVisible();
   expect(screen.container.querySelector("img")).toBeNull();

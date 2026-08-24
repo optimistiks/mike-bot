@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Update, UserFromGetMe } from "grammy/types";
 
 import { closePgliteDb, createPgliteDb } from "@/lib/db/pglite";
@@ -93,6 +93,12 @@ describe("/stats", () => {
     const pglite = await createPgliteDb();
     const bot = createBot({ db: pglite.db, token: "test-token" });
     bot.botInfo = BOT_INFO;
+    // The refusal is the point of this test, and the bot reports it. Capture
+    // the report rather than letting a deliberate failure print a stack trace
+    // over every run — and assert it, since staying quiet would be the bug.
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {
+      /* captured */
+    });
     bot.api.config.use((_previous, method) =>
       method === "sendMessage"
         ? Promise.reject(new Error("Bad Request: not enough rights"))
@@ -118,7 +124,12 @@ describe("/stats", () => {
       await expect(pglite.db.select().from(registrations)).resolves.toEqual([
         { chatId: -100_123, userId: 42 },
       ]);
+      expect(reported).toHaveBeenCalledWith(
+        "failed to answer in the Chat",
+        expect.objectContaining({ message: "Bad Request: not enough rights" }),
+      );
     } finally {
+      reported.mockRestore();
       await closePgliteDb(pglite);
     }
   });
