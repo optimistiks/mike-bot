@@ -51,6 +51,26 @@ function reactionUpdate(
   };
 }
 
+function chatMemberUpdate(
+  status: "member" | "left",
+  overrides: Record<string, unknown> = {},
+): Update {
+  return {
+    update_id: 3,
+    chat_member: {
+      chat: { id: CHAT_ID, type: "supergroup", title: "Test" },
+      from: { id: 999, is_bot: false, first_name: "Admin" },
+      date: AUGUST_MESSAGE,
+      old_chat_member: {
+        status: status === "member" ? "left" : "member",
+        user: ACTOR,
+      },
+      new_chat_member: { status, user: ACTOR },
+      ...overrides,
+    },
+  };
+}
+
 const CACHED = {
   authorId: AUTHOR.id,
   authorIsBot: false,
@@ -124,16 +144,9 @@ describe("readUpdate", () => {
       ],
       [
         "a chat-member update outside a supergroup",
-        {
-          update_id: 5,
-          chat_member: {
-            chat: { id: CHAT_ID, type: "group", title: "Test" },
-            from: { id: 999, is_bot: false, first_name: "Admin" },
-            date: AUGUST_MESSAGE,
-            old_chat_member: { status: "member", user: ACTOR },
-            new_chat_member: { status: "left", user: ACTOR },
-          },
-        },
+        chatMemberUpdate("left", {
+          chat: { id: CHAT_ID, type: "group", title: "Test" },
+        }),
         null,
       ],
       [
@@ -287,16 +300,7 @@ describe("readUpdate", () => {
   });
 
   it("does not register a Member merely for joining", () => {
-    const facts = read({
-      update_id: 3,
-      chat_member: {
-        chat: { id: CHAT_ID, type: "supergroup", title: "Test" },
-        from: { id: 999, is_bot: false, first_name: "Admin" },
-        date: AUGUST_MESSAGE,
-        old_chat_member: { status: "left", user: ACTOR },
-        new_chat_member: { status: "member", user: ACTOR },
-      },
-    });
+    const facts = read(chatMemberUpdate("member"));
 
     // Joining is not Registration: that begins with the Stats command. The
     // Member is still worth naming, so their Display identity is touched.
@@ -308,16 +312,7 @@ describe("readUpdate", () => {
   });
 
   it("drops the Registration of a Member who leaves", () => {
-    const facts = read({
-      update_id: 4,
-      chat_member: {
-        chat: { id: CHAT_ID, type: "supergroup", title: "Test" },
-        from: { id: 999, is_bot: false, first_name: "Admin" },
-        date: AUGUST_MESSAGE,
-        old_chat_member: { status: "member", user: ACTOR },
-        new_chat_member: { status: "left", user: ACTOR },
-      },
-    });
+    const facts = read(chatMemberUpdate("left"));
 
     expect(facts.removeRegistration).toEqual({
       chatId: CHAT_ID,
