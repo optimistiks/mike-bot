@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 
 import { Skeleton } from "@/components/ui/8bit/skeleton";
@@ -51,6 +52,18 @@ export function LeaderboardHeader({
           <ChatPhoto chat={chat} />
           {/* A punishing Chat name wraps here rather than truncating. */}
           <h1 className="arcade-h1 min-w-0 flex-1 break-words">{chat.title}</h1>
+          {/*
+            Shown to every registered Member, not only administrators: the
+            screen states what the Chat scores by, which is worth reading even
+            when it cannot be changed. It refuses the save itself.
+          */}
+          <Link
+            href={`/chats/${String(chat.chatId)}/settings`}
+            className="arcade-label flex-none px-1"
+            aria-label="Реакции"
+          >
+            ⚙
+          </Link>
         </div>
       </ChatMorph>
 

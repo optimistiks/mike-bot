@@ -8,6 +8,11 @@ import {
   type LeaderboardPeriod,
   leaderboardResponseSchema,
 } from "@/lib/leaderboard/schema";
+import {
+  scoringReactionsResponseSchema,
+  type ScoringReactionsRequest,
+  type ScoringReactionsResponse,
+} from "@/lib/bot/scoring-reactions-schema";
 import { chatsResponseSchema } from "@/lib/mini-app/schema";
 import { getCurrentSeason } from "@/lib/scoring";
 
@@ -23,10 +28,17 @@ async function authenticatedJson<T extends z.ZodType>(
   path: string,
   platform: TelegramPlatform,
   schema: T,
+  init?: RequestInit,
 ): Promise<z.infer<T>> {
-  const response = await fetch(path, {
-    headers: { Authorization: `tma ${platform.initDataRaw}` },
-  });
+  // `Headers` rather than an object spread: `HeadersInit` may be an array or a
+  // `Headers`, and spreading either of those yields indices, not header names.
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `tma ${platform.initDataRaw}`);
+  if (init?.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(path, { ...init, headers });
   if (!response.ok) throw new ApiError(response.status);
   return schema.parse(await response.json());
 }
@@ -135,6 +147,53 @@ export function memberPhotoOptions(platform: TelegramPlatform, userId: number) {
     },
     staleTime: 60 * 60 * 1_000,
   });
+}
+
+function scoringReactionsPath(chatId: number): string {
+  return `/api/chats/${String(chatId)}/scoring-reactions`;
+}
+
+export function scoringReactionsKey(
+  platform: TelegramPlatform,
+  chatId: number,
+) {
+  return ["member", platform.memberId, "chat", chatId, "scoring-reactions"];
+}
+
+/**
+ * What a Chat scores by, and whether this Member may change it.
+ *
+ * Short `staleTime`: unlike a Leaderboard, this is a thing the Member is here
+ * to edit, and `canEdit` can go stale under them when Telegram demotes someone.
+ */
+export function scoringReactionsOptions(
+  platform: TelegramPlatform,
+  chatId: number,
+) {
+  return queryOptions({
+    queryKey: scoringReactionsKey(platform, chatId),
+    queryFn: () =>
+      authenticatedJson(
+        scoringReactionsPath(chatId),
+        platform,
+        scoringReactionsResponseSchema,
+      ),
+    staleTime: 60_000,
+  });
+}
+
+/** Save every Reaction binding a Chat holds. The payload is state, not a diff. */
+export function saveScoringReactions(
+  platform: TelegramPlatform,
+  chatId: number,
+  request: ScoringReactionsRequest,
+): Promise<ScoringReactionsResponse> {
+  return authenticatedJson(
+    scoringReactionsPath(chatId),
+    platform,
+    scoringReactionsResponseSchema,
+    { method: "PUT", body: JSON.stringify(request) },
+  );
 }
 
 export function retryApiRequest(failureCount: number, error: Error): boolean {

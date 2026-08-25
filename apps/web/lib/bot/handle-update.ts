@@ -11,10 +11,18 @@ import {
 } from "@/lib/db/schema";
 
 import { upsertChatFromTelegramUpdate } from "./chat-metadata";
+import {
+  addReactionAddedText,
+  addReactionAlreadyPresentText,
+} from "./add-reaction-command";
+import { DEFAULT_SCORING_REACTIONS } from "./emojis";
+import { reactionDisplayLabel } from "./reaction-key";
+import { addChatReaction, resolveChatBindings } from "./scoring-reactions";
 import { applyMarkChanges } from "./marks";
 import {
   readUpdate,
   reactionMessageRef,
+  updateChatRef,
   type Announcement,
   type CachedMessage,
   type ChatFacts,
@@ -111,6 +119,26 @@ async function applyFacts(
     await touchIdentity(db, identity);
   }
 
+  if (facts.addReaction) {
+    const { chatId, reactionKey, label, receiverUserId } = facts.addReaction;
+    const result = await addChatReaction(
+      db,
+      { chatId, reactionKey, label },
+      new Date(),
+    );
+    const display = reactionDisplayLabel(reactionKey, label);
+
+    return {
+      kind: "ephemeral",
+      chatId,
+      receiverUserId,
+      text:
+        result === "added"
+          ? addReactionAddedText(display)
+          : addReactionAlreadyPresentText(display),
+    };
+  }
+
   if (facts.addRegistration) {
     await addRegistration(
       db,
@@ -151,7 +179,7 @@ export async function handleTelegramUpdate(
       return { claimed: false, announcement: null };
     }
 
-    // The one lookup reading needs. Hoisting it here is what keeps `readUpdate`
+    // The lookups reading needs. Hoisting them here is what keeps `readUpdate`
     // a total function of the update and the Chat facts already stored.
     const reference = reactionMessageRef(update);
     const cachedMessage = reference
@@ -162,9 +190,18 @@ export async function handleTelegramUpdate(
         )
       : null;
 
+    // What this Chat scores by. A Chat with no rows has never been configured
+    // and scores by the built-in defaults, so no existing Chat needed a
+    // backfill (ADR-0019).
+    const chatId = updateChatRef(update);
+    const bindings =
+      chatId === null
+        ? DEFAULT_SCORING_REACTIONS
+        : await resolveChatBindings(transactionDb, chatId);
+
     const announcement = await applyFacts(
       transactionDb,
-      readUpdate(update, cachedMessage, botUsername),
+      readUpdate(update, { cachedMessage, bindings }, botUsername),
     );
 
     return { claimed: true, announcement };

@@ -95,7 +95,17 @@ async function registerWebhook(): Promise<void> {
     command: "register",
     description: "Получить доступ к таблицам лидеров",
   };
-  await bot.api.setMyCommands([statsCommand, registerCommand]);
+  // Group-only: a reaction belongs to a Chat, so the command means nothing in
+  // a private chat with the bot.
+  const addReactionCommand = {
+    command: "addreaction",
+    description: "Добавить реакцию в список группы",
+  };
+  await bot.api.setMyCommands([
+    statsCommand,
+    registerCommand,
+    addReactionCommand,
+  ]);
   await bot.api.setMyCommands([statsCommand], {
     scope: { type: "all_private_chats" },
   });
@@ -105,6 +115,7 @@ async function registerWebhook(): Promise<void> {
     [
       { ...statsCommand, is_ephemeral: true },
       { ...registerCommand, is_ephemeral: true },
+      { ...addReactionCommand, is_ephemeral: true },
     ],
     { scope: { type: "all_group_chats" } },
   );

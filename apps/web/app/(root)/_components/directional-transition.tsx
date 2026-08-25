@@ -18,7 +18,7 @@ export function DirectionalTransition({
   children,
 }: {
   /** Matched verbatim by the `::view-transition-*(page-…)` rules in `arcade.css`. */
-  name: "page-chats" | "page-leaderboard";
+  name: "page-chats" | "page-leaderboard" | "page-settings";
   children: React.ReactNode;
 }) {
   return <ViewTransition name={name}>{children}</ViewTransition>;

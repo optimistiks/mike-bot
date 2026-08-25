@@ -130,6 +130,32 @@ html.nav-back::view-transition-new(page-chats) {
     var(--duration-move) ease-in-out both slide;
 }
 
+/* Settings sits one step deeper than a Leaderboard, and travels the same way. */
+html.nav-forward::view-transition-old(page-leaderboard) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    var(--duration-move) ease-in-out both slide reverse;
+}
+html.nav-forward::view-transition-new(page-settings) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both fade,
+    var(--duration-move) ease-in-out both slide;
+}
+html.nav-back::view-transition-old(page-settings) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    var(--duration-move) ease-in-out both slide reverse;
+}
+html.nav-back::view-transition-new(page-leaderboard) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both fade,
+    var(--duration-move) ease-in-out both slide;
+}
+
 /*
  * A navigation nobody marked is a Season change: the same page name at both
  * ends, so the browser would pair the two snapshots and cross-fade them. That
@@ -141,7 +167,10 @@ html:not(.nav-forward):not(.nav-back)::view-transition-group(page-leaderboard),
 html:not(.nav-forward):not(.nav-back)::view-transition-old(page-chats),
 html:not(.nav-forward):not(.nav-back)::view-transition-old(page-leaderboard),
 html:not(.nav-forward):not(.nav-back)::view-transition-new(page-chats),
-html:not(.nav-forward):not(.nav-back)::view-transition-new(page-leaderboard) {
+html:not(.nav-forward):not(.nav-back)::view-transition-new(page-leaderboard),
+html:not(.nav-forward):not(.nav-back)::view-transition-group(page-settings),
+html:not(.nav-forward):not(.nav-back)::view-transition-old(page-settings),
+html:not(.nav-forward):not(.nav-back)::view-transition-new(page-settings) {
   animation: none;
 }
 

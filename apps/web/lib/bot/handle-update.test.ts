@@ -10,7 +10,14 @@ import {
 import { marks, processedUpdates, registrations } from "@/lib/db/schema";
 import { queryLeaderboard } from "@/lib/leaderboard/query";
 
+import type { MarkType } from "@/lib/domain/mark";
+
 import { getMessageAuthor, handleTelegramUpdate } from "./handle-update";
+import {
+  addChatReaction,
+  loadChatReactions,
+  replaceChatBindings,
+} from "./scoring-reactions";
 
 const BOT_USERNAME = "mike_bot";
 
@@ -533,5 +540,186 @@ describe("telegram webhook integration", () => {
     } finally {
       await closePgliteDb(pglite);
     }
+  });
+  describe("per-Chat Scoring reactions", () => {
+    const alice = { id: 101, first_name: "Alice" };
+    const bob = { id: 102, first_name: "Bob" };
+    const clown: ReactionType[] = [{ type: "emoji", emoji: "🤡" }];
+    const thumbsUp: ReactionType[] = [{ type: "emoji", emoji: "👍" }];
+
+    it("scores by a custom emoji the Chat has bound", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        // The real order: /addreaction puts it in the palette, a save binds it.
+        await addChatReaction(
+          pglite.db,
+          {
+            chatId: TEST_CHAT_ID,
+            reactionKey: "custom_emoji:9001",
+            label: "🎉",
+          },
+          new Date("2026-08-01T00:00:00.000Z"),
+        );
+        await replaceChatBindings(
+          pglite.db,
+          TEST_CHAT_ID,
+          new Map<string, MarkType>([["custom_emoji:9001", "humor.add"]]),
+          new Date("2026-08-01T00:00:00.000Z"),
+        );
+
+        await handleUpdate(pglite.db, messageUpdate(1, 60, bob));
+        await handleUpdate(
+          pglite.db,
+          reactionUpdate(
+            2,
+            60,
+            alice,
+            [],
+            [{ type: "custom_emoji", custom_emoji_id: "9001" }],
+          ),
+        );
+
+        await expect(liveMarks(pglite.db)).resolves.toMatchObject([
+          { type: "humor.add", actorId: alice.id, subjectId: bob.id },
+        ]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
+
+    it("stops scoring by a default the Chat has unbound", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        await addChatReaction(
+          pglite.db,
+          { chatId: TEST_CHAT_ID, reactionKey: "emoji:🤡", label: null },
+          new Date("2026-08-01T00:00:00.000Z"),
+        );
+        await replaceChatBindings(
+          pglite.db,
+          TEST_CHAT_ID,
+          new Map<string, MarkType>([["emoji:🤡", "karma.plus"]]),
+          new Date("2026-08-01T00:00:00.000Z"),
+        );
+
+        await handleUpdate(pglite.db, messageUpdate(1, 60, bob));
+        await handleUpdate(
+          pglite.db,
+          reactionUpdate(2, 60, alice, [], thumbsUp),
+        );
+
+        await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+
+        await handleUpdate(pglite.db, reactionUpdate(3, 60, alice, [], clown));
+
+        await expect(liveMarks(pglite.db)).resolves.toMatchObject([
+          { type: "karma.plus" },
+        ]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
+
+    it("leaves a Chat that never configured anything on the defaults", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        await handleUpdate(pglite.db, messageUpdate(1, 60, bob));
+        await handleUpdate(
+          pglite.db,
+          reactionUpdate(2, 60, alice, [], thumbsUp),
+        );
+
+        await expect(liveMarks(pglite.db)).resolves.toMatchObject([
+          { type: "karma.plus" },
+        ]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
+  });
+  describe("/addreaction", () => {
+    const alice = { id: 101, first_name: "Alice" };
+
+    function addReactionUpdate(updateId: number, text = "/addreaction 🤡") {
+      const update = messageUpdate(updateId, 60 + updateId, alice);
+
+      return {
+        ...update,
+        message: {
+          ...update.message,
+          text,
+          entities: [
+            {
+              offset: 0,
+              length: (text.split(" ")[0] ?? "").length,
+              type: "bot_command" as const,
+            },
+          ],
+        },
+      } as Update;
+    }
+
+    it("adds a reaction unbound, then says it is already there", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        const first = await handleUpdate(pglite.db, addReactionUpdate(1));
+        expect(first.announcement).toMatchObject({
+          kind: "ephemeral",
+          receiverUserId: alice.id,
+        });
+
+        await expect(
+          loadChatReactions(pglite.db, TEST_CHAT_ID),
+        ).resolves.toEqual([
+          { reactionKey: "emoji:🤡", markType: null, label: null },
+        ]);
+
+        const second = await handleUpdate(pglite.db, addReactionUpdate(2));
+        expect(second.announcement?.text).not.toBe(first.announcement?.text);
+
+        await expect(
+          loadChatReactions(pglite.db, TEST_CHAT_ID),
+        ).resolves.toHaveLength(1);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
+
+    it("scores nothing until an administrator binds the reaction", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        await handleUpdate(pglite.db, addReactionUpdate(1));
+        await handleUpdate(
+          pglite.db,
+          messageUpdate(2, 60, { id: 102, first_name: "Bob" }),
+        );
+        await handleUpdate(
+          pglite.db,
+          reactionUpdate(3, 60, alice, [], [{ type: "emoji", emoji: "🤡" }]),
+        );
+
+        // The palette row exists but binds nothing, so the reaction is inert.
+        await expect(liveMarks(pglite.db)).resolves.toEqual([]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
+
+    it("answers a refusal without touching the palette", async () => {
+      const pglite = await createPgliteDb();
+      try {
+        const handled = await handleUpdate(
+          pglite.db,
+          addReactionUpdate(1, "/addreaction 🍕"),
+        );
+
+        expect(handled.announcement).toMatchObject({ kind: "ephemeral" });
+        await expect(
+          loadChatReactions(pglite.db, TEST_CHAT_ID),
+        ).resolves.toEqual([]);
+      } finally {
+        await closePgliteDb(pglite);
+      }
+    });
   });
 });

@@ -26,8 +26,24 @@ An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scori
 _Avoid_: Webhook update, request
 
 **Scoring reaction**:
-One of the Telegram reactions through which a Member expresses a Mark: 👍 for Karma plus, 👎 for Karma minus, or 🤣 for a Humor Mark. Removing it takes the Mark back only inside the Undo window. Once that window closes the reaction Telegram displays and the Mark Mike-bot holds can disagree — switching 👍 to 👎 an hour later leaves 👎 on screen and Karma plus in the Leaderboard — and nothing in the Chat says so.
+A Telegram reaction a Chat has bound to a Mark type, through which a Member expresses that Mark. Every Chat starts with the built-in bindings — 👍 for Karma plus, 👎 for Karma minus, 🤣 for a Humor Mark — and its Chat administrators may replace them, custom emoji included (ADR-0019). Removing it takes the Mark back only inside the Undo window. Once that window closes the reaction Telegram displays and the Mark Mike-bot holds can disagree — switching 👍 to 👎 an hour later leaves 👎 on screen and Karma plus in the Leaderboard — and nothing in the Chat says so.
 _Avoid_: Emoji, vote
+
+**Reaction binding**:
+The pairing of one Telegram reaction with one Mark type inside one Chat. A reaction holds at most one, and the Chat's table cannot express a second, so binding a reaction to a Mark takes it away from whatever it placed before. A binding is not retroactive: it decides what future Scoring reactions place, never what an existing Mark is.
+_Avoid_: Mapping, config, setting
+
+**Chat reaction palette**:
+Every reaction one Chat has in play, bound or not. Any Member may add to it with the Add reaction command; only a Chat administrator binds. Nothing is ever removed from it, which is also what lets a Chat with no palette at all mean "never configured, use the built-in bindings" even when it has deliberately bound nothing.
+_Avoid_: Reaction list, emoji set
+
+**Unassigned reaction**:
+A reaction in a Chat's palette bound to no Mark type. It scores nothing and is offered in the Mini App for an administrator to bind. What the Add reaction command produces, and what unbinding leaves behind.
+_Avoid_: Inactive reaction, orphan
+
+**Add reaction command**:
+The `/addreaction <emoji>` command, usable by any Member, which puts one reaction — standard or custom — into the Chat reaction palette as an Unassigned reaction and answers only its caller. It exists because no Mini App can offer a picker for custom emoji, so their identity has to arrive from a person's own Telegram client. It never binds anything.
+_Avoid_: Capture, register reaction
 
 **Scoring reply**:
 An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name. A reply whose slot is already spent is left in the Chat untouched and unanswered. A Scoring reply is never itself a Message: neither it nor the bot's answer can be marked, so reacting to either does nothing. Editing a message into a Scoring token after the fact does nothing either.
@@ -78,6 +94,10 @@ _Avoid_: Room, group
 **Member**:
 A non-bot person identified by their stable Telegram identity.
 _Avoid_: User, account
+
+**Chat administrator**:
+A Member Telegram reports as `creator` or `administrator` of a Chat. The only Members who may change that Chat's Reaction bindings. Distinct from Registration, which authorizes viewing a Chat and says nothing about changing it (ADR-0009, ADR-0019).
+_Avoid_: Owner, moderator, admin
 
 **Display identity**:
 The latest known name used to present a Member within one Chat. Their Telegram profile photo is shown beside it where Telegram will serve one, and is never stored — initials stand in otherwise.

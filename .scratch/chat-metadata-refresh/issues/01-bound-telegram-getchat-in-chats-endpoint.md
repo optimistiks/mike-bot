@@ -1,6 +1,6 @@
 # 01: Bound the Telegram getChat call in /api/chats
 
-Status: needs-triage
+Status: resolved
 
 ## Problem
 
@@ -25,3 +25,21 @@ a `/api/chats` request that never returns shows as a permanent skeleton with no 
 
 - A slow or unreachable Telegram API cannot leave `/api/chats` pending indefinitely.
 - A freshly registered Chat does not trigger a live `getChat` on every single chat-list request.
+
+## Comments
+
+Resolved while building per-Chat Scoring reactions, which needed a second
+bounded Telegram lookup (`getChatAdministrators`) and so needed this fixed
+rather than repeated.
+
+`refreshChatMetadata` (`apps/web/lib/bot/chat-metadata.ts`) now passes an abort
+signal, as does `refreshChatAdmins`. Both go through `telegramTimeout()` in
+`apps/web/lib/bot/telegram-timeout.ts`, which owns the 3s bound and the one cast
+grammY's bundled `abort-controller` types require. Every Telegram call made
+while a request waits must pass one.
+
+Not addressed here: the second half of the original report, that a freshly
+registered Chat triggers a live `getChat` on every chat-list request until one
+succeeds and stamps `metadata_checked_at`. That is now bounded rather than
+unbounded, so it can no longer hang the request, but it is still a Telegram call
+per request in that window. Worth its own issue if it shows up in practice.

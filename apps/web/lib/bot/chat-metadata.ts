@@ -6,6 +6,7 @@ import type { AppDatabase } from "@/lib/db/runtime";
 import { chats } from "@/lib/db/schema";
 
 import { isScorableChatType } from "./chat-type";
+import { telegramTimeout } from "./telegram-timeout";
 
 const METADATA_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
 
@@ -136,7 +137,14 @@ export async function refreshChatMetadata(
   chatId: number,
   botToken: string,
 ): Promise<ChatMetadata | null> {
-  const telegramChat = await new Api(botToken).getChat(chatId);
+  // Bounded: `/api/chats` blocks on this until a successful call stamps
+  // `metadata_checked_at`, so an unreachable Telegram must cost a refresh, not
+  // the whole request.
+  const telegramChat = await new Api(botToken).getChat(
+    chatId,
+    telegramTimeout(),
+  );
+
   return storeChatFullInfo(db, telegramChat);
 }
 

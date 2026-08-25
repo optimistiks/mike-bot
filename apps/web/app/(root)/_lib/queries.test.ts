@@ -7,6 +7,7 @@ import {
   leaderboardOptions,
   periodsOptions,
   retryApiRequest,
+  saveScoringReactions,
 } from "./queries";
 import type { TelegramPlatform } from "./telegram-platform";
 
@@ -100,9 +101,35 @@ describe("authenticated requests", () => {
 
     await runQuery(chatsOptions(member));
 
-    expect(fetchSpy).toHaveBeenCalledWith("/api/chats", {
-      headers: { Authorization: "tma init-data-for-101" },
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("/api/chats");
+    // Asserted through `Headers` rather than as an object literal: what matters
+    // is the header the request carries, not the shape handed to `fetch`.
+    expect(
+      new Headers(fetchSpy.mock.calls[0]?.[1]?.headers).get("Authorization"),
+    ).toBe("tma init-data-for-101");
+  });
+
+  it("signs a save, and declares its body as JSON", async () => {
+    const fetchSpy = stubJsonFetch({
+      reactions: [],
+      usingDefaults: false,
+      canEdit: true,
     });
+
+    await saveScoringReactions(member, CHAT_ID, {
+      bindings: { "humor.add": ["emoji:🤡"] },
+    });
+
+    const [path, init] = fetchSpy.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+
+    expect(path).toBe(`/api/chats/${String(CHAT_ID)}/scoring-reactions`);
+    expect(init?.method).toBe("PUT");
+    expect(headers.get("Authorization")).toBe("tma init-data-for-101");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(init?.body).toBe(
+      JSON.stringify({ bindings: { "humor.add": ["emoji:🤡"] } }),
+    );
   });
 
   it("asks for a Season by year and month", async () => {

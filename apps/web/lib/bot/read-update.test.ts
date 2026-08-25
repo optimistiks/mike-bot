@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ReactionType, Update } from "grammy/types";
 
-import { messageDisplayIdentities, readUpdate } from "./read-update";
+import { DEFAULT_SCORING_REACTIONS, type ScoringReactionMap } from "./emojis";
+import {
+  type CachedMessage,
+  messageDisplayIdentities,
+  readUpdate,
+} from "./read-update";
 
 const CHAT_ID = -100_111_222;
 const BOT_USERNAME = "mike_bot";
@@ -15,8 +20,12 @@ const AUGUST_REACTION = Math.floor(
   new Date("2026-08-10T12:00:00.000Z").getTime() / 1000,
 );
 
-function read(update: Update, cached: Parameters<typeof readUpdate>[1] = null) {
-  return readUpdate(update, cached, BOT_USERNAME);
+function read(
+  update: Update,
+  cached: CachedMessage | null = null,
+  bindings: ScoringReactionMap = DEFAULT_SCORING_REACTIONS,
+) {
+  return readUpdate(update, { cachedMessage: cached, bindings }, BOT_USERNAME);
 }
 
 function messageUpdate(overrides: Record<string, unknown> = {}): Update {
@@ -83,7 +92,8 @@ function writesNothing(facts: ReturnType<typeof readUpdate>): boolean {
     facts.identities.length === 0 &&
     facts.markChanges === null &&
     facts.addRegistration === null &&
-    facts.removeRegistration === null
+    facts.removeRegistration === null &&
+    facts.addReaction === null
   );
 }
 
@@ -354,6 +364,77 @@ describe("readUpdate", () => {
       });
     },
   );
+
+  describe("/addreaction", () => {
+    function addReaction(text: string, entities: unknown[] = []) {
+      return read(
+        messageUpdate({
+          text,
+          entities: [
+            {
+              offset: 0,
+              length: (text.split(" ")[0] ?? "").length,
+              type: "bot_command",
+            },
+            ...entities,
+          ],
+        }),
+      );
+    }
+
+    it("puts the reaction in the palette bound to nothing", () => {
+      const facts = addReaction("/addreaction 🤡");
+
+      expect(facts.addReaction).toMatchObject({
+        chatId: CHAT_ID,
+        reactionKey: "emoji:🤡",
+        label: null,
+      });
+      // Binding is the Mini App's job; the command never places a Mark.
+      expect(facts.markChanges).toBeNull();
+      expect(facts.addRegistration).toBeNull();
+    });
+
+    it("names who to answer, and leaves the wording to the write", () => {
+      const facts = addReaction("/addreaction 🤡");
+
+      // Whether this added a reaction or repeated one is something only the
+      // write finds out, so no answer travels with the fact.
+      expect(facts.addReaction?.receiverUserId).toBe(AUTHOR.id);
+      expect(facts.announcement).toBeNull();
+    });
+
+    it("reads a custom emoji from its entity", () => {
+      const facts = addReaction("/addreaction 🎉", [
+        {
+          type: "custom_emoji",
+          offset: 13,
+          length: 2,
+          custom_emoji_id: "9001",
+        },
+      ]);
+
+      expect(facts.addReaction).toMatchObject({
+        reactionKey: "custom_emoji:9001",
+        label: "🎉",
+      });
+    });
+
+    it("answers a refusal ephemerally and writes nothing", () => {
+      const facts = addReaction("/addreaction 🍕");
+
+      expect(facts.addReaction).toBeNull();
+      expect(facts.announcement).toMatchObject({
+        kind: "ephemeral",
+        receiverUserId: AUTHOR.id,
+      });
+      expect(facts.markChanges).toBeNull();
+    });
+
+    it("is not a Scoring reply, whatever the argument looks like", () => {
+      expect(addReaction("/addreaction 👍").markChanges).toBeNull();
+    });
+  });
 
   it("does not read a command that is only mentioned mid-sentence", () => {
     const facts = read(messageUpdate({ text: "try /stats sometime" }));

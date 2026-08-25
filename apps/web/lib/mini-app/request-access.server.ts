@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isChatAdmin } from "@/lib/bot/chat-admin";
+import { parseBotToken } from "@/lib/env.server";
 import { sharesChatWithMember } from "@/lib/db/members";
 import { hasRegistration } from "@/lib/db/registrations";
 import { getRuntimeDb } from "@/lib/db/runtime";
@@ -71,6 +73,27 @@ export function requireChatAccess(
 ): Promise<Response | null> {
   return authorize(request, rawChatId, (db, memberId, chatId) =>
     hasRegistration(db, chatId, memberId),
+  );
+}
+
+/**
+ * Refuse unless the caller holds a Registration in the Chat *and* Telegram says
+ * they administer it.
+ *
+ * Registration is authorization to view (ADR-0009); administration is a further
+ * gate on changing what the Chat scores by (ADR-0019). Asked live: this is the
+ * security boundary, and one Telegram call per save is cheap.
+ */
+export function requireChatAdminAccess(
+  request: Request,
+  rawChatId: unknown,
+): Promise<Response | null> {
+  return authorize(
+    request,
+    rawChatId,
+    async (db, memberId, chatId) =>
+      (await hasRegistration(db, chatId, memberId)) &&
+      (await isChatAdmin(chatId, memberId, parseBotToken())),
   );
 }
 

@@ -3,6 +3,10 @@
 > Partly superseded by ADR-0015: Karma plus and Karma minus can no longer both
 > be active on one Message, and reaction Marks are reversible only inside the
 > Undo window. Accepting both inputs still holds.
+>
+> The three emoji named below are superseded by ADR-0019: they are only the
+> defaults now, and each Chat's administrators may bind their own reactions,
+> custom emoji included.
 
 Marks are expressed two ways: by Telegram reactions (👍 👎 🤣), which are undoable and leave the Chat silent, and by the exact `+`, `-`, and `лол` replies the group has typed since v1. Reactions were the reason to build v2, but dropping replies would have broken the habit the bot exists to serve, so both inputs produce the same Events.
 

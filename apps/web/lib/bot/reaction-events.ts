@@ -4,16 +4,16 @@ import type { MarkType } from "@/lib/domain/mark";
 
 import type { MarkChange } from "./marks";
 
-import {
-  HUMOR_EMOJI,
-  isScoringEmoji,
-  KARMA_MINUS_EMOJI,
-  KARMA_PLUS_EMOJI,
-} from "./emojis";
+import type { ScoringReactionMap } from "./emojis";
+import { reactionKey } from "./reaction-key";
+
+export { reactionKey };
 
 export type ReactionSkipReason = "self" | "bot_subject";
 
 export interface ReactionEventInput {
+  /** What this Chat scores by, already resolved against the defaults. */
+  bindings: ScoringReactionMap;
   addedReactions: ReactionType[];
   removedReactions: ReactionType[];
   actorId: number;
@@ -24,23 +24,6 @@ export interface ReactionEventInput {
 export type ReactionEventResult =
   | { ok: true; changes: MarkChange[] }
   | { ok: false; reason: ReactionSkipReason };
-
-const ADD_TYPE: Record<string, MarkType> = {
-  [KARMA_PLUS_EMOJI]: "karma.plus",
-  [KARMA_MINUS_EMOJI]: "karma.minus",
-  [HUMOR_EMOJI]: "humor.add",
-};
-
-function reactionKey(reaction: ReactionType): string {
-  switch (reaction.type) {
-    case "emoji":
-      return `emoji:${reaction.emoji}`;
-    case "custom_emoji":
-      return `custom_emoji:${reaction.custom_emoji_id}`;
-    case "paid":
-      return "paid";
-  }
-}
 
 export function diffReactionStates(
   oldReactions: ReactionType[],
@@ -59,12 +42,27 @@ export function diffReactionStates(
   };
 }
 
-function scoringEmojis(reactions: ReactionType[]): string[] {
-  return reactions.flatMap((reaction) =>
-    reaction.type === "emoji" && isScoringEmoji(reaction.emoji)
-      ? [reaction.emoji]
-      : [],
-  );
+/**
+ * The Marks a Chat places for these reactions.
+ *
+ * The filter is "is this key bound", not "is this one of three known emoji",
+ * which is what lets a custom emoji score at all: `reactionKey` has always
+ * named them, and only this lookup used to throw them away.
+ */
+function boundMarkTypes(
+  reactions: ReactionType[],
+  bindings: ScoringReactionMap,
+): MarkType[] {
+  return reactions.flatMap((reaction) => {
+    // A paid reaction names no Member, so it can never place a Mark — refused
+    // here and not only by `chat_scoring_reactions`' CHECK, so the rule holds
+    // wherever a map comes from.
+    if (reaction.type === "paid") return [];
+
+    const type = bindings.get(reactionKey(reaction));
+
+    return type ? [type] : [];
+  });
 }
 
 /**
@@ -88,12 +86,12 @@ export function reactionDiffToMarkChanges(
 
   const changes: MarkChange[] = [];
 
-  for (const emoji of scoringEmojis(input.removedReactions)) {
-    changes.push({ action: "remove", type: ADD_TYPE[emoji] });
+  for (const type of boundMarkTypes(input.removedReactions, input.bindings)) {
+    changes.push({ action: "remove", type });
   }
 
-  for (const emoji of scoringEmojis(input.addedReactions)) {
-    changes.push({ action: "add", type: ADD_TYPE[emoji] });
+  for (const type of boundMarkTypes(input.addedReactions, input.bindings)) {
+    changes.push({ action: "add", type });
   }
 
   return { ok: true, changes };

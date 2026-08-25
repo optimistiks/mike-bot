@@ -4,7 +4,12 @@ import type { MarkSource, MarkType } from "@/lib/domain/mark";
 import { isActiveChatMemberStatus } from "@/lib/mini-app/membership-status";
 import { isSeasonOpenForAction } from "@/lib/scoring";
 
+import {
+  ADD_REACTION_REFUSAL_TEXT,
+  parseAddReactionArgument,
+} from "./add-reaction-command";
 import { isScorableChatType } from "./chat-type";
+import type { ScoringReactionMap } from "./emojis";
 import { memberDisplayName } from "./display-name";
 import type { MarkChange, MarkIdentity } from "./marks";
 import {
@@ -58,6 +63,13 @@ export type Announcement =
       url: string;
     }
   | {
+      /** Text only the Member who asked can see, as `/stats` answers. */
+      kind: "ephemeral";
+      chatId: number;
+      receiverUserId: number;
+      text: string;
+    }
+  | {
       kind: "scoring-reply";
       chatId: number;
       deleteMessageId: number;
@@ -78,6 +90,18 @@ export interface ChatFacts {
   messages: MessageToCache[];
   identities: IdentityToTouch[];
   markChanges: MarkChangesToApply | null;
+  /**
+   * A reaction to put in the Chat's palette, bound to nothing.
+   *
+   * The answer is not here: whether this adds a reaction or repeats one is
+   * something only the write finds out, so the applier says it.
+   */
+  addReaction: {
+    chatId: number;
+    reactionKey: string;
+    label: string | null;
+    receiverUserId: number;
+  } | null;
   addRegistration: { chatId: number; userId: number } | null;
   removeRegistration: { chatId: number; userId: number } | null;
   announcement: Announcement | null;
@@ -91,6 +115,7 @@ const NOTHING: ChatFacts = {
   messages: [],
   identities: [],
   markChanges: null,
+  addReaction: null,
   addRegistration: null,
   removeRegistration: null,
   announcement: null,
@@ -130,6 +155,14 @@ export function messageDisplayIdentities(message: {
   }
 
   return [...members.values()].sort((left, right) => left.id - right.id);
+}
+
+function ephemeral(
+  chatId: number,
+  receiverUserId: number,
+  text: string,
+): Announcement {
+  return { kind: "ephemeral", chatId, receiverUserId, text };
 }
 
 /** A `/name` at the very start, with or without the bot's @username. */
@@ -243,6 +276,35 @@ function readMessage(
     return facts;
   }
 
+  // Any Member may put a reaction in the palette: it is bound to nothing and so
+  // cannot change a score by itself, and only an administrator binds it in the
+  // Mini App. Keeping it ungated is what lets this stay a pure read with no
+  // Telegram call in the update path (ADR-0019).
+  if (!actor.is_bot && isCommand(message, "addreaction", botUsername)) {
+    const parsed = parseAddReactionArgument(message);
+
+    if (!parsed.ok) {
+      return {
+        ...facts,
+        announcement: ephemeral(
+          chatId,
+          actor.id,
+          ADD_REACTION_REFUSAL_TEXT[parsed.reason],
+        ),
+      };
+    }
+
+    return {
+      ...facts,
+      addReaction: {
+        chatId,
+        reactionKey: parsed.reactionKey,
+        label: parsed.label,
+        receiverUserId: actor.id,
+      },
+    };
+  }
+
   return { ...facts, ...readScoringReply(message, updateId) };
 }
 
@@ -327,8 +389,10 @@ function readChatMember(update: NonNullable<Update["chat_member"]>): ChatFacts {
 function readReaction(
   reaction: NonNullable<Update["message_reaction"]>,
   updateId: number,
-  cachedMessage: CachedMessage | null,
+  state: ChatState,
 ): ChatFacts {
+  const { cachedMessage } = state;
+
   if (!isScorableChatType(reaction.chat.type)) {
     return nothing();
   }
@@ -360,6 +424,7 @@ function readReaction(
 
   const mapped = reactionDiffToMarkChanges({
     ...diffReactionStates(reaction.old_reaction, reaction.new_reaction),
+    bindings: state.bindings,
     actorId: actor.id,
     subjectId: cachedMessage.authorId,
     subjectIsBot: cachedMessage.authorIsBot,
@@ -415,6 +480,19 @@ function readReaction(
 }
 
 /**
+ * The Chat state a reader needs, fetched by the caller before reading.
+ *
+ * Hoisting it here is what keeps `readUpdate` a total function of the update
+ * and the Chat facts already stored: the reader is handed resolved values and
+ * never learns that a database exists. `bindings` arrives already merged with
+ * the built-in defaults, so the fallback rule is stated once, in the applier.
+ */
+export interface ChatState {
+  cachedMessage: CachedMessage | null;
+  bindings: ScoringReactionMap;
+}
+
+/**
  * Read one Telegram update into the facts it implies.
  *
  * A total function: no database, no network, no clock beyond the timestamps the
@@ -424,7 +502,7 @@ function readReaction(
  */
 export function readUpdate(
   update: Update,
-  cachedMessage: CachedMessage | null,
+  state: ChatState,
   botUsername: string,
 ): ChatFacts {
   if (update.message) {
@@ -436,11 +514,7 @@ export function readUpdate(
   }
 
   if (update.message_reaction) {
-    return readReaction(
-      update.message_reaction,
-      update.update_id,
-      cachedMessage,
-    );
+    return readReaction(update.message_reaction, update.update_id, state);
   }
 
   return nothing();
@@ -455,4 +529,14 @@ export function reactionMessageRef(
   return reaction
     ? { chatId: reaction.chat.id, messageId: reaction.message_id }
     : null;
+}
+
+/** The Chat an update concerns, so the applier knows whose bindings to load. */
+export function updateChatRef(update: Update): number | null {
+  return (
+    update.message?.chat.id ??
+    update.message_reaction?.chat.id ??
+    update.chat_member?.chat.id ??
+    null
+  );
 }
