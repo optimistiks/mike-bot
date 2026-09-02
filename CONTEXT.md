@@ -70,8 +70,9 @@ _Avoid_: Legacy row, migration
 
 **Chat**:
 A Telegram chat whose Marks, Standings, and Conversations are isolated from
-every other Chat. The same Member may participate in more than one Chat.
-_Avoid_: Room, group
+every other Chat. Mike-bot does not filter on chat type. The same Member may
+participate in more than one Chat.
+_Avoid_: Room, group, supergroup
 
 **Member**:
 A non-bot person identified by their stable Telegram identity.
@@ -86,6 +87,11 @@ _Avoid_: @mention, first name, User {id}
 The Telegram identity of a message that may receive Marks. Mike-bot stores no
 Message content.
 _Avoid_: Post content
+
+**Command**:
+A Member message Telegram treats as a bot command, including the Stats
+command. Never a Turn and never a Scoring reply.
+_Avoid_: Slash message, slash text
 
 ## Standings
 
@@ -128,18 +134,19 @@ _Avoid_: Session, Dialogflow session, chat
 
 **Wake message**:
 A text message that opens a Conversation. The Member has no open Conversation
-in that Chat, and the trimmed text, compared case-insensitively, is `бот` or
-begins with `бот` and a following space. A Wake message is also a Turn: the
-bot answers it.
-_Avoid_: Mention, command, trigger
+in that Chat. After trim, the first whitespace-separated token is exactly
+`бот` — that spelling, that case. `Бот` does not wake. The whole message is
+one Turn and is forwarded as-is; the bot answers.
+_Avoid_: Mention, command, trigger, case-insensitive бот
 
 **Stop message**:
-A text message that closes a Conversation. The trimmed text, compared
-case-insensitively, is exactly `довольно`. A Stop message is not a Turn.
-_Avoid_: Cancel, exit, довольно as ordinary text
+A text message that closes a Conversation. After trim, the entire text is
+exactly `довольно` — that spelling, that case. It is not a Turn and the bot
+does not answer.
+_Avoid_: Cancel, exit, Довольно, довольно with extra words
 
 **Turn**:
 A text message in an open Conversation that becomes part of that
-Conversation's context. Wake messages are Turns. Scoring replies and Stop
-messages are not.
+Conversation's context. Wake messages are Turns. Commands, Scoring replies,
+Stop messages, and non-text messages are not.
 _Avoid_: Prompt, utterance, LLM call
