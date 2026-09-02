@@ -18,10 +18,10 @@ export async function applyScoring(db: BotSession, message: Message): Promise<Sc
     return { kind: "ignored" };
   }
 
-  const target = message.reply_to_message;
-  const subject = target?.from;
+  const marked = message.reply_to_message;
+  const subject = marked?.from;
   if (
-    target === undefined ||
+    marked === undefined ||
     subject === undefined ||
     subject.id === actor.id ||
     isBotUser(subject)
@@ -30,13 +30,13 @@ export async function applyScoring(db: BotSession, message: Message): Promise<Sc
   }
 
   await upsertMember(db, subject);
-  await ensureMessage(db, target);
+  await ensureMessage(db, marked);
 
   const inserted = await tryInsertMark(db, {
     chatId: message.chat.id,
     actorId: actor.id,
     subjectId: subject.id,
-    messageId: target.message_id,
+    messageId: marked.message_id,
     type,
     createdAt: new Date(message.date * 1000),
   });

@@ -50,10 +50,10 @@ export async function loadImportedRows(
   db: BotSession,
   rows: V1LolRow[],
 ): Promise<{ members: number; messages: number; marks: number }> {
-  const memberById = new Map<number, { username: string | null; createdAt: number }>();
+  const memberById = new Map<number, string | null>();
   for (const row of rows) {
-    considerMember(memberById, row.fromUser, row.createdAt);
-    considerMember(memberById, row.toUser, row.createdAt);
+    considerMember(memberById, row.fromUser);
+    considerMember(memberById, row.toUser);
   }
 
   const messageByKey = new Map<
@@ -87,14 +87,11 @@ export async function loadImportedRows(
     }
   }
 
-  for (const [telegramId, seen] of memberById) {
-    await db
-      .insert(members)
-      .values({ telegramId, username: seen.username })
-      .onConflictDoUpdate({
-        target: members.telegramId,
-        set: { username: seen.username },
-      });
+  for (const [telegramId, username] of memberById) {
+    await db.insert(members).values({ telegramId, username }).onConflictDoUpdate({
+      target: members.telegramId,
+      set: { username },
+    });
   }
 
   let messageCount = 0;
@@ -128,15 +125,14 @@ export async function loadImportedRows(
 }
 
 function considerMember(
-  memberById: Map<number, { username: string | null; createdAt: number }>,
-  user: { id: number; username?: string },
-  createdAt: number,
+  memberById: Map<number, string | null>,
+  telegramUser: { id: number; username?: string },
 ): void {
-  const existing = memberById.get(user.id);
-  if (existing === undefined || createdAt >= existing.createdAt) {
-    memberById.set(user.id, {
-      username: user.username ?? null,
-      createdAt,
-    });
+  if (telegramUser.username !== undefined) {
+    memberById.set(telegramUser.id, telegramUser.username);
+    return;
+  }
+  if (!memberById.has(telegramUser.id)) {
+    memberById.set(telegramUser.id, null);
   }
 }

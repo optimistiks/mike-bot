@@ -24,17 +24,17 @@ export async function claimUpdate(db: BotSession, updateId: number): Promise<boo
 
 export async function upsertMember(
   db: BotSession,
-  user: Pick<User, "id" | "username">,
+  telegramUser: Pick<User, "id" | "username">,
 ): Promise<void> {
   await db
     .insert(members)
     .values({
-      telegramId: user.id,
-      username: user.username ?? null,
+      telegramId: telegramUser.id,
+      username: telegramUser.username ?? null,
     })
     .onConflictDoUpdate({
       target: members.telegramId,
-      set: { username: user.username ?? null },
+      set: { username: telegramUser.username ?? null },
     });
 }
 

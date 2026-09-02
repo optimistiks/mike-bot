@@ -23,8 +23,8 @@ async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> 
       if (result.kind !== "accepted") {
         return;
       }
-      const target = message.reply_to_message;
-      if (target === undefined) {
+      const marked = message.reply_to_message;
+      if (marked === undefined) {
         return;
       }
       try {
@@ -33,7 +33,7 @@ async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> 
         console.error("failed to delete Scoring reply", error);
       }
       await ctx.reply(result.text, {
-        reply_parameters: { message_id: target.message_id },
+        reply_parameters: { message_id: marked.message_id },
       });
       return;
     }
