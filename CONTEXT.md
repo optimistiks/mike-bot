@@ -1,154 +1,145 @@
 # Mike-bot
 
-A Telegram group scoring bot where Members mark each other's messages and compare Karma and Humor over
-Seasons and years.
+A Telegram scoring bot where Members mark each other's messages, compare Karma
+and Humor, and talk to the bot in a Conversation.
 
 ## Scoring
 
 **Mark**:
-An eligible scoring choice that an Actor applies to a different Member's Message through a Scoring reaction or Scoring reply. The Message's author is the Mark's Subject. A Mark spends a Mark slot, is permanent once the Undo window closes, and cannot be joined by a second Mark in the same slot.
-_Avoid_: Vote, rating, Event
-
-**Mark slot**:
-One of the two grants an Actor holds for every other Member's Message: `karma`, spendable as Karma plus or Karma minus but never both, and `humor`, independent of it. A Mark spends its slot, whichever input placed it.
-_Avoid_: Kind, category, budget
-
-**Undo window**:
-The five seconds after a Scoring reaction's Mark during which removing that reaction deletes the Mark and refunds its slot. Telegram's own timestamps for the two actions decide, not the moment Mike-bot processes them. Once it closes the Mark is permanent, and reaction removal has no effect. Scoring replies never have one.
-_Avoid_: Grace period, cooldown, undo period
-
-**Chat facts**:
-Everything one Telegram update tells Mike-bot about a Chat: the Messages worth caching, the Display identities to name, the Mark changes to apply, the Registration to establish or drop, the Chat metadata to mirror, and whatever the bot owes the Chat in reply. Reading an update into its Chat facts is a decision; writing them is not, so the two are separate and only the first knows any rules.
-_Avoid_: Event, payload, command
-
-**Scoring action**:
-An Actor's attempt to add or remove a Mark, whether by Scoring reaction or Scoring reply. Its Telegram timestamp, not the moment Mike-bot processes it, decides whether it is still eligible for the Message's Season.
-_Avoid_: Webhook update, request
-
-**Scoring reaction**:
-A Telegram reaction a Chat has bound to a Mark type, through which a Member expresses that Mark. Every Chat starts with the built-in bindings — 👍 for Karma plus, 👎 for Karma minus, 🤣 for a Humor Mark — and its Chat administrators may replace them, custom emoji included (ADR-0019). Removing it takes the Mark back only inside the Undo window. Once that window closes the reaction Telegram displays and the Mark Mike-bot holds can disagree — switching 👍 to 👎 an hour later leaves 👎 on screen and Karma plus in the Leaderboard — and nothing in the Chat says so.
-_Avoid_: Emoji, vote
-
-**Reaction binding**:
-The pairing of one Telegram reaction with one Mark type inside one Chat. A reaction holds at most one, and the Chat's table cannot express a second, so binding a reaction to a Mark takes it away from whatever it placed before. A binding is not retroactive: it decides what future Scoring reactions place, never what an existing Mark is.
-_Avoid_: Mapping, config, setting
-
-**Chat reaction palette**:
-Every reaction one Chat has in play, bound or not. Any Member may add to it with the Add reaction command; only a Chat administrator binds. Nothing is ever removed from it, which is also what lets a Chat with no palette at all mean "never configured, use the built-in bindings" even when it has deliberately bound nothing.
-_Avoid_: Reaction list, emoji set
-
-**Unassigned reaction**:
-A reaction in a Chat's palette bound to no Mark type. It scores nothing and is offered in the Mini App for an administrator to bind. What the Add reaction command produces, and what unbinding leaves behind.
-_Avoid_: Inactive reaction, orphan
-
-**Add reaction command**:
-The `/addreaction <emoji>` command, usable by any Member, which puts one reaction — standard or custom — into the Chat reaction palette as an Unassigned reaction and answers only its caller. It exists because no Mini App can offer a picker for custom emoji, so their identity has to arrive from a person's own Telegram client. It never binds anything.
-_Avoid_: Capture, register reaction
+A scoring an Actor applies to a different Member's Message. Permanent once
+placed. An Actor may hold one Karma Mark and one Humor Mark on the same
+Message, never two of the same slot.
+_Avoid_: Vote, rating, Event, lol
 
 **Scoring reply**:
-An exact trimmed `+`, `-`, or case-insensitive `лол` reply that permanently expresses the corresponding Mark. The bot deletes an accepted Scoring reply and answers under the marked Message in its place — `➕`, `➖`, or `лол` followed by the Actor's un-mentioned name. A reply whose slot is already spent is left in the Chat untouched and unanswered. A Scoring reply is never itself a Message: neither it nor the bot's answer can be marked, so reacting to either does nothing. Editing a message into a Scoring token after the fact does nothing either.
-_Avoid_: Legacy reply, command
+An exact trimmed `+`, `-`, or case-insensitive `лол` reply that places the
+corresponding Mark. The bot deletes an accepted Scoring reply and answers
+under the marked Message with `➕ (name)`, `➖ (name)`, or `лол (name)`, where
+name is the Actor's Telegram username or `???`. A reply whose slot is already
+spent is left untouched and unanswered. A Scoring reply is never itself a
+Message that can be marked.
+_Avoid_: Reaction, command, legacy reply
 
 **Karma plus**:
-A kind of Mark that contributes one positive point to the Subject's Karma.
-_Avoid_: Upvote, plus, positive vote
+A Mark that adds one to the Subject's Karma.
+_Avoid_: Upvote, plus
 
 **Karma minus**:
-A kind of Mark that contributes one negative point to the Subject's Karma.
-_Avoid_: Downvote, minus, negative vote
+A Mark that subtracts one from the Subject's Karma.
+_Avoid_: Downvote, minus
 
 **Humor Mark**:
-A kind of Mark that contributes one point to the Subject's Humor.
+A Mark that adds one to the Subject's Humor.
 _Avoid_: Lol, joke vote
 
 **Karma**:
-A Member's net total, over one Leaderboard period, of received Karma plus and Karma minus Marks.
+A Member's all-time net total of received Karma plus and Karma minus Marks in
+one Chat.
 _Avoid_: Carma, score, respect
 
 **Humor**:
-A Member's total, over one Leaderboard period, of received Humor Marks.
+A Member's all-time total of received Humor Marks in one Chat.
 _Avoid_: Lol score, humor points
 
 **Actor**:
-The Member who applies or removes a Mark.
+The Member who places a Mark.
 _Avoid_: Giver, reactor
 
 **Subject**:
-The Member whose message receives the Mark.
+The Member whose Message receives the Mark.
 _Avoid_: Recipient, target
 
 **Mark type**:
-The canonical value a Mark carries: `karma.plus`, `karma.minus`, or `humor.add`. Its Mark slot follows from it.
-_Avoid_: Event type, kind
+The canonical value a Mark carries: `karma.plus`, `karma.minus`, or
+`humor.add`.
+_Avoid_: Event type, lol type
+
+**Mark slot**:
+One of the two grants an Actor holds for every other Member's Message:
+`karma`, spendable as Karma plus or Karma minus but never both, and `humor`,
+independent of it.
+_Avoid_: Kind, category
 
 **Imported Mark**:
-A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew only Scoring replies, so an Imported Mark is one, and is therefore permanent like any other. Nothing distinguishes it in the model: its v1 timestamp became its Message's post time at import, so it is credited to a Season exactly like every other Mark, and `legacyId` is import provenance that no scoring rule reads. v1 allowed a Member to mark one Message repeatedly, so the import admits only the earliest Mark per slot, and where those repeats crossed a month the later ones follow the Message into the earlier Season (ADR-0017).
+A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew
+only Scoring replies. Nothing distinguishes it in the model except that it
+already happened.
 _Avoid_: Legacy row, migration
 
-## Community and access
+## Community
 
 **Chat**:
-A Telegram group or supergroup whose Marks, Display identities, Registrations, and Leaderboards are isolated from every other Chat. The same Member may participate in more than one Chat. Mike-bot mirrors the Chat's Telegram title and photo reference to present it, and owns neither. Mike-bot ignores private chats and channels, where no Mark is possible, and does not carry a Chat's history across a Telegram upgrade from a group to a supergroup: the upgraded supergroup has a different id and starts empty (ADR-0018).
+A Telegram chat whose Marks, Standings, and Conversations are isolated from
+every other Chat. The same Member may participate in more than one Chat.
 _Avoid_: Room, group
 
 **Member**:
 A non-bot person identified by their stable Telegram identity.
 _Avoid_: User, account
 
-**Chat administrator**:
-A Member Telegram reports as `creator` or `administrator` of a Chat. The only Members who may change that Chat's Reaction bindings. Distinct from Registration, which authorizes viewing a Chat and says nothing about changing it (ADR-0009, ADR-0019).
-_Avoid_: Owner, moderator, admin
-
-**Display identity**:
-The latest known name used to present a Member within one Chat. Their Telegram profile photo is shown beside it where Telegram will serve one, and is never stored — initials stand in otherwise.
-_Avoid_: Chat member, username
+**Display name**:
+The name printed for a Member in Standings and in a Scoring reply answer:
+their Telegram username, or `???`.
+_Avoid_: @mention, first name, User {id}
 
 **Message**:
-The cached Telegram identity, author, bot status, and post time of a message that may receive Marks. A Scoring reaction carries neither the author nor the post time, so Mike-bot caches both when it first sees the message; a Message it never observed cannot be marked by reaction. Mike-bot stores no Message content. An imported Message's post time is a best-effort estimate from the earliest Mark on it.
+The Telegram identity of a message that may receive Marks. Mike-bot stores no
+Message content.
 _Avoid_: Post content
 
-**Registration**:
-A Member's authorization to view one Chat in the Mini App. It begins when the Member invokes the Stats command inside that Chat, and ends when the Member leaves or is removed from the Chat.
-_Avoid_: Chat membership, participation
+## Standings
 
-**Register command**:
-The `/register` command, an alias of the Stats command usable by any Member.
-_Avoid_: Signup, invite
-
-## Leaderboards
-
-**Season**:
-A calendar month in `Europe/Moscow` to which Marks are credited according to the marked Message's post time. Every Mark follows that rule, with no exceptions. A Scoring action stays eligible for ten minutes after the Season's calendar end; a later one places no Mark at all. Eligibility is settled when the Mark is placed and never revisited, so where a Mark counts depends only on its Message.
-_Avoid_: Rolling window
-
-**Leaderboard period**:
-Either one Season or one calendar year over which a Leaderboard ranks Members. A yearly period combines the Marks already credited to its twelve Seasons.
-_Avoid_: Season when referring to a year, time range
-
-**Current Season**:
-The Season containing the present time in `Europe/Moscow`.
-_Avoid_: Ongoing season
-
-**Leaderboard**:
-The ranking of one Chat for one Leaderboard period, presented as five Leaderboard sections.
-_Avoid_: Stats, scoreboard
-
-**Leaderboard section**:
-One of a Leaderboard's five rankings, always in this order: Karma received (Уважаемые люди), Humor received (Юмористы), Karma plus given (На позитиве), Humor given (Хотят смеяться 5 минут), Karma minus given (Как же у них горит). A Member with a zero total is left out of a section.
-_Avoid_: Category, tab, board
+**Standings**:
+The all-time ranking of one Chat, presented as five sections in this order:
+Karma received (Уважаемые люди), Humor received (Юмористы), Karma plus given
+(Поставили ➕), Karma minus given (Поставили ➖), Humor given (Поставили лол).
+Every Member who ever gave or received a Mark in that Chat appears in every
+section, zeros included.
+_Avoid_: Leaderboard, scoreboard, stats
 
 **Stats command**:
-The `/stats` command that opens the Mini App. Called in a Chat it establishes Registration and links directly to that Chat's current Leaderboard, replying ephemerally so only the caller sees it. Called anywhere else it does nothing at all — Registration is authorization to view one Chat, so it has nothing to mean outside one, and the Chat selector is reached by launching the Mini App.
-_Avoid_: Stats question, report
+The `/stats` command that prints Standings in the Chat and deletes the
+command. In a Chat with no Marks it does nothing and the command stays.
+_Avoid_: Stats question, report, Mini App link
+
+**Humor decay**:
+A display-only reduction of Humor received, applied when printing the Humor
+section of Standings. Stored Marks do not change.
+_Avoid_: Ranking penalty, aging
 
 **Crown**:
-Flair awarded to every Member tied for the highest total in a Leaderboard section.
+Flair on every Member tied for the highest total in the Karma received or
+Humor received section.
 _Avoid_: Winner badge
 
 **Chicken**:
-Flair awarded to every Member tied for the lowest total in a Leaderboard section when at least one Member has a strictly higher total.
+Flair on every Member tied for the lowest total in the Karma received or
+Humor received section when at least one Member has a strictly higher total.
 _Avoid_: Loser badge
 
-**Mini App**:
-The Telegram interface through which a registered Member selects a Chat and views its Leaderboards.
-_Avoid_: Stats page
+## Conversation
+
+**Conversation**:
+A per-Member, per-Chat free-form exchange with the bot. It opens on a Wake
+message, closes on a Stop message, and while open holds that Member's Turns
+as context. Isolated from every other Conversation, including others in the
+same Chat. Not a Mark and not the Stats command.
+_Avoid_: Session, Dialogflow session, chat
+
+**Wake message**:
+A text message that opens a Conversation. The Member has no open Conversation
+in that Chat, and the trimmed text, compared case-insensitively, is `бот` or
+begins with `бот` and a following space. A Wake message is also a Turn: the
+bot answers it.
+_Avoid_: Mention, command, trigger
+
+**Stop message**:
+A text message that closes a Conversation. The trimmed text, compared
+case-insensitively, is exactly `довольно`. A Stop message is not a Turn.
+_Avoid_: Cancel, exit, довольно as ordinary text
+
+**Turn**:
+A text message in an open Conversation that becomes part of that
+Conversation's context. Wake messages are Turns. Scoring replies and Stop
+messages are not.
+_Avoid_: Prompt, utterance, LLM call

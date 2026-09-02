@@ -115,7 +115,7 @@ Source: dynamo-easy `dateToNumberMapper` ([`date-to-number.mapper.js`](https://u
 
 - `toMessageId`, usernames (PII; see Risks).
 
-v1 `/stats` already proves the aggregation logic: scan by `chatId`, aggregate by `lolType` and user ids ([`src/bot.ts`](../../src/bot.ts) lines 132–176). v2 differs in its explicit Season assignment and lack of Humor decay ([ADR 0003](../adr/0003-honest-seasonal-stats.md), [domain language](../../CONTEXT.md)).
+v1 `/stats` already proves the aggregation logic: scan by `chatId`, aggregate by `lolType` and user ids ([`src/bot.ts`](../../src/bot.ts) lines 132–176). v2 differs in its explicit Season assignment and lack of Humor decay ([ADR 0003](../adr/0003-honest-seasonal-stats.md), [domain language](../CONTEXT.md)).
 
 ---
 

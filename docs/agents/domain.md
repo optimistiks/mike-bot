@@ -10,6 +10,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
+`docs/archive/` is not live. Do not treat archived `CONTEXT.md` or ADRs as current. Cherry-pick from them only when a live ADR says so.
+
 ## File structure
 
 Single-context repo (most repos):
