@@ -63,7 +63,8 @@ _Avoid_: Kind, category
 **Imported Mark**:
 A Mark reconciled from v1, Mike-bot's retired AWS-hosted predecessor. v1 knew
 only Scoring replies. Nothing distinguishes it in the model except that it
-already happened.
+already happened. The Message it belongs to takes the earliest Imported Mark
+on that Message as its post time.
 _Avoid_: Legacy row, migration
 
 ## Community
@@ -79,13 +80,15 @@ A non-bot person identified by their stable Telegram identity.
 _Avoid_: User, account
 
 **Display name**:
-The name printed for a Member in Standings and in a Scoring reply answer:
-their Telegram username, or `???`.
+The latest Telegram username Mike-bot has seen for that Member, or `???`.
+One name per Member, not per Chat. Standings print it. A Scoring reply answer
+uses the username on that Scoring reply, or `???`.
 _Avoid_: @mention, first name, User {id}
 
 **Message**:
-The Telegram identity of a message that may receive Marks. Mike-bot stores no
-Message content.
+The cached identity of a Telegram message that may receive Marks: its Chat,
+id, author, and post time. Mike-bot stores no Message content. An imported
+Message's post time is the earliest Imported Mark on it.
 _Avoid_: Post content
 
 **Command**:
