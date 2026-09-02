@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "import/no-relative-parent-imports": "off",
+    "import/no-default-export": "off",
+    "eslint/no-undefined": "off",
+    "eslint/no-console": "off",
+    "eslint/no-use-before-define": "off",
+    "eslint/default-case": "off"
+  },
+  "ignorePatterns": ["dist", "node_modules"]
+}

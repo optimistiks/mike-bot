@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "fluid": true,
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=@mike-bot/bot",
+  "regions": ["fra1"],
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}
