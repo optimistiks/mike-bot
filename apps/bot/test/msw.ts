@@ -1,66 +1,73 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
+import { z } from "zod";
 
-export const capturedModelBodies: unknown[] = [];
+const textPartSchema = z.object({
+  text: z.string(),
+  type: z.literal("text"),
+});
 
-export const modelServer = setupServer(
+const userMessageSchema = z.object({
+  content: z.array(z.unknown()),
+  role: z.literal("user"),
+});
+
+const bodySchema = z.object({
+  prompt: z.array(z.unknown()),
+});
+
+const capturedModelBodies: unknown[] = [];
+
+const modelServer = setupServer(
   http.post("https://ai-gateway.vercel.sh/v4/ai/language-model", async ({ request }) => {
     const body: unknown = await request.json();
     capturedModelBodies.push(body);
     return HttpResponse.json({
-      content: [{ type: "text", text: "че" }],
-      finishReason: { unified: "stop", raw: "stop" },
+      content: [{ text: "че", type: "text" }],
+      finishReason: { raw: "stop", unified: "stop" },
       usage: {
         inputTokens: {
-          total: 10,
-          noCache: 10,
           cacheRead: 0,
           cacheWrite: 0,
+          noCache: 10,
+          total: 10,
         },
-        outputTokens: { total: 1, text: 1, reasoning: 0 },
+        outputTokens: { reasoning: 0, text: 1, total: 1 },
       },
     });
   }),
 );
 
-export function resetCapturedModelBodies(): void {
+function resetCapturedModelBodies(): void {
   capturedModelBodies.length = 0;
 }
 
-export function userTurnTextsFromModelBodies(): string[] {
-  const texts: string[] = [];
-  for (const body of capturedModelBodies) {
-    if (typeof body !== "object" || body === null || !("prompt" in body)) {
-      continue;
-    }
-    const prompt = body.prompt;
-    if (!Array.isArray(prompt)) {
-      continue;
-    }
-    for (const message of prompt) {
-      if (
-        typeof message !== "object" ||
-        message === null ||
-        !("role" in message) ||
-        message.role !== "user" ||
-        !("content" in message) ||
-        !Array.isArray(message.content)
-      ) {
-        continue;
-      }
-      for (const part of message.content) {
-        if (
-          typeof part === "object" &&
-          part !== null &&
-          "type" in part &&
-          part.type === "text" &&
-          "text" in part &&
-          typeof part.text === "string"
-        ) {
-          texts.push(part.text);
-        }
-      }
-    }
+function textFromPart(part: unknown): string[] {
+  const parsed = textPartSchema.safeParse(part);
+  if (!parsed.success) {
+    return [];
   }
-  return texts;
+  return [parsed.data.text];
 }
+
+function userTextsFromMessage(message: unknown): string[] {
+  const parsed = userMessageSchema.safeParse(message);
+  if (!parsed.success) {
+    return [];
+  }
+  return parsed.data.content.flatMap((part) => textFromPart(part));
+}
+
+function userTextsFromBody(body: unknown): string[] {
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    return [];
+  }
+  return parsed.data.prompt.flatMap((message) => userTextsFromMessage(message));
+}
+
+function userTurnTextsFromModelBodies(): string[] {
+  return capturedModelBodies.flatMap((body) => userTextsFromBody(body));
+}
+
+export { capturedModelBodies, modelServer, resetCapturedModelBodies, userTurnTextsFromModelBodies };

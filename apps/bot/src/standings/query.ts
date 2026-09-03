@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 
-import type { MarkType } from "../domain/mark.js";
-import type { BotSession } from "../db/runtime.js";
-import { marks, members } from "../db/schema.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { MarkType } from "#src/domain/mark.js";
 
-export interface StandingRow {
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
+import { marks, members } from "#src/db/schema.js";
+
+interface StandingRow {
   memberId: number;
   name: string;
   karmaReceived: number;
@@ -14,68 +16,93 @@ export interface StandingRow {
   humorGiven: number;
 }
 
-export async function loadStandingRows(db: BotSession, chatId: number): Promise<StandingRow[]> {
-  const markRows = await db.select().from(marks).where(eq(marks.chatId, chatId));
-  if (markRows.length === 0) {
-    return [];
-  }
+type MarkRow = typeof marks.$inferSelect;
 
-  const byMember = new Map<number, StandingRow>();
+const APPLY_MARK: Record<MarkType, (subject: StandingRow, actor: StandingRow) => void> = {
+  "humor.add": (subject, actor) => {
+    subject.humorReceived += SINGLE_COUNT;
+    actor.humorGiven += SINGLE_COUNT;
+  },
+  "karma.minus": (subject, actor) => {
+    subject.karmaReceived -= SINGLE_COUNT;
+    actor.karmaMinusGiven += SINGLE_COUNT;
+  },
+  "karma.plus": (subject, actor) => {
+    subject.karmaReceived += SINGLE_COUNT;
+    actor.karmaPlusGiven += SINGLE_COUNT;
+  },
+};
 
-  const member = (id: number): StandingRow => {
-    const existing = byMember.get(id);
-    if (existing) {
-      return existing;
-    }
-    const created: StandingRow = {
-      memberId: id,
-      name: "???",
-      karmaReceived: 0,
-      humorReceived: 0,
-      karmaPlusGiven: 0,
-      karmaMinusGiven: 0,
-      humorGiven: 0,
-    };
-    byMember.set(id, created);
-    return created;
+function emptyStandingRow(id: number): StandingRow {
+  return {
+    humorGiven: EMPTY_COUNT,
+    humorReceived: EMPTY_COUNT,
+    karmaMinusGiven: EMPTY_COUNT,
+    karmaPlusGiven: EMPTY_COUNT,
+    karmaReceived: EMPTY_COUNT,
+    memberId: id,
+    name: "???",
   };
+}
 
-  for (const mark of markRows) {
-    applyMark(member(mark.subjectId), member(mark.actorId), parseMarkType(mark.type));
+function isMarkType(type: string): type is MarkType {
+  return type === "karma.plus" || type === "karma.minus" || type === "humor.add";
+}
+
+function parseMarkType(type: string): MarkType {
+  if (isMarkType(type)) {
+    return type;
   }
+  throw new TypeError(`unknown Mark type ${type}`);
+}
 
+function applyMark(subject: StandingRow, actor: StandingRow, type: MarkType): void {
+  APPLY_MARK[type](subject, actor);
+}
+
+function memberRow(byMember: Map<number, StandingRow>, id: number): StandingRow {
+  const existing = byMember.get(id);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created = emptyStandingRow(id);
+  byMember.set(id, created);
+  return created;
+}
+
+async function applyMemberNames(db: BotSession, byMember: Map<number, StandingRow>): Promise<void> {
   const identities = await db.select().from(members);
   const nameById = new Map(
     identities.map((row) => [row.telegramId, row.username ?? "???"] as const),
   );
-
   for (const row of byMember.values()) {
     row.name = nameById.get(row.memberId) ?? "???";
   }
+}
 
+function accumulateMarks(markRows: MarkRow[], byMember: Map<number, StandingRow>): void {
+  for (const mark of markRows) {
+    applyMark(
+      memberRow(byMember, mark.subjectId),
+      memberRow(byMember, mark.actorId),
+      parseMarkType(mark.type),
+    );
+  }
+}
+
+async function standingRowsFromMarks(db: BotSession, markRows: MarkRow[]): Promise<StandingRow[]> {
+  const byMember = new Map<number, StandingRow>();
+  accumulateMarks(markRows, byMember);
+  await applyMemberNames(db, byMember);
   return [...byMember.values()];
 }
 
-function parseMarkType(type: string): MarkType {
-  if (type === "karma.plus" || type === "karma.minus" || type === "humor.add") {
-    return type;
+async function loadStandingRows(db: BotSession, chatId: number): Promise<StandingRow[]> {
+  const markRows = await db.select().from(marks).where(eq(marks.chatId, chatId));
+  if (markRows.length === EMPTY_COUNT) {
+    return [];
   }
-  throw new Error(`unknown Mark type ${type}`);
+  return standingRowsFromMarks(db, markRows);
 }
 
-function applyMark(subject: StandingRow, actor: StandingRow, type: MarkType): void {
-  switch (type) {
-    case "karma.plus":
-      subject.karmaReceived += 1;
-      actor.karmaPlusGiven += 1;
-      break;
-    case "karma.minus":
-      subject.karmaReceived -= 1;
-      actor.karmaMinusGiven += 1;
-      break;
-    case "humor.add":
-      subject.humorReceived += 1;
-      actor.humorGiven += 1;
-      break;
-  }
-}
+export { loadStandingRows, type StandingRow };

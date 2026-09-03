@@ -1,6 +1,8 @@
 // eslint-disable-next-line node/no-process-env -- env.ts is the process.env seam
 const processEnv: NodeJS.ProcessEnv = process.env;
 
+const DEFAULT_TABLE_NAME = "lolTable";
+
 function readEnv(name: string): string | undefined {
   return processEnv[name];
 }
@@ -20,28 +22,28 @@ function nonempty(value: string | undefined): string | undefined {
   return trimmedOrUndefined(value);
 }
 
-function requireEnv(name: string): string {
-  const value = nonempty(readEnv(name));
-  if (value === undefined) {
-    throw new Error(`${name} is unset`);
+function awsRegion(): string {
+  return nonempty(readEnv("AWS_REGION")) ?? nonempty(readEnv("AWS_DEFAULT_REGION")) ?? "";
+}
+
+function requireAwsRegion(): string {
+  const region = awsRegion();
+  if (region === "") {
+    throw new Error("AWS_REGION or AWS_DEFAULT_REGION is required");
   }
-  return value;
+  return region;
 }
 
-function databaseUrl(): string {
-  return requireEnv("DATABASE_URL");
-}
-
-function unpooledDatabaseUrl(): string {
-  return nonempty(readEnv("DATABASE_URL_UNPOOLED")) ?? nonempty(readEnv("DATABASE_URL")) ?? "";
+function lolTableName(): string {
+  return nonempty(readEnv("LOL_TABLE_NAME")) ?? DEFAULT_TABLE_NAME;
 }
 
 function importJsonPath(): string | undefined {
   return nonempty(readEnv("IMPORT_JSON"));
 }
 
-function setEnvIfUnset(name: string, value: string): void {
-  processEnv[name] ??= value;
+function importChatIdRaw(): string | undefined {
+  return nonempty(readEnv("IMPORT_CHAT_ID"));
 }
 
-export { databaseUrl, importJsonPath, requireEnv, setEnvIfUnset, unpooledDatabaseUrl };
+export { importChatIdRaw, importJsonPath, lolTableName, requireAwsRegion };

@@ -7,11 +7,12 @@ import { databaseUrl, requireEnv } from "./env.js";
 const app = new Hono();
 const { handleWebhook } = createBot({
   db: getProductionDb(databaseUrl()),
-  token: requireEnv("BOT_TOKEN"),
   secretToken: requireEnv("BOT_WEBHOOK_SECRET"),
+  token: requireEnv("BOT_TOKEN"),
 });
 
-app.get("/", (c) => c.text("ok"));
-app.post("/api/telegram", async (c) => handleWebhook(c.req.raw));
+app.get("/", (context) => context.text("ok"));
+app.post("/api/telegram", (context) => handleWebhook(context.req.raw));
 
+// eslint-disable-next-line import/no-default-export -- Vercel Hono entry
 export default app;

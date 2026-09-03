@@ -1,408 +1,447 @@
-import { afterEach, expect, it } from "vitest";
+import type { Update } from "grammy/types";
 
-import { gatewayConversationModel } from "../src/conversation/model.js";
-import { isConversationOpen, markExists, openConversationMemberTurns } from "../src/db/queries.js";
-import { closePgliteDb, createPgliteDb, type PgliteDatabase } from "../src/db/pglite.js";
-import { handleUpdate } from "../src/handle-update.js";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+
+import type { PgliteDatabase } from "#src/db/pglite.js";
+import type { HandlerResult } from "#src/outcomes.js";
+
+import { gatewayConversationModel } from "#src/conversation/model.js";
+import { closePgliteDb, createPgliteDb } from "#src/db/pglite.js";
+import { isConversationOpen, markExists, openConversationMemberTurns } from "#src/db/queries.js";
+import { handleUpdate } from "#src/handle-update.js";
+
 import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate } from "./helpers.js";
-import { userTurnTextsFromModelBodies } from "./msw.js";
+import { modelServer, resetCapturedModelBodies, userTurnTextsFromModelBodies } from "./msw.js";
 
-let database: PgliteDatabase;
+const STANDINGS_UPDATE_ID = 8;
+const EMPTY_STATS_UPDATE_ID = 1;
 
-async function handle(update: Parameters<typeof handleUpdate>[0]) {
-  return handleUpdate(update, {
-    db: database.db,
-    model: gatewayConversationModel,
+describe("telegram update handling", () => {
+  // eslint-disable-next-line init-declarations -- assigned in freshDb
+  let database: PgliteDatabase | undefined;
+
+  beforeAll(() => {
+    modelServer.listen({ onUnhandledRequest: "error" });
   });
-}
 
-afterEach(async () => {
-  if (database) {
-    await closePgliteDb(database);
+  function currentDb(): PgliteDatabase {
+    if (database === undefined) {
+      throw new Error("database is unset");
+    }
+    return database;
   }
-});
 
-async function freshDb() {
-  database = await createPgliteDb();
-}
+  function handle(update: Update): Promise<HandlerResult> {
+    return handleUpdate(update, {
+      db: currentDb().db,
+      model: gatewayConversationModel,
+    });
+  }
 
-it("accepts a + Scoring reply, stores the Mark, and answers with ➕ (name)", async () => {
-  await freshDb();
+  async function freshDb(): Promise<void> {
+    database = await createPgliteDb();
+  }
 
-  const result = await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 50,
-      from: ALICE,
-      text: " + ",
-      replyTo: { messageId: 10, from: BOB },
-    }),
-  );
-
-  expect(result).toEqual({
-    type: "scoring",
-    kind: "accepted",
-    text: "➕ (alice)",
+  afterEach(async () => {
+    resetCapturedModelBodies();
+    modelServer.resetHandlers();
+    if (database !== undefined) {
+      await closePgliteDb(database);
+    }
   });
-  expect(
-    await markExists(database.db, {
-      chatId: CHAT_ID,
-      actorId: ALICE.id,
-      messageId: 10,
-      type: "karma.plus",
-    }),
-  ).toBe(true);
-});
 
-it("accepts лол as a Humor Mark regardless of case", async () => {
-  await freshDb();
-
-  const result = await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 51,
-      from: ALICE,
-      text: "ЛОЛ",
-      replyTo: { messageId: 10, from: BOB },
-    }),
-  );
-
-  expect(result).toEqual({
-    type: "scoring",
-    kind: "accepted",
-    text: "лол (alice)",
+  afterAll(() => {
+    modelServer.close();
   });
-  expect(
-    await markExists(database.db, {
-      chatId: CHAT_ID,
-      actorId: ALICE.id,
-      messageId: 10,
-      type: "humor.add",
-    }),
-  ).toBe(true);
-});
 
-it("ignores self-scoring, bot Subjects, and a missing reply", async () => {
-  await freshDb();
+  it("accepts a + Scoring reply, stores the Mark, and answers with ➕ (name)", async () => {
+    expect.hasAssertions();
+    await freshDb();
 
-  const self = await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 52,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 10, from: ALICE },
-    }),
-  );
-  const botSubject = await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 53,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 11, from: BOT_USER },
-    }),
-  );
-  const missing = await handle(
-    textUpdate({
-      updateId: 3,
-      messageId: 54,
-      from: ALICE,
-      text: "+",
-    }),
-  );
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 50,
+        replyTo: { from: BOB, messageId: 10 },
+        text: " + ",
+        updateId: 1,
+      }),
+    );
 
-  expect(self).toEqual({ type: "scoring", kind: "ignored" });
-  expect(botSubject).toEqual({ type: "scoring", kind: "ignored" });
-  expect(missing).toEqual({ type: "scoring", kind: "ignored" });
-  expect(
-    await markExists(database.db, {
-      chatId: CHAT_ID,
-      actorId: ALICE.id,
-      messageId: 10,
-      type: "karma.plus",
-    }),
-  ).toBe(false);
-  expect(
-    await markExists(database.db, {
-      chatId: CHAT_ID,
-      actorId: ALICE.id,
-      messageId: 11,
-      type: "karma.plus",
-    }),
-  ).toBe(false);
-});
-
-it("ignores a second + on the same Message and leaves the token", async () => {
-  await freshDb();
-
-  await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 55,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 10, from: BOB },
-    }),
-  );
-  const result = await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 56,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 10, from: BOB },
-    }),
-  );
-
-  expect(result).toEqual({ type: "scoring", kind: "ignored" });
-});
-
-it("posts v1 Standings Markdown for a Chat with Marks", async () => {
-  await freshDb();
-
-  await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 61,
-      from: BOB,
-      text: "+",
-      replyTo: { messageId: 10, from: ALICE },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 62,
-      from: CAROL,
-      text: "+",
-      replyTo: { messageId: 11, from: ALICE },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 3,
-      messageId: 63,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 12, from: BOB },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 4,
-      messageId: 64,
-      from: ALICE,
-      text: "-",
-      replyTo: { messageId: 13, from: CAROL },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 5,
-      messageId: 65,
-      from: BOB,
-      text: "лол",
-      replyTo: { messageId: 10, from: ALICE },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 6,
-      messageId: 66,
-      from: CAROL,
-      text: "лол",
-      replyTo: { messageId: 11, from: ALICE },
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 7,
-      messageId: 67,
-      from: ALICE,
-      text: "лол",
-      replyTo: { messageId: 13, from: CAROL },
-    }),
-  );
-
-  const result = await handle(statsUpdate(8, ALICE));
-
-  expect(result).toEqual({
-    type: "standings",
-    kind: "posted",
-    text: [
-      "*Уважаемые люди:*",
-      "alice: 2 👑",
-      "bob: 1 ",
-      "carol: -1 🐔",
-      "",
-      "*Юмористы:*",
-      "alice: 1 👑",
-      "carol: 1 👑",
-      "bob: 0 🐔",
-      "",
-      "*Поставили ➕:*",
-      "alice: 1",
-      "bob: 1",
-      "carol: 1",
-      "",
-      "*Поставили ➖:*",
-      "alice: 1",
-      "bob: 0",
-      "carol: 0",
-      "",
-      "*Поставили лол:*",
-      "alice: 1",
-      "bob: 1",
-      "carol: 1",
-      "",
-    ].join("\n"),
+    expect(result).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+    await expect(
+      markExists(currentDb().db, {
+        actorId: ALICE.id,
+        chatId: CHAT_ID,
+        messageId: 10,
+        type: "karma.plus",
+      }),
+    ).resolves.toBe(true);
   });
-});
 
-it("leaves /stats untouched in a Chat with no Marks", async () => {
-  await freshDb();
+  it("accepts лол as a Humor Mark regardless of case", async () => {
+    expect.hasAssertions();
+    await freshDb();
 
-  const result = await handle(statsUpdate(1, ALICE));
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 51,
+        replyTo: { from: BOB, messageId: 10 },
+        text: "ЛОЛ",
+        updateId: 1,
+      }),
+    );
 
-  expect(result).toEqual({ type: "standings", kind: "empty" });
-});
-
-it("opens a Conversation on бот and sends that text as-is to the model", async () => {
-  await freshDb();
-
-  const result = await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 70,
-      from: ALICE,
-      text: "бот",
-    }),
-  );
-
-  expect(result).toEqual({ type: "conversation", kind: "reply", text: "че" });
-  expect(userTurnTextsFromModelBodies()).toEqual(["бот"]);
-  expect(
-    await isConversationOpen(database.db, {
-      chatId: CHAT_ID,
-      memberId: ALICE.id,
-    }),
-  ).toBe(true);
-});
-
-it("keeps later text without бот as a Turn with prior history", async () => {
-  await freshDb();
-
-  await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 71,
-      from: ALICE,
-      text: "бот",
-    }),
-  );
-  const result = await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 72,
-      from: ALICE,
-      text: "как дела",
-    }),
-  );
-
-  expect(result).toEqual({ type: "conversation", kind: "reply", text: "че" });
-  expect(userTurnTextsFromModelBodies()).toEqual(["бот", "бот", "как дела"]);
-  expect(
-    await openConversationMemberTurns(database.db, {
-      chatId: CHAT_ID,
-      memberId: ALICE.id,
-    }),
-  ).toEqual(["бот", "как дела"]);
-});
-
-it("closes on довольно and stays silent afterwards", async () => {
-  await freshDb();
-
-  await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 73,
-      from: ALICE,
-      text: "бот",
-    }),
-  );
-  const stopped = await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 74,
-      from: ALICE,
-      text: "довольно",
-    }),
-  );
-  const later = await handle(
-    textUpdate({
-      updateId: 3,
-      messageId: 75,
-      from: ALICE,
-      text: "ещё слово",
-    }),
-  );
-
-  expect(stopped).toEqual({ type: "conversation", kind: "silence" });
-  expect(later).toEqual({ type: "conversation", kind: "silence" });
-  expect(
-    await isConversationOpen(database.db, {
-      chatId: CHAT_ID,
-      memberId: ALICE.id,
-    }),
-  ).toBe(false);
-});
-
-it("isolates two Members in one Chat and still accepts Scoring during a Conversation", async () => {
-  await freshDb();
-
-  await handle(
-    textUpdate({
-      updateId: 1,
-      messageId: 80,
-      from: ALICE,
-      text: "бот привет",
-    }),
-  );
-  await handle(
-    textUpdate({
-      updateId: 2,
-      messageId: 81,
-      from: BOB,
-      text: "бот ку",
-    }),
-  );
-  const scoring = await handle(
-    textUpdate({
-      updateId: 3,
-      messageId: 82,
-      from: ALICE,
-      text: "+",
-      replyTo: { messageId: 12, from: BOB },
-    }),
-  );
-
-  expect(scoring).toEqual({
-    type: "scoring",
-    kind: "accepted",
-    text: "➕ (alice)",
+    expect(result).toStrictEqual({
+      kind: "accepted",
+      text: "лол (alice)",
+      type: "scoring",
+    });
+    await expect(
+      markExists(currentDb().db, {
+        actorId: ALICE.id,
+        chatId: CHAT_ID,
+        messageId: 10,
+        type: "humor.add",
+      }),
+    ).resolves.toBe(true);
   });
-  expect(
-    await openConversationMemberTurns(database.db, {
-      chatId: CHAT_ID,
-      memberId: ALICE.id,
-    }),
-  ).toEqual(["бот привет"]);
-  expect(
-    await openConversationMemberTurns(database.db, {
-      chatId: CHAT_ID,
-      memberId: BOB.id,
-    }),
-  ).toEqual(["бот ку"]);
-  expect(userTurnTextsFromModelBodies()).toEqual(["бот привет", "бот ку"]);
+
+  it("ignores self-scoring, bot Subjects, and a missing reply", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const self = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 52,
+        replyTo: { from: ALICE, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    const botSubject = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 53,
+        replyTo: { from: BOT_USER, messageId: 11 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+    const missing = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 54,
+        text: "+",
+        updateId: 3,
+      }),
+    );
+
+    expect(self).toStrictEqual({ kind: "ignored", type: "scoring" });
+    expect(botSubject).toStrictEqual({ kind: "ignored", type: "scoring" });
+    expect(missing).toStrictEqual({ kind: "ignored", type: "scoring" });
+    await expect(
+      markExists(currentDb().db, {
+        actorId: ALICE.id,
+        chatId: CHAT_ID,
+        messageId: 10,
+        type: "karma.plus",
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      markExists(currentDb().db, {
+        actorId: ALICE.id,
+        chatId: CHAT_ID,
+        messageId: 11,
+        type: "karma.plus",
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("ignores a second + on the same Message and leaves the token", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 55,
+        replyTo: { from: BOB, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 56,
+        replyTo: { from: BOB, messageId: 10 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "ignored", type: "scoring" });
+  });
+
+  it("posts v1 Standings Markdown for a Chat with Marks", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 61,
+        replyTo: { from: ALICE, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: CAROL,
+        messageId: 62,
+        replyTo: { from: ALICE, messageId: 11 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 63,
+        replyTo: { from: BOB, messageId: 12 },
+        text: "+",
+        updateId: 3,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 64,
+        replyTo: { from: CAROL, messageId: 13 },
+        text: "-",
+        updateId: 4,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 65,
+        replyTo: { from: ALICE, messageId: 10 },
+        text: "лол",
+        updateId: 5,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: CAROL,
+        messageId: 66,
+        replyTo: { from: ALICE, messageId: 11 },
+        text: "лол",
+        updateId: 6,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 67,
+        replyTo: { from: CAROL, messageId: 13 },
+        text: "лол",
+        updateId: 7,
+      }),
+    );
+
+    const result = await handle(statsUpdate(STANDINGS_UPDATE_ID, ALICE));
+
+    expect(result).toStrictEqual({
+      kind: "posted",
+      text: [
+        "*Уважаемые люди:*",
+        "alice: 2 👑",
+        "bob: 1 ",
+        "carol: -1 🐔",
+        "",
+        "*Юмористы:*",
+        "alice: 1 👑",
+        "carol: 1 👑",
+        "bob: 0 🐔",
+        "",
+        "*Поставили ➕:*",
+        "alice: 1",
+        "bob: 1",
+        "carol: 1",
+        "",
+        "*Поставили ➖:*",
+        "alice: 1",
+        "bob: 0",
+        "carol: 0",
+        "",
+        "*Поставили лол:*",
+        "alice: 1",
+        "bob: 1",
+        "carol: 1",
+        "",
+      ].join("\n"),
+      type: "standings",
+    });
+  });
+
+  it("leaves /stats untouched in a Chat with no Marks", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const result = await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
+
+    expect(result).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("opens a Conversation on бот and sends that text as-is to the model", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 70,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(userTurnTextsFromModelBodies()).toStrictEqual(["бот"]);
+    await expect(
+      isConversationOpen(currentDb().db, {
+        chatId: CHAT_ID,
+        memberId: ALICE.id,
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("keeps later text without бот as a Turn with prior history", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 71,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 72,
+        text: "как дела",
+        updateId: 2,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(userTurnTextsFromModelBodies()).toStrictEqual(["бот", "бот", "как дела"]);
+    await expect(
+      openConversationMemberTurns(currentDb().db, {
+        chatId: CHAT_ID,
+        memberId: ALICE.id,
+      }),
+    ).resolves.toStrictEqual(["бот", "как дела"]);
+  });
+
+  it("closes on довольно and stays silent afterwards", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 73,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const stopped = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 74,
+        text: "довольно",
+        updateId: 2,
+      }),
+    );
+    const later = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 75,
+        text: "ещё слово",
+        updateId: 3,
+      }),
+    );
+
+    expect(stopped).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(later).toStrictEqual({ kind: "silence", type: "conversation" });
+    await expect(
+      isConversationOpen(currentDb().db, {
+        chatId: CHAT_ID,
+        memberId: ALICE.id,
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("isolates two Members in one Chat and still accepts Scoring during a Conversation", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 80,
+        text: "бот привет",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 81,
+        text: "бот ку",
+        updateId: 2,
+      }),
+    );
+    const scoring = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 82,
+        replyTo: { from: BOB, messageId: 12 },
+        text: "+",
+        updateId: 3,
+      }),
+    );
+
+    expect(scoring).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+    await expect(
+      openConversationMemberTurns(currentDb().db, {
+        chatId: CHAT_ID,
+        memberId: ALICE.id,
+      }),
+    ).resolves.toStrictEqual(["бот привет"]);
+    await expect(
+      openConversationMemberTurns(currentDb().db, {
+        chatId: CHAT_ID,
+        memberId: BOB.id,
+      }),
+    ).resolves.toStrictEqual(["бот ку"]);
+    expect(userTurnTextsFromModelBodies()).toStrictEqual(["бот привет", "бот ку"]);
+  });
 });

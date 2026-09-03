@@ -7,12 +7,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "scan": "tsx src/scan-cli.ts",
-    "typecheck": "tsc --noEmit --incremental false",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --type-aware --fix .",
-    "fmt": "oxfmt .",
-    "fmt:check": "oxfmt --check ."
+    "scan": "tsx src/scan-cli.ts",
+    "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1113.0",

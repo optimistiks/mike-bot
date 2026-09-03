@@ -1,44 +1,29 @@
-import type { Message } from "grammy/types";
+import type { Message, User } from "grammy/types";
 
-import type { ConversationOutcome } from "../outcomes.js";
-import type { BotSession } from "../db/runtime.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { ConversationOutcome } from "#src/outcomes.js";
+
 import {
   appendTurn,
   closeConversation,
   findOpenConversation,
   listTurns,
   openConversation,
-} from "../db/store.js";
-import { isStopMessage, isWakeMessage } from "../telegram/text.js";
+} from "#src/db/store.js";
+import { telegramDateToPostedAt } from "#src/telegram/identity.js";
+import { isStopMessage, isWakeMessage } from "#src/telegram/text.js";
+
 import type { ConversationModel } from "./types.js";
 
-export async function applyConversation(
+type OpenConversation = NonNullable<Awaited<ReturnType<typeof findOpenConversation>>>;
+
+async function completeTurn(
   db: BotSession,
-  message: Message,
+  conversation: OpenConversation,
+  text: string,
   model: ConversationModel,
 ): Promise<ConversationOutcome> {
-  const actor = message.from;
-  const text = message.text;
-  if (actor === undefined || text === undefined) {
-    return { kind: "silence" };
-  }
-
-  const now = new Date(message.date * 1000);
-  const open = await findOpenConversation(db, actor.id, message.chat.id);
-
-  if (open !== null && isStopMessage(text)) {
-    await closeConversation(db, open.id, now);
-    return { kind: "silence" };
-  }
-
-  if (open === null && !isWakeMessage(text)) {
-    return { kind: "silence" };
-  }
-
-  const conversation = open ?? (await openConversation(db, actor.id, message.chat.id, now));
-
   await appendTurn(db, conversation.id, "member", text);
-
   const history = await listTurns(db, conversation.id);
   try {
     const reply = await model.complete(
@@ -53,3 +38,82 @@ export async function applyConversation(
     return { kind: "silence" };
   }
 }
+
+function shouldStaySilent(
+  open: Awaited<ReturnType<typeof findOpenConversation>>,
+  text: string,
+): boolean {
+  return open === null && !isWakeMessage(text);
+}
+
+function conversationFor(
+  db: BotSession,
+  open: Awaited<ReturnType<typeof findOpenConversation>>,
+  actor: User,
+  chatId: number,
+  now: Date,
+): Promise<OpenConversation> {
+  if (open !== null) {
+    return Promise.resolve(open);
+  }
+  return openConversation(db, actor.id, chatId, now);
+}
+
+async function applyWake(
+  db: BotSession,
+  open: Awaited<ReturnType<typeof findOpenConversation>>,
+  actor: User,
+  chatId: number,
+  text: string,
+  now: Date,
+  model: ConversationModel,
+): Promise<ConversationOutcome> {
+  if (shouldStaySilent(open, text)) {
+    return { kind: "silence" };
+  }
+  const conversation = await conversationFor(db, open, actor, chatId, now);
+  return completeTurn(db, conversation, text, model);
+}
+
+async function applyOpenOrWake(
+  db: BotSession,
+  open: Awaited<ReturnType<typeof findOpenConversation>>,
+  actor: User,
+  chatId: number,
+  text: string,
+  now: Date,
+  model: ConversationModel,
+): Promise<ConversationOutcome> {
+  if (open !== null && isStopMessage(text)) {
+    await closeConversation(db, open.id, now);
+    return { kind: "silence" };
+  }
+  return applyWake(db, open, actor, chatId, text, now, model);
+}
+
+async function continueConversation(
+  db: BotSession,
+  message: Message,
+  actor: User,
+  text: string,
+  model: ConversationModel,
+): Promise<ConversationOutcome> {
+  const now = telegramDateToPostedAt(message.date);
+  const open = await findOpenConversation(db, actor.id, message.chat.id);
+  return applyOpenOrWake(db, open, actor, message.chat.id, text, now, model);
+}
+
+function applyConversation(
+  db: BotSession,
+  message: Message,
+  model: ConversationModel,
+): Promise<ConversationOutcome> {
+  const actor = message.from;
+  const { text } = message;
+  if (actor === undefined || text === undefined) {
+    return Promise.resolve({ kind: "silence" });
+  }
+  return continueConversation(db, message, actor, text, model);
+}
+
+export { applyConversation };

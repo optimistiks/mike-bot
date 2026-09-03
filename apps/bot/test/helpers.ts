@@ -1,38 +1,40 @@
 import type { MessageEntity, Update, User } from "grammy/types";
 
 const DEFAULT_DATE = 1_700_000_000;
+const STATS_MESSAGE_ID_BASE = 9000;
+const STATS_COMMAND_LENGTH = 6;
 
-export const CHAT_ID = -1001;
+const CHAT_ID = -1001;
 
-export const ALICE: User = {
+const ALICE: User = {
+  first_name: "Alice",
   id: 101,
   is_bot: false,
-  first_name: "Alice",
   username: "alice",
 };
 
-export const BOB: User = {
+const BOB: User = {
+  first_name: "Bob",
   id: 102,
   is_bot: false,
-  first_name: "Bob",
   username: "bob",
 };
 
-export const CAROL: User = {
+const CAROL: User = {
+  first_name: "Carol",
   id: 103,
   is_bot: false,
-  first_name: "Carol",
   username: "carol",
 };
 
-export const BOT_USER: User = {
+const BOT_USER: User = {
+  first_name: "Bot",
   id: 900,
   is_bot: true,
-  first_name: "Bot",
   username: "some_bot",
 };
 
-export function textUpdate(options: {
+interface TextUpdateOptions {
   updateId: number;
   messageId: number;
   from: User;
@@ -41,41 +43,71 @@ export function textUpdate(options: {
   entities?: MessageEntity[];
   chatId?: number;
   date?: number;
-}): Update {
+}
+
+interface ChatRef {
+  id: number;
+  title: string;
+  type: "supergroup";
+}
+
+function applyOptionalMessageFields(
+  message: NonNullable<Update["message"]>,
+  options: TextUpdateOptions,
+  chat: ChatRef,
+  date: number,
+): NonNullable<Update["message"]> {
+  if (options.entities !== undefined) {
+    message.entities = options.entities;
+  }
+  if (options.replyTo !== undefined) {
+    message.reply_to_message = {
+      chat,
+      date,
+      from: options.replyTo.from,
+      message_id: options.replyTo.messageId,
+      reply_to_message: undefined,
+      text: "target",
+    };
+  }
+  return message;
+}
+
+function buildMessage(
+  options: TextUpdateOptions,
+  chat: ChatRef,
+  date: number,
+): NonNullable<Update["message"]> {
+  return applyOptionalMessageFields(
+    {
+      chat,
+      date,
+      from: options.from,
+      message_id: options.messageId,
+      text: options.text,
+    },
+    options,
+    chat,
+    date,
+  );
+}
+
+function textUpdate(options: TextUpdateOptions): Update {
   const chatId = options.chatId ?? CHAT_ID;
   const date = options.date ?? DEFAULT_DATE;
-  const chat = { id: chatId, type: "supergroup" as const, title: "Chat" };
-  const message = {
-    message_id: options.messageId,
-    date,
-    chat,
-    from: options.from,
-    text: options.text,
-    ...(options.entities === undefined ? {} : { entities: options.entities }),
-    ...(options.replyTo === undefined
-      ? {}
-      : {
-          reply_to_message: {
-            message_id: options.replyTo.messageId,
-            date,
-            chat,
-            from: options.replyTo.from,
-            text: "target",
-            reply_to_message: undefined,
-          },
-        }),
-  };
-
-  return { update_id: options.updateId, message };
+  const chat: ChatRef = { id: chatId, title: "Chat", type: "supergroup" };
+  return { message: buildMessage(options, chat, date), update_id: options.updateId };
 }
 
-export function statsUpdate(updateId: number, from: User, chatId = CHAT_ID): Update {
+function statsUpdate(updateId: number, from: User, chatId = CHAT_ID): Update {
   return textUpdate({
-    updateId,
-    messageId: 9000 + updateId,
-    from,
-    text: "/stats",
-    entities: [{ type: "bot_command", offset: 0, length: 6 }],
     chatId,
+    entities: [{ length: STATS_COMMAND_LENGTH, offset: 0, type: "bot_command" }],
+    from,
+    messageId: STATS_MESSAGE_ID_BASE + updateId,
+    text: "/stats",
+    updateId,
   });
 }
+
+export { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate };

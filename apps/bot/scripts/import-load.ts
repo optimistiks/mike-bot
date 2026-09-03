@@ -8,25 +8,25 @@
  * Uses DATABASE_URL_UNPOOLED, then DATABASE_URL.
  */
 
+import { config as loadDotenv } from "dotenv";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { config as loadDotenv } from "dotenv";
-
-import { createScriptDb } from "../src/db/production.js";
-import { unpooledDatabaseUrl } from "../src/env.js";
-import { loadImportedRows, parseImportRows } from "../src/import/load.js";
+import { createScriptDb } from "#src/db/production.js";
+import { importJsonPath, unpooledDatabaseUrl } from "#src/env.js";
+import { loadImportedRows, parseImportRows } from "#src/import/load.js";
+import { logError, logInfo } from "#src/log.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
 async function main(): Promise<void> {
   const connectionString = unpooledDatabaseUrl();
-  if (!connectionString) {
+  if (connectionString === "") {
     throw new Error("DATABASE_URL_UNPOOLED or DATABASE_URL is required");
   }
 
   const file = path.resolve(
-    process.env.IMPORT_JSON ?? path.join(import.meta.dirname, "../../../tmp/v1-rows.json"),
+    importJsonPath() ?? path.join(import.meta.dirname, "../../../tmp/v1-rows.json"),
   );
   const raw: unknown = JSON.parse(await readFile(file, "utf8"));
   const rows = parseImportRows(raw);
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const { db, close } = createScriptDb(connectionString);
   try {
     const stats = await loadImportedRows(db, rows);
-    console.log(
+    logInfo(
       `Loaded members=${String(stats.members)} messages=${String(stats.messages)} marks=${String(stats.marks)}`,
     );
   } finally {
@@ -42,7 +42,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
+try {
+  // eslint-disable-next-line node/no-top-level-await -- ESM script entry, never require()'d
+  await main();
+} catch (error: unknown) {
+  logError("import-load failed", error);
   process.exitCode = 1;
-});
+}

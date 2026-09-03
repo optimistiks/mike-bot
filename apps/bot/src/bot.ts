@@ -1,69 +1,129 @@
-import { Bot, type Context, webhookCallback } from "grammy";
+import type { Context } from "grammy";
+
+import { Bot, webhookCallback } from "grammy";
+
+import type { BotDatabase } from "./db/runtime.js";
+import type { HandlerResult } from "./outcomes.js";
 
 import { gatewayConversationModel } from "./conversation/model.js";
-import type { BotDatabase } from "./db/runtime.js";
 import { handleUpdate } from "./handle-update.js";
-import type { HandlerResult } from "./outcomes.js";
+import { logError } from "./log.js";
 import { webhookHandlerOptions } from "./webhook.js";
 
-export interface BotDependencies {
+interface BotDependencies {
   db: BotDatabase;
   token: string;
   secretToken: string;
 }
+
+type TelegramMessage = NonNullable<Context["message"] | Context["channelPost"]>;
+type OutcomeApplier = (
+  ctx: Context,
+  message: TelegramMessage,
+  result: HandlerResult,
+) => Promise<void>;
+
+function isAcceptedScoring(
+  result: HandlerResult,
+): result is Extract<HandlerResult, { type: "scoring"; kind: "accepted" }> {
+  return result.type === "scoring" && result.kind === "accepted";
+}
+
+function isPostedStandings(
+  result: HandlerResult,
+): result is Extract<HandlerResult, { type: "standings"; kind: "posted" }> {
+  return result.type === "standings" && result.kind === "posted";
+}
+
+function isConversationReply(
+  result: HandlerResult,
+): result is Extract<HandlerResult, { type: "conversation"; kind: "reply" }> {
+  return result.type === "conversation" && result.kind === "reply";
+}
+
+async function tryDeleteMessage(
+  ctx: Context,
+  message: TelegramMessage,
+  label: string,
+): Promise<void> {
+  try {
+    await ctx.api.deleteMessage(message.chat.id, message.message_id);
+  } catch (error) {
+    logError(label, error);
+  }
+}
+
+async function applyScoringOutcome(
+  ctx: Context,
+  message: TelegramMessage,
+  result: HandlerResult,
+): Promise<void> {
+  if (!isAcceptedScoring(result)) {
+    return;
+  }
+  const marked = message.reply_to_message;
+  if (marked === undefined) {
+    return;
+  }
+  await tryDeleteMessage(ctx, message, "failed to delete Scoring reply");
+  await ctx.reply(result.text, {
+    reply_parameters: { message_id: marked.message_id },
+  });
+}
+
+async function applyStandingsOutcome(
+  ctx: Context,
+  message: TelegramMessage,
+  result: HandlerResult,
+): Promise<void> {
+  if (!isPostedStandings(result)) {
+    return;
+  }
+  await tryDeleteMessage(ctx, message, "failed to delete Stats command");
+  await ctx.reply(result.text, { parse_mode: "Markdown" });
+}
+
+async function applyConversationOutcome(
+  ctx: Context,
+  message: TelegramMessage,
+  result: HandlerResult,
+): Promise<void> {
+  if (!isConversationReply(result)) {
+    return;
+  }
+  await ctx.reply(result.text, {
+    reply_parameters: { message_id: message.message_id },
+  });
+}
+
+async function skipOutcome(): Promise<void> {
+  await Promise.resolve();
+}
+
+const outcomeAppliers: Record<HandlerResult["type"], OutcomeApplier> = {
+  conversation: applyConversationOutcome,
+  noop: skipOutcome,
+  scoring: applyScoringOutcome,
+  standings: applyStandingsOutcome,
+};
 
 async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> {
   const message = ctx.message ?? ctx.channelPost;
   if (message === undefined) {
     return;
   }
+  await outcomeAppliers[result.type](ctx, message, result);
+}
 
-  switch (result.type) {
-    case "scoring": {
-      if (result.kind !== "accepted") {
-        return;
-      }
-      const marked = message.reply_to_message;
-      if (marked === undefined) {
-        return;
-      }
-      try {
-        await ctx.api.deleteMessage(message.chat.id, message.message_id);
-      } catch (error) {
-        console.error("failed to delete Scoring reply", error);
-      }
-      await ctx.reply(result.text, {
-        reply_parameters: { message_id: marked.message_id },
-      });
-      return;
-    }
-    case "standings": {
-      if (result.kind !== "posted") {
-        return;
-      }
-      try {
-        await ctx.api.deleteMessage(message.chat.id, message.message_id);
-      } catch (error) {
-        console.error("failed to delete Stats command", error);
-      }
-      await ctx.reply(result.text, { parse_mode: "Markdown" });
-      return;
-    }
-    case "conversation": {
-      if (result.kind !== "reply") {
-        return;
-      }
-      await ctx.reply(result.text, {
-        reply_parameters: { message_id: message.message_id },
-      });
-      return;
-    }
-    case "noop":
-      return;
+async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<void> {
+  try {
+    await applyOutcome(ctx, result);
+  } catch (error) {
+    logError("failed to answer in the Chat", error);
   }
 }
 
-export function createBot({ db, token, secretToken }: BotDependencies): {
+function createBot({ db, token, secretToken }: BotDependencies): {
   bot: Bot;
   handleWebhook: (request: Request) => Promise<Response>;
 } {
@@ -74,18 +134,15 @@ export function createBot({ db, token, secretToken }: BotDependencies): {
       db,
       model: gatewayConversationModel,
     });
-    try {
-      await applyOutcome(ctx, result);
-    } catch (error) {
-      console.error("failed to answer in the Chat", error);
-    }
+    await tryApplyOutcome(ctx, result);
   });
 
+  // eslint-disable-next-line promise/prefer-await-to-callbacks -- grammy bot.catch is a callback API
   bot.catch((error) => {
-    console.error("failed to handle update", {
-      update_id: error.ctx.update.update_id,
+    logError("failed to handle update", {
       chat_id: error.ctx.chat?.id,
       error: error.error,
+      update_id: error.ctx.update.update_id,
     });
     throw error.error;
   });
@@ -94,6 +151,8 @@ export function createBot({ db, token, secretToken }: BotDependencies): {
 
   return {
     bot,
-    handleWebhook: async (request: Request) => webhook(request),
+    handleWebhook: (request: Request): Promise<Response> => webhook(request),
   };
 }
+
+export { createBot, type BotDependencies };

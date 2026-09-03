@@ -1,10 +1,14 @@
 import { and, eq } from "drizzle-orm";
 
-import type { MarkType } from "../domain/mark.js";
+import type { MarkType } from "#src/domain/mark.js";
+
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
+
 import type { BotSession } from "./runtime.js";
+
 import { conversationTurns, conversations, marks } from "./schema.js";
 
-export async function markExists(
+async function markExists(
   db: BotSession,
   query: {
     chatId: number;
@@ -24,11 +28,11 @@ export async function markExists(
         eq(marks.type, query.type),
       ),
     )
-    .limit(1);
-  return rows.length > 0;
+    .limit(SINGLE_COUNT);
+  return rows.length > EMPTY_COUNT;
 }
 
-export async function isConversationOpen(
+async function isConversationOpen(
   db: BotSession,
   query: { chatId: number; memberId: number },
 ): Promise<boolean> {
@@ -39,18 +43,15 @@ export async function isConversationOpen(
   return rows.some((row) => row.closedAt === null);
 }
 
-export async function openConversationMemberTurns(
+async function openConversationMemberTurns(
   db: BotSession,
   query: { chatId: number; memberId: number },
 ): Promise<string[]> {
-  const open = (
-    await db
-      .select()
-      .from(conversations)
-      .where(
-        and(eq(conversations.memberId, query.memberId), eq(conversations.chatId, query.chatId)),
-      )
-  ).find((row) => row.closedAt === null);
+  const conversationRows = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.memberId, query.memberId), eq(conversations.chatId, query.chatId)));
+  const open = conversationRows.find((row) => row.closedAt === null);
 
   if (open === undefined) {
     return [];
@@ -64,3 +65,5 @@ export async function openConversationMemberTurns(
 
   return turns.filter((turn) => turn.role === "member").map((turn) => turn.text);
 }
+
+export { isConversationOpen, markExists, openConversationMemberTurns };

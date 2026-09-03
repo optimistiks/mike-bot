@@ -1,8 +1,14 @@
-import { and, eq } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import type { MarkType } from "../domain/mark.js";
-import type { BotSession } from "../db/runtime.js";
+import { and, eq } from "drizzle-orm";
+
+import type { MarkType } from "#src/domain/mark.js";
+
+import { EMPTY_COUNT, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
+import { telegramDateToPostedAt } from "#src/telegram/identity.js";
+
+import type { BotSession } from "./runtime.js";
+
 import {
   conversationTurns,
   conversations,
@@ -10,19 +16,21 @@ import {
   members,
   messages,
   processedUpdates,
-} from "../db/schema.js";
-import { telegramDateToPostedAt } from "../telegram/identity.js";
+} from "./schema.js";
 
-export async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
+type ConversationRow = typeof conversations.$inferSelect;
+type ConversationTurnRow = typeof conversationTurns.$inferSelect;
+
+async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
   const inserted = await db
     .insert(processedUpdates)
     .values({ updateId })
     .onConflictDoNothing()
     .returning();
-  return inserted.length === 1;
+  return inserted.length === SINGLE_COUNT;
 }
 
-export async function upsertMember(
+async function upsertMember(
   db: BotSession,
   telegramUser: Pick<User, "id" | "username">,
 ): Promise<void> {
@@ -33,12 +41,12 @@ export async function upsertMember(
       username: telegramUser.username ?? null,
     })
     .onConflictDoUpdate({
-      target: members.telegramId,
       set: { username: telegramUser.username ?? null },
+      target: members.telegramId,
     });
 }
 
-export async function ensureMessage(db: BotSession, message: Message): Promise<void> {
+async function ensureMessage(db: BotSession, message: Message): Promise<void> {
   const author = message.from;
   if (author === undefined) {
     return;
@@ -47,15 +55,15 @@ export async function ensureMessage(db: BotSession, message: Message): Promise<v
   await db
     .insert(messages)
     .values({
+      authorId: author.id,
       chatId: message.chat.id,
       messageId: message.message_id,
-      authorId: author.id,
       postedAt: telegramDateToPostedAt(message.date),
     })
     .onConflictDoNothing();
 }
 
-export async function tryInsertMark(
+async function tryInsertMark(
   db: BotSession,
   row: {
     chatId: number;
@@ -67,19 +75,23 @@ export async function tryInsertMark(
   },
 ): Promise<boolean> {
   const inserted = await db.insert(marks).values(row).onConflictDoNothing().returning();
-  return inserted.length === 1;
+  return inserted.length === SINGLE_COUNT;
 }
 
-export async function chatHasMarks(db: BotSession, chatId: number): Promise<boolean> {
+async function chatHasMarks(db: BotSession, chatId: number): Promise<boolean> {
   const rows = await db
     .select({ actorId: marks.actorId })
     .from(marks)
     .where(eq(marks.chatId, chatId))
-    .limit(1);
-  return rows.length > 0;
+    .limit(SINGLE_COUNT);
+  return rows.length > EMPTY_COUNT;
 }
 
-export async function findOpenConversation(db: BotSession, memberId: number, chatId: number) {
+async function findOpenConversation(
+  db: BotSession,
+  memberId: number,
+  chatId: number,
+): Promise<ConversationRow | null> {
   const rows = await db
     .select()
     .from(conversations)
@@ -88,24 +100,24 @@ export async function findOpenConversation(db: BotSession, memberId: number, cha
   return rows.find((row) => row.closedAt === null) ?? null;
 }
 
-export async function openConversation(
+async function openConversation(
   db: BotSession,
   memberId: number,
   chatId: number,
   openedAt: Date,
-) {
+): Promise<ConversationRow> {
   const inserted = await db
     .insert(conversations)
-    .values({ memberId, chatId, openedAt })
+    .values({ chatId, memberId, openedAt })
     .returning();
-  const conversation = inserted[0];
+  const [conversation] = inserted;
   if (conversation === undefined) {
     throw new Error("failed to open Conversation");
   }
   return conversation;
 }
 
-export async function closeConversation(
+async function closeConversation(
   db: BotSession,
   conversationId: string,
   closedAt: Date,
@@ -113,7 +125,7 @@ export async function closeConversation(
   await db.update(conversations).set({ closedAt }).where(eq(conversations.id, conversationId));
 }
 
-export async function listTurns(db: BotSession, conversationId: string) {
+function listTurns(db: BotSession, conversationId: string): Promise<ConversationTurnRow[]> {
   return db
     .select()
     .from(conversationTurns)
@@ -121,19 +133,32 @@ export async function listTurns(db: BotSession, conversationId: string) {
     .orderBy(conversationTurns.seq);
 }
 
-export async function appendTurn(
+async function appendTurn(
   db: BotSession,
   conversationId: string,
   role: "member" | "assistant",
   text: string,
 ): Promise<void> {
   const existing = await listTurns(db, conversationId);
-  const last = existing.at(-1);
-  const seq = (last?.seq ?? 0) + 1;
+  const last = existing.at(LAST_FROM_END);
+  const seq = (last?.seq ?? EMPTY_COUNT) + SINGLE_COUNT;
   await db.insert(conversationTurns).values({
     conversationId,
-    seq,
     role,
+    seq,
     text,
   });
 }
+
+export {
+  appendTurn,
+  chatHasMarks,
+  claimUpdate,
+  closeConversation,
+  ensureMessage,
+  findOpenConversation,
+  listTurns,
+  openConversation,
+  tryInsertMark,
+  upsertMember,
+};

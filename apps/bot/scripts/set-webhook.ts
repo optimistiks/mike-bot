@@ -8,20 +8,14 @@
  *   pnpm set-webhook
  */
 
-import { Bot } from "grammy";
 import { config as loadDotenv } from "dotenv";
+import { Bot } from "grammy";
 
-import { TELEGRAM_WEBHOOK_ALLOWED_UPDATES } from "../src/webhook.js";
+import { requireEnv } from "#src/env.js";
+import { logError, logInfo } from "#src/log.js";
+import { TELEGRAM_WEBHOOK_ALLOWED_UPDATES } from "#src/webhook.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
-
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
-}
 
 async function main(): Promise<void> {
   const token = requireEnv("BOT_TOKEN");
@@ -30,8 +24,8 @@ async function main(): Promise<void> {
   const bot = new Bot(token);
 
   await bot.api.setWebhook(webhookUrl, {
-    secret_token: secret,
     allowed_updates: [...TELEGRAM_WEBHOOK_ALLOWED_UPDATES],
+    secret_token: secret,
   });
 
   const statsCommand = {
@@ -48,12 +42,15 @@ async function main(): Promise<void> {
     throw new Error(`Webhook URL mismatch: expected ${webhookUrl}, got ${info.url ?? "(none)"}`);
   }
 
-  console.log("Webhook registered successfully");
-  console.log(`  url: ${info.url}`);
-  console.log(`  allowed_updates: ${JSON.stringify(info.allowed_updates)}`);
+  logInfo("Webhook registered successfully");
+  logInfo(`  url: ${info.url}`);
+  logInfo(`  allowed_updates: ${JSON.stringify(info.allowed_updates)}`);
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
+try {
+  // eslint-disable-next-line node/no-top-level-await -- ESM script entry, never require()'d
+  await main();
+} catch (error: unknown) {
+  logError("set-webhook failed", error);
   process.exitCode = 1;
-});
+}

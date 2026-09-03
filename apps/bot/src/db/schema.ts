@@ -11,34 +11,34 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const members = pgTable("members", {
+const members = pgTable("members", {
   telegramId: bigint("telegram_id", { mode: "number" }).primaryKey(),
   username: text("username"),
 });
 
-export const messages = pgTable(
+const messages = pgTable(
   "messages",
   {
+    authorId: bigint("author_id", { mode: "number" }).notNull(),
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     messageId: bigint("message_id", { mode: "number" }).notNull(),
-    authorId: bigint("author_id", { mode: "number" }).notNull(),
     postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.chatId, table.messageId] })],
 );
 
-export const marks = pgTable(
+const marks = pgTable(
   "marks",
   {
-    chatId: bigint("chat_id", { mode: "number" }).notNull(),
     actorId: bigint("actor_id", { mode: "number" }).notNull(),
-    subjectId: bigint("subject_id", { mode: "number" }).notNull(),
+    chatId: bigint("chat_id", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     messageId: bigint("message_id", { mode: "number" }).notNull(),
-    type: text("type").notNull(),
     slot: text("slot")
       .notNull()
       .generatedAlwaysAs(sql`case when "type" = 'humor.add' then 'humor' else 'karma' end`),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    subjectId: bigint("subject_id", { mode: "number" }).notNull(),
+    type: text("type").notNull(),
   },
   (table) => [
     primaryKey({
@@ -48,14 +48,14 @@ export const marks = pgTable(
   ],
 );
 
-export const conversations = pgTable(
+const conversations = pgTable(
   "conversations",
   {
+    chatId: bigint("chat_id", { mode: "number" }).notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
     id: uuid("id").primaryKey().defaultRandom(),
     memberId: bigint("member_id", { mode: "number" }).notNull(),
-    chatId: bigint("chat_id", { mode: "number" }).notNull(),
     openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
-    closedAt: timestamp("closed_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("conversations_one_open_per_member_chat")
@@ -64,27 +64,38 @@ export const conversations = pgTable(
   ],
 );
 
-export const conversationTurns = pgTable("conversation_turns", {
-  id: uuid("id").primaryKey().defaultRandom(),
+const conversationTurns = pgTable("conversation_turns", {
   conversationId: uuid("conversation_id")
     .notNull()
     .references(() => conversations.id),
-  seq: integer("seq").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
   role: text("role").notNull(),
+  seq: integer("seq").notNull(),
   text: text("text").notNull(),
 });
 
-export const processedUpdates = pgTable("processed_updates", {
+const processedUpdates = pgTable("processed_updates", {
   updateId: bigint("update_id", { mode: "number" }).primaryKey(),
 });
 
-export const schema = {
+const schema = {
+  conversationTurns,
+  conversations,
+  marks,
   members,
   messages,
-  marks,
-  conversations,
-  conversationTurns,
   processedUpdates,
 };
 
-export type Schema = typeof schema;
+type Schema = typeof schema;
+
+export {
+  conversationTurns,
+  conversations,
+  marks,
+  members,
+  messages,
+  processedUpdates,
+  schema,
+  type Schema,
+};

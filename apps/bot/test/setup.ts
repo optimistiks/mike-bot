@@ -1,18 +1,3 @@
-process.env.AI_GATEWAY_API_KEY ??= "test-gateway-key";
+import { setEnvIfUnset } from "#src/env.js";
 
-import { afterAll, afterEach, beforeAll } from "vitest";
-
-import { modelServer, resetCapturedModelBodies } from "./msw.js";
-
-beforeAll(() => {
-  modelServer.listen({ onUnhandledRequest: "error" });
-});
-
-afterEach(() => {
-  resetCapturedModelBodies();
-  modelServer.resetHandlers();
-});
-
-afterAll(() => {
-  modelServer.close();
-});
+setEnvIfUnset("AI_GATEWAY_API_KEY", "test-gateway-key");

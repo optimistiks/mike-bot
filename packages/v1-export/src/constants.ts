@@ -1,0 +1,5 @@
+const EMPTY_COUNT = 0;
+const JSON_INDENT = 2;
+const SINGLE_COUNT = 1;
+
+export { EMPTY_COUNT, JSON_INDENT, SINGLE_COUNT };

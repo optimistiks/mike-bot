@@ -1,42 +1,46 @@
 import { z } from "zod";
 
-import type { MarkType } from "../domain/mark.js";
-import { markSlotForType } from "../domain/mark.js";
-import type { BotSession } from "../db/runtime.js";
-import { marks, members, messages } from "../db/schema.js";
-import { telegramSecondTruncation } from "../telegram/identity.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { MarkType } from "#src/domain/mark.js";
+
+import { EMPTY_COUNT } from "#src/constants.js";
+import { marks, members, messages } from "#src/db/schema.js";
+import { markSlotForType } from "#src/domain/mark.js";
+import { telegramSecondTruncation } from "#src/telegram/identity.js";
 
 const v1LolRowSchema = z.object({
-  id: z.uuid(),
+  chatId: z.number().int(),
   createdAt: z.number().int().nonnegative(),
-  lolType: z.enum(["plus", "minus", "lol"]),
   fromUser: z.object({
     id: z.number().int(),
     username: z.string().optional(),
   }),
+  id: z.uuid(),
+  lolType: z.enum(["plus", "minus", "lol"]),
+  toMessageId: z.number().int(),
   toUser: z.object({
     id: z.number().int(),
     username: z.string().optional(),
   }),
-  chatId: z.number().int(),
-  toMessageId: z.number().int(),
 });
 
 type V1LolRow = z.infer<typeof v1LolRowSchema>;
 
+interface ImportedMessage {
+  chatId: number;
+  messageId: number;
+  authorId: number;
+  postedAt: Date;
+}
+
+const MARK_TYPE_BY_LOL: Record<V1LolRow["lolType"], MarkType> = {
+  lol: "humor.add",
+  minus: "karma.minus",
+  plus: "karma.plus",
+};
+
 function convertType(lolType: V1LolRow["lolType"]): MarkType {
-  switch (lolType) {
-    case "plus":
-      return "karma.plus";
-    case "minus":
-      return "karma.minus";
-    case "lol":
-      return "humor.add";
-    default: {
-      const exhausted: never = lolType;
-      throw new Error(`unknown lolType ${String(exhausted)}`);
-    }
-  }
+  return MARK_TYPE_BY_LOL[lolType];
 }
 
 function isEarlier(row: V1LolRow, than: V1LolRow): boolean {
@@ -51,95 +55,19 @@ function slotKey(row: V1LolRow): string {
   return `${String(row.chatId)}:${String(row.fromUser.id)}:${String(row.toMessageId)}:${markSlotForType(type)}`;
 }
 
-export function parseImportRows(raw: unknown): V1LolRow[] {
-  if (!Array.isArray(raw)) {
-    throw new Error("v1 JSON must be an array of lol rows");
+function parseRowAt(item: unknown, index: number): V1LolRow {
+  const parsed = v1LolRowSchema.safeParse(item);
+  if (!parsed.success) {
+    throw new Error(`Invalid v1 row at ${String(index)}`);
   }
-  return raw.map((item, index) => {
-    const parsed = v1LolRowSchema.safeParse(item);
-    if (!parsed.success) {
-      throw new Error(`Invalid v1 row at ${String(index)}`);
-    }
-    return parsed.data;
-  });
+  return parsed.data;
 }
 
-export async function loadImportedRows(
-  db: BotSession,
-  rows: V1LolRow[],
-): Promise<{ members: number; messages: number; marks: number }> {
-  const memberById = new Map<number, string | null>();
-  for (const row of rows) {
-    considerMember(memberById, row.fromUser);
-    considerMember(memberById, row.toUser);
+function parseImportRows(raw: unknown): V1LolRow[] {
+  if (!Array.isArray(raw)) {
+    throw new TypeError("v1 JSON must be an array of lol rows");
   }
-
-  const messageByKey = new Map<
-    string,
-    { chatId: number; messageId: number; authorId: number; postedAt: Date }
-  >();
-  for (const row of rows) {
-    const key = `${String(row.chatId)}:${String(row.toMessageId)}`;
-    const postedAt = telegramSecondTruncation(row.createdAt);
-    const existing = messageByKey.get(key);
-    if (existing === undefined) {
-      messageByKey.set(key, {
-        chatId: row.chatId,
-        messageId: row.toMessageId,
-        authorId: row.toUser.id,
-        postedAt,
-      });
-      continue;
-    }
-    if (postedAt < existing.postedAt) {
-      existing.postedAt = postedAt;
-    }
-  }
-
-  const winners = new Map<string, V1LolRow>();
-  for (const row of rows) {
-    const key = slotKey(row);
-    const existing = winners.get(key);
-    if (existing === undefined || isEarlier(row, existing)) {
-      winners.set(key, row);
-    }
-  }
-
-  for (const [telegramId, username] of memberById) {
-    await db.insert(members).values({ telegramId, username }).onConflictDoUpdate({
-      target: members.telegramId,
-      set: { username },
-    });
-  }
-
-  let messageCount = 0;
-  for (const message of messageByKey.values()) {
-    const inserted = await db.insert(messages).values(message).onConflictDoNothing().returning();
-    messageCount += inserted.length;
-  }
-
-  let markCount = 0;
-  for (const row of winners.values()) {
-    const inserted = await db
-      .insert(marks)
-      .values({
-        chatId: row.chatId,
-        actorId: row.fromUser.id,
-        subjectId: row.toUser.id,
-        messageId: row.toMessageId,
-        type: convertType(row.lolType),
-        createdAt: new Date(row.createdAt),
-      })
-      .onConflictDoNothing()
-      .returning();
-    markCount += inserted.length;
-  }
-
-  return {
-    members: memberById.size,
-    messages: messageCount,
-    marks: markCount,
-  };
+  return raw.map((item, index) => parseRowAt(item, index));
 }
 
 function considerMember(
@@ -154,3 +82,128 @@ function considerMember(
     memberById.set(telegramUser.id, null);
   }
 }
+
+function collectMembers(rows: V1LolRow[]): Map<number, string | null> {
+  const memberById = new Map<number, string | null>();
+  for (const row of rows) {
+    considerMember(memberById, row.fromUser);
+    considerMember(memberById, row.toUser);
+  }
+  return memberById;
+}
+
+function messageKey(row: V1LolRow): string {
+  return `${String(row.chatId)}:${String(row.toMessageId)}`;
+}
+
+function newMessage(row: V1LolRow): ImportedMessage {
+  return {
+    authorId: row.toUser.id,
+    chatId: row.chatId,
+    messageId: row.toMessageId,
+    postedAt: telegramSecondTruncation(row.createdAt),
+  };
+}
+
+function keepEarlierPostedAt(existing: ImportedMessage, postedAt: Date): void {
+  if (postedAt < existing.postedAt) {
+    existing.postedAt = postedAt;
+  }
+}
+
+function upsertMessage(messageByKey: Map<string, ImportedMessage>, row: V1LolRow): void {
+  const key = messageKey(row);
+  const existing = messageByKey.get(key);
+  if (existing === undefined) {
+    messageByKey.set(key, newMessage(row));
+    return;
+  }
+  keepEarlierPostedAt(existing, telegramSecondTruncation(row.createdAt));
+}
+
+function collectMessages(rows: V1LolRow[]): Map<string, ImportedMessage> {
+  const messageByKey = new Map<string, ImportedMessage>();
+  for (const row of rows) {
+    upsertMessage(messageByKey, row);
+  }
+  return messageByKey;
+}
+
+function keepEarlierWinner(winners: Map<string, V1LolRow>, row: V1LolRow): void {
+  const key = slotKey(row);
+  const existing = winners.get(key);
+  if (existing === undefined || isEarlier(row, existing)) {
+    winners.set(key, row);
+  }
+}
+
+function collectWinners(rows: V1LolRow[]): Map<string, V1LolRow> {
+  const winners = new Map<string, V1LolRow>();
+  for (const row of rows) {
+    keepEarlierWinner(winners, row);
+  }
+  return winners;
+}
+
+async function persistMembers(
+  db: BotSession,
+  memberById: Map<number, string | null>,
+): Promise<number> {
+  await Promise.all(
+    [...memberById].map(([telegramId, username]) =>
+      db.insert(members).values({ telegramId, username }).onConflictDoUpdate({
+        set: { username },
+        target: members.telegramId,
+      }),
+    ),
+  );
+  return memberById.size;
+}
+
+async function persistMessages(
+  db: BotSession,
+  messageByKey: Map<string, ImportedMessage>,
+): Promise<number> {
+  const results = await Promise.all(
+    [...messageByKey.values()].map((message) =>
+      db.insert(messages).values(message).onConflictDoNothing().returning(),
+    ),
+  );
+  return results.reduce((sum, inserted) => sum + inserted.length, EMPTY_COUNT);
+}
+
+async function persistMarks(db: BotSession, winners: Map<string, V1LolRow>): Promise<number> {
+  const results = await Promise.all(
+    [...winners.values()].map((row) =>
+      db
+        .insert(marks)
+        .values({
+          actorId: row.fromUser.id,
+          chatId: row.chatId,
+          createdAt: new Date(row.createdAt),
+          messageId: row.toMessageId,
+          subjectId: row.toUser.id,
+          type: convertType(row.lolType),
+        })
+        .onConflictDoNothing()
+        .returning(),
+    ),
+  );
+  return results.reduce((sum, inserted) => sum + inserted.length, EMPTY_COUNT);
+}
+
+async function loadImportedRows(
+  db: BotSession,
+  rows: V1LolRow[],
+): Promise<{ members: number; messages: number; marks: number }> {
+  const memberById = collectMembers(rows);
+  const messageByKey = collectMessages(rows);
+  const winners = collectWinners(rows);
+  return {
+    marks: await persistMarks(db, winners),
+    members: await persistMembers(db, memberById),
+    messages: await persistMessages(db, messageByKey),
+  };
+}
+
+export { loadImportedRows, parseImportRows };

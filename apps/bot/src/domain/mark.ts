@@ -1,9 +1,11 @@
-export const MARK_TYPES = ["karma.plus", "karma.minus", "humor.add"] as const;
+const MARK_TYPES = ["karma.plus", "karma.minus", "humor.add"] as const;
 
-export type MarkType = (typeof MARK_TYPES)[number];
+type MarkType = (typeof MARK_TYPES)[number];
 
-export type MarkSlot = "karma" | "humor";
+type MarkSlot = "karma" | "humor";
 
-export function markSlotForType(type: MarkType): MarkSlot {
+function markSlotForType(type: MarkType): MarkSlot {
   return type === "humor.add" ? "humor" : "karma";
 }
+
+export { MARK_TYPES, markSlotForType, type MarkSlot, type MarkType };

@@ -1,44 +1,57 @@
-import type { Message } from "grammy/types";
+import type { Message, User } from "grammy/types";
 
-import type { ScoringOutcome } from "../outcomes.js";
-import type { BotSession } from "../db/runtime.js";
-import { ensureMessage, tryInsertMark, upsertMember } from "../db/store.js";
-import { isBotUser } from "../telegram/identity.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { MarkType } from "#src/domain/mark.js";
+import type { ScoringOutcome } from "#src/outcomes.js";
+
+import { ensureMessage, tryInsertMark, upsertMember } from "#src/db/store.js";
+import { isBotUser, telegramDateToPostedAt } from "#src/telegram/identity.js";
+
 import { acknowledgementText, scoringToken } from "./token.js";
 
-export async function applyScoring(db: BotSession, message: Message): Promise<ScoringOutcome> {
-  const actor = message.from;
-  const text = message.text;
-  if (actor === undefined || text === undefined) {
-    return { kind: "ignored" };
-  }
+function isSelfOrBot(actor: User, subject: User): boolean {
+  return subject.id === actor.id || isBotUser(subject);
+}
 
-  const type = scoringToken(text);
-  if (type === null) {
-    return { kind: "ignored" };
+function scoringSubject(
+  actor: User,
+  marked: Message,
+): { marked: Message; subject: User } | undefined {
+  const { from } = marked;
+  if (from === undefined || isSelfOrBot(actor, from)) {
+    return undefined;
   }
+  return { marked, subject: from };
+}
 
-  const marked = message.reply_to_message;
-  const subject = marked?.from;
-  if (
-    marked === undefined ||
-    subject === undefined ||
-    subject.id === actor.id ||
-    isBotUser(subject)
-  ) {
-    return { kind: "ignored" };
+function scoringTarget(
+  actor: User,
+  marked: Message | undefined,
+): { marked: Message; subject: User } | undefined {
+  if (marked === undefined) {
+    return undefined;
   }
+  return scoringSubject(actor, marked);
+}
 
+async function persistScoring(
+  db: BotSession,
+  message: Message,
+  actor: User,
+  marked: Message,
+  subject: User,
+  type: MarkType,
+): Promise<ScoringOutcome> {
   await upsertMember(db, subject);
   await ensureMessage(db, marked);
 
   const inserted = await tryInsertMark(db, {
-    chatId: message.chat.id,
     actorId: actor.id,
-    subjectId: subject.id,
+    chatId: message.chat.id,
+    createdAt: telegramDateToPostedAt(message.date),
     messageId: marked.message_id,
+    subjectId: subject.id,
     type,
-    createdAt: new Date(message.date * 1000),
   });
 
   if (!inserted) {
@@ -50,3 +63,40 @@ export async function applyScoring(db: BotSession, message: Message): Promise<Sc
     text: acknowledgementText(type, actor.username),
   };
 }
+
+function applyScoringType(
+  db: BotSession,
+  message: Message,
+  actor: User,
+  type: MarkType,
+): Promise<ScoringOutcome> {
+  const target = scoringTarget(actor, message.reply_to_message);
+  if (target === undefined) {
+    return Promise.resolve({ kind: "ignored" });
+  }
+  return persistScoring(db, message, actor, target.marked, target.subject, type);
+}
+
+function applyScoringText(
+  db: BotSession,
+  message: Message,
+  actor: User,
+  text: string,
+): Promise<ScoringOutcome> {
+  const type = scoringToken(text);
+  if (type === null) {
+    return Promise.resolve({ kind: "ignored" });
+  }
+  return applyScoringType(db, message, actor, type);
+}
+
+function applyScoring(db: BotSession, message: Message): Promise<ScoringOutcome> {
+  const actor = message.from;
+  const { text } = message;
+  if (actor === undefined || text === undefined) {
+    return Promise.resolve({ kind: "ignored" });
+  }
+  return applyScoringText(db, message, actor, text);
+}
+
+export { applyScoring };

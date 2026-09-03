@@ -3,19 +3,22 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
   "scripts": {
     "build": "tsc --noEmit --incremental false",
-    "dev": "vercel dev",
-    "typecheck": "tsc --noEmit --incremental false",
-    "test": "vitest run",
-    "lint": "oxlint --type-aware .",
-    "lint:fix": "oxlint --type-aware --fix .",
-    "fmt": "oxfmt .",
-    "fmt:check": "oxfmt --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "dev": "vercel dev",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check",
     "import:load": "tsx scripts/import-load.ts",
-    "set-webhook": "tsx scripts/set-webhook.ts"
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "set-webhook": "tsx scripts/set-webhook.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@vercel/functions": "^2.2.13",
