@@ -10,6 +10,7 @@
     "lint:fix": "turbo run lint:fix",
     "fmt": "prettier --write . --ignore-unknown --ignore-path .prettierignore && turbo run fmt",
     "fmt:check": "prettier --check . --ignore-unknown --ignore-path .prettierignore && turbo run fmt:check",
+    "v1-export": "pnpm --filter @mike-bot/v1-export scan",
     "prepare": "husky"
   },
   "lint-staged": {

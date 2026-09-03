@@ -1,10 +1,28 @@
-import { v1LolRowSchema, type V1LolRow } from "@mike-bot/v1-export";
+import { z } from "zod";
 
 import type { MarkType } from "../domain/mark.js";
 import { markSlotForType } from "../domain/mark.js";
 import type { BotSession } from "../db/runtime.js";
 import { marks, members, messages } from "../db/schema.js";
 import { telegramSecondTruncation } from "../telegram/identity.js";
+
+const v1LolRowSchema = z.object({
+  id: z.uuid(),
+  createdAt: z.number().int().nonnegative(),
+  lolType: z.enum(["plus", "minus", "lol"]),
+  fromUser: z.object({
+    id: z.number().int(),
+    username: z.string().optional(),
+  }),
+  toUser: z.object({
+    id: z.number().int(),
+    username: z.string().optional(),
+  }),
+  chatId: z.number().int(),
+  toMessageId: z.number().int(),
+});
+
+type V1LolRow = z.infer<typeof v1LolRowSchema>;
 
 function convertType(lolType: V1LolRow["lolType"]): MarkType {
   switch (lolType) {

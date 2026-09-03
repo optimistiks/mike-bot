@@ -3,8 +3,10 @@
  * Scan v1 DynamoDB lolTable into validated JSON. Does not touch Postgres.
  *
  *   AWS_REGION=eu-west-1 pnpm scan
+ *   AWS_REGION=eu-west-1 pnpm v1-export   # from the repo root
  *
  * Optional: LOL_TABLE_NAME, IMPORT_JSON, IMPORT_CHAT_ID
+ * Default JSON path is <repo>/tmp/v1-rows.json, not the process cwd.
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -23,7 +25,9 @@ async function main(): Promise<void> {
   }
 
   const tableName = process.env.LOL_TABLE_NAME?.trim() ?? "lolTable";
-  const outFile = path.resolve(process.env.IMPORT_JSON ?? "tmp/v1-rows.json");
+  const outFile = path.resolve(
+    process.env.IMPORT_JSON ?? path.join(import.meta.dirname, "../../../tmp/v1-rows.json"),
+  );
   const chatIdRaw = process.env.IMPORT_CHAT_ID?.trim();
   const chatId = chatIdRaw === undefined || chatIdRaw === "" ? undefined : Number(chatIdRaw);
 

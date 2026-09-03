@@ -14,12 +14,10 @@
     "fmt:check": "oxfmt --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "import:scan": "pnpm --filter @mike-bot/v1-export scan",
     "import:load": "tsx scripts/import-load.ts",
     "set-webhook": "tsx scripts/set-webhook.ts"
   },
   "dependencies": {
-    "@mike-bot/v1-export": "workspace:*",
     "@vercel/functions": "^2.2.13",
     "ai": "^7.0.89",
     "drizzle-orm": "^0.44.7",

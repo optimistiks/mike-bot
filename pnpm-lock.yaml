@@ -35,9 +35,6 @@ importers:
 
   apps/bot:
     dependencies:
-      '@mike-bot/v1-export':
-        specifier: workspace:*
-        version: link:../../packages/v1-export
       '@vercel/functions':
         specifier: ^2.2.13
         version: 2.2.13(@aws-sdk/credential-provider-web-identity@3.972.75)

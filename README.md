@@ -86,8 +86,9 @@ cd apps/bot
 vercel env pull .env.local
 ```
 
-Run migration, import, and webhook scripts from `apps/bot`. Their dotenv
+Run migration, load, and webhook scripts from `apps/bot`. Their dotenv
 configuration reads `.env.local` first and `.env` second from that workspace.
+The DynamoDB scan (`pnpm v1-export`) runs from the repository root.
 
 ### 2. Apply database migrations
 
@@ -152,31 +153,31 @@ e.g. `https://your-project.vercel.app`.
 
 ### 5. Import v1 history
 
-Scan DynamoDB into JSON, then load that JSON into Postgres. The scan package
-does not know Postgres. Run both steps **locally** from `apps/bot`:
+Scan DynamoDB into JSON from the **repo root**, then load that JSON into
+Postgres from `apps/bot`. The scan package does not know Postgres. The bot
+does not know DynamoDB. The file `tmp/v1-rows.json` is the only hand-off.
 
 ```bash
-cd apps/bot
-
 # 1. DynamoDB -> JSON (the only step needing AWS credentials)
 AWS_REGION="eu-west-1" \
 AWS_ACCESS_KEY_ID="..." \
 AWS_SECRET_ACCESS_KEY="..." \
-pnpm import:scan          # writes tmp/v1-rows.json
+pnpm v1-export            # writes tmp/v1-rows.json at the repo root
 
 # 2. JSON -> members, messages, marks
+cd apps/bot
 pnpm import:load
 ```
 
-| Variable                | Step | Purpose                                                |
-| ----------------------- | ---- | ------------------------------------------------------ |
-| `AWS_REGION`            | scan | Region of v1 `lolTable` (e.g. `eu-west-1`)\*           |
-| `AWS_ACCESS_KEY_ID`     | scan | IAM key with `dynamodb:Scan` on the table              |
-| `AWS_SECRET_ACCESS_KEY` | scan | Matching secret                                        |
-| `LOL_TABLE_NAME`        | scan | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`) |
-| `IMPORT_CHAT_ID`        | scan | Import one chat only (still scans full table)          |
-| `IMPORT_JSON`           | both | Path of the JSON dump (default `./tmp/v1-rows.json`)   |
-| `DATABASE_URL`          | load | From `.env.local` (`DATABASE_URL_UNPOOLED` preferred)  |
+| Variable                | Step | Purpose                                                   |
+| ----------------------- | ---- | --------------------------------------------------------- |
+| `AWS_REGION`            | scan | Region of v1 `lolTable` (e.g. `eu-west-1`)\*              |
+| `AWS_ACCESS_KEY_ID`     | scan | IAM key with `dynamodb:Scan` on the table                 |
+| `AWS_SECRET_ACCESS_KEY` | scan | Matching secret                                           |
+| `LOL_TABLE_NAME`        | scan | Default `lolTable`; CodeStar may suffix (e.g. `-Prod`)    |
+| `IMPORT_CHAT_ID`        | scan | Import one chat only (still scans full table)             |
+| `IMPORT_JSON`           | both | Path of the JSON dump (default `<repo>/tmp/v1-rows.json`) |
+| `DATABASE_URL`          | load | From `.env.local` (`DATABASE_URL_UNPOOLED` preferred)     |
 
 \* `AWS_DEFAULT_REGION` works instead of `AWS_REGION`.
 

@@ -4,7 +4,7 @@
  *
  *   pnpm import:load
  *
- * Optional: IMPORT_JSON (default tmp/v1-rows.json)
+ * Optional: IMPORT_JSON (default <repo>/tmp/v1-rows.json)
  * Uses DATABASE_URL_UNPOOLED, then DATABASE_URL.
  */
 
@@ -25,7 +25,9 @@ async function main(): Promise<void> {
     throw new Error("DATABASE_URL_UNPOOLED or DATABASE_URL is required");
   }
 
-  const file = path.resolve(process.env.IMPORT_JSON ?? "tmp/v1-rows.json");
+  const file = path.resolve(
+    process.env.IMPORT_JSON ?? path.join(import.meta.dirname, "../../../tmp/v1-rows.json"),
+  );
   const raw: unknown = JSON.parse(await readFile(file, "utf8"));
   const rows = parseImportRows(raw);
 
