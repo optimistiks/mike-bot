@@ -444,4 +444,22 @@ describe("telegram update handling", () => {
     ).resolves.toStrictEqual(["бот ку"]);
     expect(userTurnTextsFromModelBodies()).toStrictEqual(["бот привет", "бот ку"]);
   });
+
+  it("ignores a second delivery of the same update_id", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const update = textUpdate({
+      from: ALICE,
+      messageId: 90,
+      text: "бот",
+      updateId: 1,
+    });
+    const first = await handle(update);
+    const retry = await handle(update);
+
+    expect(first).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(retry).toStrictEqual({ type: "noop" });
+    expect(userTurnTextsFromModelBodies()).toStrictEqual(["бот"]);
+  });
 });

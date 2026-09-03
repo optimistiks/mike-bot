@@ -71,22 +71,14 @@ async function dispatchClaimed(
   return routeMessage(db, message, model);
 }
 
-async function handleClaimed(
-  db: BotSession,
-  update: Update,
-  model: ConversationModel,
-): Promise<HandlerResult> {
-  if (!(await claimUpdate(db, update.update_id))) {
-    return { type: "noop" };
-  }
-  return dispatchClaimed(db, update, model);
-}
-
-function handleUpdate(
+async function handleUpdate(
   update: Update,
   ports: { db: BotDatabase; model: ConversationModel },
 ): Promise<HandlerResult> {
-  return ports.db.transaction((tx) => handleClaimed(tx, update, ports.model));
+  if (!(await claimUpdate(ports.db, update.update_id))) {
+    return { type: "noop" };
+  }
+  return dispatchClaimed(ports.db, update, ports.model);
 }
 
 export { handleUpdate };
