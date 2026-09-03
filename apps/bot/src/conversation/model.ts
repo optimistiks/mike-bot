@@ -14,6 +14,7 @@ const gatewayConversationModel: ConversationModel = {
         role: turn.role === "member" ? "user" : "assistant",
       })),
       model: CONVERSATION_MODEL,
+      maxOutputTokens: 20
     });
     return text;
   },
