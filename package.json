@@ -3,25 +3,19 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "browser:install": "pnpm --filter web browser:install",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test --concurrency=1",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "fmt": "turbo run fmt",
-    "fmt:check": "turbo run fmt:check",
+    "fmt": "prettier --write . --ignore-unknown --ignore-path .prettierignore && turbo run fmt",
+    "fmt:check": "prettier --check . --ignore-unknown --ignore-path .prettierignore && turbo run fmt:check",
     "prepare": "husky"
   },
   "lint-staged": {
     "apps/bot/**": "pnpm --filter @mike-bot/bot run fmt",
     "packages/v1-export/**": "pnpm --filter @mike-bot/v1-export run fmt",
     "*": "prettier --ignore-unknown --write"
-  },
-  "msw": {
-    "workerDirectory": [
-      "apps/web/public"
-    ]
   },
   "devDependencies": {
     "eslint": "9.39.3",

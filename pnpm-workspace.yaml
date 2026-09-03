@@ -1,5 +1,5 @@
 packages:
-  - "apps/*"
+  - "apps/bot"
   - "packages/*"
 allowBuilds:
   esbuild: true

@@ -10,7 +10,7 @@
         "DATABASE_URL_UNPOOLED",
         "AI_GATEWAY_API_KEY"
       ],
-      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**"]
+      "outputs": ["dist/**"]
     },
     "dev": {
       "cache": false,
@@ -19,11 +19,8 @@
     "topo": {
       "dependsOn": ["^topo"]
     },
-    "typegen": {
-      "outputs": [".next/types/**", "next-env.d.ts"]
-    },
     "typecheck": {
-      "dependsOn": ["topo", "typegen"]
+      "dependsOn": ["topo"]
     },
     "test": {
       "dependsOn": ["^build"]

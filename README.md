@@ -18,8 +18,8 @@ pnpm build
 ```
 
 Bot tests use PGlite and MSW — no Neon, AWS, Telegram, or AI Gateway
-credentials required. `pnpm browser:install` and `pnpm dev` still belong to
-the frozen Mini App; they are not needed for the live bot.
+credentials required. `pnpm test` runs the bot's ten update-handler tests
+only. The frozen Mini App in `apps/web` is not a workspace package.
 
 ## Layout
 

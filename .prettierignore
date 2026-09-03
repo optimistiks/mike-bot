@@ -12,6 +12,7 @@ coverage
 .vercel
 apps/web/drizzle
 apps/web/public/mockServiceWorker.js
+apps/web
 apps/bot
 packages/v1-export
 .agents
