@@ -21,6 +21,10 @@ Bot tests use PGlite and MSW — no Neon, AWS, Telegram, or AI Gateway
 credentials required. `pnpm test` runs the bot's ten update-handler tests
 only. The frozen Mini App in `apps/web` is not a workspace package.
 
+To run the Hono app locally the same way Vercel serves it in production,
+install the [Vercel CLI](https://vercel.com/docs/cli) globally, then from
+`apps/bot`: `vercel env pull .env.local` and `pnpm dev` (`vercel dev`).
+
 ## Layout
 
 - `apps/bot` — Hono Telegram bot (webhook, Scoring, Standings, Conversations)
@@ -53,15 +57,18 @@ explicitly want Neon billing and a linked Neon project.
 
 1. [Vercel](https://vercel.com/) → **Add New Project** → import this repo.
 2. **Production branch:** `v2`.
-3. **Root Directory:** `apps/bot` (monorepo; `apps/bot/vercel.json` runs
-   install/build from the repo root via pnpm workspaces). Fluid compute is on.
-4. [Neon on Vercel Marketplace](https://vercel.com/marketplace/neon) →
+3. **Root Directory:** `apps/bot`. Include files outside the root directory so
+   pnpm workspaces resolve. Vercel detects Hono from `src/index.ts` (default
+   export of the app). Fluid compute is the Hono default.
+4. **Function region:** Frankfurt (`fra1`) in **Settings → Functions**, matching
+   the Neon region. There is no `vercel.json`.
+5. [Neon on Vercel Marketplace](https://vercel.com/marketplace/neon) →
    **Install** → choose **Create New Neon Account** → pick region/plan → name
    the database.
-5. **Storage** → your database → **Connect Project** → select this Vercel
+6. **Storage** → your database → **Connect Project** → select this Vercel
    project → enable **Production** (and **Preview** only if you want isolated
    preview DB branches).
-6. Vercel injects connection env vars automatically. Add bot secrets in
+7. Vercel injects connection env vars automatically. Add bot secrets in
    step 4.
 
 | Variable (injected by integration) | Purpose                                                                               |

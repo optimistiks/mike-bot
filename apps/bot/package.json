@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit --incremental false",
+    "dev": "vercel dev",
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run",
     "lint": "oxlint --type-aware .",

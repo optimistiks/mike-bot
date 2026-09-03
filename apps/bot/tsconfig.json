@@ -17,7 +17,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "api/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts",
     "drizzle.config.ts",

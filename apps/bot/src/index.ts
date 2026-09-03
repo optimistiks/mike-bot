@@ -1,0 +1,17 @@
+import { Hono } from "hono";
+
+import { createBot } from "./bot.js";
+import { getProductionDb } from "./db/production.js";
+import { databaseUrl, requireEnv } from "./env.js";
+
+const app = new Hono();
+const { handleWebhook } = createBot({
+  db: getProductionDb(databaseUrl()),
+  token: requireEnv("BOT_TOKEN"),
+  secretToken: requireEnv("BOT_WEBHOOK_SECRET"),
+});
+
+app.get("/", (c) => c.text("ok"));
+app.post("/api/telegram", async (c) => handleWebhook(c.req.raw));
+
+export default app;
