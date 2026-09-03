@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import type { MarkType } from "../domain/mark";
-import type { BotSession } from "./runtime";
-import { conversationTurns, conversations, marks } from "./schema";
+import type { MarkType } from "../domain/mark.js";
+import type { BotSession } from "./runtime.js";
+import { conversationTurns, conversations, marks } from "./schema.js";
 
 export async function markExists(
   db: BotSession,

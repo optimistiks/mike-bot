@@ -1,5 +1,5 @@
-import type { AppDatabase } from "./pglite";
-import type { ProductionDatabase } from "./production";
+import type { AppDatabase } from "./pglite.js";
+import type { ProductionDatabase } from "./production.js";
 
 export type BotDatabase = AppDatabase | ProductionDatabase;
 

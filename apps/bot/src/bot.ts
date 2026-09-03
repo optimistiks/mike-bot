@@ -1,10 +1,10 @@
 import { Bot, type Context, webhookCallback } from "grammy";
 
-import { gatewayConversationModel } from "./conversation/model";
-import type { BotDatabase } from "./db/runtime";
-import { handleUpdate } from "./handle-update";
-import type { HandlerResult } from "./outcomes";
-import { webhookHandlerOptions } from "./webhook";
+import { gatewayConversationModel } from "./conversation/model.js";
+import type { BotDatabase } from "./db/runtime.js";
+import { handleUpdate } from "./handle-update.js";
+import type { HandlerResult } from "./outcomes.js";
+import { webhookHandlerOptions } from "./webhook.js";
 
 export interface BotDependencies {
   db: BotDatabase;

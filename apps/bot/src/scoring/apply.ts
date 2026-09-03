@@ -1,10 +1,10 @@
 import type { Message } from "grammy/types";
 
-import type { ScoringOutcome } from "../outcomes";
-import type { BotSession } from "../db/runtime";
-import { ensureMessage, tryInsertMark, upsertMember } from "../db/store";
-import { isBotUser } from "../telegram/identity";
-import { acknowledgementText, scoringToken } from "./token";
+import type { ScoringOutcome } from "../outcomes.js";
+import type { BotSession } from "../db/runtime.js";
+import { ensureMessage, tryInsertMark, upsertMember } from "../db/store.js";
+import { isBotUser } from "../telegram/identity.js";
+import { acknowledgementText, scoringToken } from "./token.js";
 
 export async function applyScoring(db: BotSession, message: Message): Promise<ScoringOutcome> {
   const actor = message.from;

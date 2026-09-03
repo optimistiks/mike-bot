@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import type { MarkType } from "../domain/mark";
-import type { BotSession } from "../db/runtime";
-import { marks, members } from "../db/schema";
+import type { MarkType } from "../domain/mark.js";
+import type { BotSession } from "../db/runtime.js";
+import { marks, members } from "../db/schema.js";
 
 export interface StandingRow {
   memberId: number;

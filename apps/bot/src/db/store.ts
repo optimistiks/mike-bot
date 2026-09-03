@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import type { MarkType } from "../domain/mark";
-import type { BotSession } from "../db/runtime";
+import type { MarkType } from "../domain/mark.js";
+import type { BotSession } from "../db/runtime.js";
 import {
   conversationTurns,
   conversations,
@@ -10,8 +10,8 @@ import {
   members,
   messages,
   processedUpdates,
-} from "../db/schema";
-import { telegramDateToPostedAt } from "../telegram/identity";
+} from "../db/schema.js";
+import { telegramDateToPostedAt } from "../telegram/identity.js";
 
 export async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
   const inserted = await db

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 
-import { createBot } from "./bot";
-import { getProductionDb } from "./db/production";
-import { databaseUrl, requireEnv } from "./env";
+import { createBot } from "./bot.js";
+import { getProductionDb } from "./db/production.js";
+import { databaseUrl, requireEnv } from "./env.js";
 
 export function createApp(): Hono {
   const app = new Hono();

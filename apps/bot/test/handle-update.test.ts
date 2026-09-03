@@ -1,11 +1,11 @@
 import { afterEach, expect, it } from "vitest";
 
-import { gatewayConversationModel } from "../src/conversation/model";
-import { isConversationOpen, markExists, openConversationMemberTurns } from "../src/db/queries";
-import { closePgliteDb, createPgliteDb, type PgliteDatabase } from "../src/db/pglite";
-import { handleUpdate } from "../src/handle-update";
-import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate } from "./helpers";
-import { userTurnTextsFromModelBodies } from "./msw";
+import { gatewayConversationModel } from "../src/conversation/model.js";
+import { isConversationOpen, markExists, openConversationMemberTurns } from "../src/db/queries.js";
+import { closePgliteDb, createPgliteDb, type PgliteDatabase } from "../src/db/pglite.js";
+import { handleUpdate } from "../src/handle-update.js";
+import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate } from "./helpers.js";
+import { userTurnTextsFromModelBodies } from "./msw.js";
 
 let database: PgliteDatabase;
 

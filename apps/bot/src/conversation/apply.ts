@@ -1,16 +1,16 @@
 import type { Message } from "grammy/types";
 
-import type { ConversationOutcome } from "../outcomes";
-import type { BotSession } from "../db/runtime";
+import type { ConversationOutcome } from "../outcomes.js";
+import type { BotSession } from "../db/runtime.js";
 import {
   appendTurn,
   closeConversation,
   findOpenConversation,
   listTurns,
   openConversation,
-} from "../db/store";
-import { isStopMessage, isWakeMessage } from "../telegram/text";
-import type { ConversationModel } from "./types";
+} from "../db/store.js";
+import { isStopMessage, isWakeMessage } from "../telegram/text.js";
+import type { ConversationModel } from "./types.js";
 
 export async function applyConversation(
   db: BotSession,

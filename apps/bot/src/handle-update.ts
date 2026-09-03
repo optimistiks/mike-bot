@@ -1,12 +1,12 @@
-import type { ConversationModel } from "./conversation/types";
-import { applyConversation } from "./conversation/apply";
-import type { BotDatabase, BotSession } from "./db/runtime";
-import { claimUpdate, upsertMember } from "./db/store";
-import type { HandlerResult } from "./outcomes";
-import { applyScoring } from "./scoring/apply";
-import { scoringToken } from "./scoring/token";
-import { applyStandings } from "./standings/apply";
-import { botCommandName } from "./telegram/text";
+import type { ConversationModel } from "./conversation/types.js";
+import { applyConversation } from "./conversation/apply.js";
+import type { BotDatabase, BotSession } from "./db/runtime.js";
+import { claimUpdate, upsertMember } from "./db/store.js";
+import type { HandlerResult } from "./outcomes.js";
+import { applyScoring } from "./scoring/apply.js";
+import { scoringToken } from "./scoring/token.js";
+import { applyStandings } from "./standings/apply.js";
+import { botCommandName } from "./telegram/text.js";
 import type { Update } from "grammy/types";
 
 export async function handleUpdate(

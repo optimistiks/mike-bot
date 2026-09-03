@@ -12,7 +12,7 @@ import path from "node:path";
 
 import { config as loadDotenv } from "dotenv";
 
-import { scanV1LolTable } from "./scan";
+import { scanV1LolTable } from "./scan.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 

@@ -1,7 +1,7 @@
 import { DynamoDBClient, type DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
-import { parseV1Items, type V1LolRow } from "./row";
+import { parseV1Items, type V1LolRow } from "./row.js";
 
 export interface ScanV1Options {
   tableName: string;

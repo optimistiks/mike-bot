@@ -1,4 +1,4 @@
-import type { StandingRow } from "./query";
+import type { StandingRow } from "./query.js";
 
 const CROWN = "\u{1F451}";
 const CHICKEN = "\u{1F414}";

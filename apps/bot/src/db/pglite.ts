@@ -5,7 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 
-import { schema, type Schema } from "./schema";
+import { schema, type Schema } from "./schema.js";
 
 const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../drizzle");
 

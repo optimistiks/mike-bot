@@ -13,9 +13,9 @@ import path from "node:path";
 
 import { config as loadDotenv } from "dotenv";
 
-import { createScriptDb } from "../src/db/production";
-import { unpooledDatabaseUrl } from "../src/env";
-import { loadImportedRows, parseImportRows } from "../src/import/load";
+import { createScriptDb } from "../src/db/production.js";
+import { unpooledDatabaseUrl } from "../src/env.js";
+import { loadImportedRows, parseImportRows } from "../src/import/load.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 

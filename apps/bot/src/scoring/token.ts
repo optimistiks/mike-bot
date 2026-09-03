@@ -1,4 +1,4 @@
-import type { MarkType } from "../domain/mark";
+import type { MarkType } from "../domain/mark.js";
 
 export function scoringToken(text: string): MarkType | null {
   const trimmed = text.trim();

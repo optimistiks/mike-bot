@@ -1,10 +1,10 @@
 import { v1LolRowSchema, type V1LolRow } from "@mike-bot/v1-export";
 
-import type { MarkType } from "../domain/mark";
-import { markSlotForType } from "../domain/mark";
-import type { BotSession } from "../db/runtime";
-import { marks, members, messages } from "../db/schema";
-import { telegramSecondTruncation } from "../telegram/identity";
+import type { MarkType } from "../domain/mark.js";
+import { markSlotForType } from "../domain/mark.js";
+import type { BotSession } from "../db/runtime.js";
+import { marks, members, messages } from "../db/schema.js";
+import { telegramSecondTruncation } from "../telegram/identity.js";
 
 function convertType(lolType: V1LolRow["lolType"]): MarkType {
   switch (lolType) {

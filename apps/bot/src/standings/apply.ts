@@ -1,8 +1,8 @@
-import type { StandingsOutcome } from "../outcomes";
-import type { BotSession } from "../db/runtime";
-import { chatHasMarks } from "../db/store";
-import { formatStandings } from "./format";
-import { loadStandingRows } from "./query";
+import type { StandingsOutcome } from "../outcomes.js";
+import type { BotSession } from "../db/runtime.js";
+import { chatHasMarks } from "../db/store.js";
+import { formatStandings } from "./format.js";
+import { loadStandingRows } from "./query.js";
 
 export async function applyStandings(db: BotSession, chatId: number): Promise<StandingsOutcome> {
   if (!(await chatHasMarks(db, chatId))) {

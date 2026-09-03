@@ -6,7 +6,7 @@ import {
   trimTurnsForContext,
   type ConversationModel,
   type ConversationTurn,
-} from "./types";
+} from "./types.js";
 
 export const gatewayConversationModel: ConversationModel = {
   async complete(turns: ConversationTurn[]): Promise<string> {
