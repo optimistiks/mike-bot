@@ -10,6 +10,7 @@ const gatewayConversationModel: ConversationModel = {
     const { text } = await generateText({
       instructions: CONVERSATION_SYSTEM_PROMPT,
       maxOutputTokens: 20,
+      maxRetries: 0,
       messages: history.map((turn) => ({
         content: turn.text,
         role: turn.role === "member" ? "user" : "assistant",
