@@ -64,15 +64,21 @@ const conversations = pgTable(
   ],
 );
 
-const conversationTurns = pgTable("conversation_turns", {
-  conversationId: uuid("conversation_id")
-    .notNull()
-    .references(() => conversations.id),
-  id: uuid("id").primaryKey().defaultRandom(),
-  role: text("role").notNull(),
-  seq: integer("seq").notNull(),
-  text: text("text").notNull(),
-});
+const conversationTurns = pgTable(
+  "conversation_turns",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id),
+    id: uuid("id").primaryKey().defaultRandom(),
+    role: text("role").notNull(),
+    seq: integer("seq").notNull(),
+    text: text("text").notNull(),
+  },
+  (table) => [
+    uniqueIndex("conversation_turns_conversation_id_seq").on(table.conversationId, table.seq),
+  ],
+);
 
 const processedUpdates = pgTable("processed_updates", {
   updateId: bigint("update_id", { mode: "number" }).primaryKey(),

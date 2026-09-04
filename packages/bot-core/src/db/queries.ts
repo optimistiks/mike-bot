@@ -6,7 +6,8 @@ import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 
 import type { BotSession } from "./runtime.js";
 
-import { conversationTurns, conversations, marks } from "./schema.js";
+import { conversationTurns, marks } from "./schema.js";
+import { findOpenConversation } from "./store.js";
 
 async function markExists(
   db: BotSession,
@@ -36,24 +37,16 @@ async function isConversationOpen(
   db: BotSession,
   query: { chatId: number; memberId: number },
 ): Promise<boolean> {
-  const rows = await db
-    .select({ closedAt: conversations.closedAt })
-    .from(conversations)
-    .where(and(eq(conversations.memberId, query.memberId), eq(conversations.chatId, query.chatId)));
-  return rows.some((row) => row.closedAt === null);
+  const open = await findOpenConversation(db, query.memberId, query.chatId);
+  return open !== null;
 }
 
 async function openConversationMemberTurns(
   db: BotSession,
   query: { chatId: number; memberId: number },
 ): Promise<string[]> {
-  const conversationRows = await db
-    .select()
-    .from(conversations)
-    .where(and(eq(conversations.memberId, query.memberId), eq(conversations.chatId, query.chatId)));
-  const open = conversationRows.find((row) => row.closedAt === null);
-
-  if (open === undefined) {
+  const open = await findOpenConversation(db, query.memberId, query.chatId);
+  if (open === null) {
     return [];
   }
 

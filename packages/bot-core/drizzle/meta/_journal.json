@@ -8,6 +8,13 @@
       "when": 1788392040565,
       "tag": "0000_massive_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788559143170,
+      "tag": "0001_slimy_crystal",
+      "breakpoints": true
     }
   ]
 }
