@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd ../.. && pnpm --filter @mike-bot/bot-app build && pnpm --filter @mike-bot/bot-core db:migrate",
+  "buildCommand": "cd ../.. && pnpm build --filter=@mike-bot/bot-app && pnpm --filter @mike-bot/bot-core db:migrate",
   "regions": ["fra1"]
 }
