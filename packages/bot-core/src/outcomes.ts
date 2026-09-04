@@ -2,7 +2,10 @@ type ScoringOutcome = { kind: "accepted"; text: string } | { kind: "ignored" };
 
 type StandingsOutcome = { kind: "posted"; text: string } | { kind: "empty" };
 
-type ConversationOutcome = { kind: "reply"; text: string } | { kind: "silence" };
+type ConversationOutcome =
+  | { kind: "reply"; text: string }
+  | { kind: "closed" }
+  | { kind: "silence" };
 
 type HandlerResult =
   | ({ type: "scoring" } & ScoringOutcome)

@@ -47,14 +47,14 @@ async function handleCommand(
 }
 
 function conversationWork(persisted: PersistedConversation): ClaimedWork {
-  if (persisted.kind === "silence") {
-    return { kind: "silence", type: "conversation" };
+  if (persisted.kind === "turn") {
+    return {
+      conversationId: persisted.conversationId,
+      history: persisted.history,
+      type: "pending-turn",
+    };
   }
-  return {
-    conversationId: persisted.conversationId,
-    history: persisted.history,
-    type: "pending-turn",
-  };
+  return { kind: persisted.kind, type: "conversation" };
 }
 
 async function handleNonCommand(db: BotSession, message: Message): Promise<ClaimedWork> {

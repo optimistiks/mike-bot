@@ -17,6 +17,7 @@ type ConversationTurnRow = Awaited<ReturnType<typeof listTurns>>[number];
 type OpenConversation = NonNullable<Awaited<ReturnType<typeof findOpenConversation>>>;
 
 type PersistedConversation =
+  | { kind: "closed" }
   | { kind: "silence" }
   | { kind: "turn"; conversationId: string; history: ConversationTurn[] };
 
@@ -97,7 +98,7 @@ async function persistOpenOrWake(
 ): Promise<PersistedConversation> {
   if (open !== null && isStopMessage(text)) {
     await closeConversation(db, open.id, now);
-    return { kind: "silence" };
+    return { kind: "closed" };
   }
   return persistWake(db, open, actor, chatId, text, now);
 }

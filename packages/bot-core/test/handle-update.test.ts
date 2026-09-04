@@ -385,7 +385,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(stopped).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
     expect(later).toStrictEqual({ kind: "silence", type: "conversation" });
     await expect(
       isConversationOpen(currentDb().db, {

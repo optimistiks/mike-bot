@@ -39,6 +39,12 @@ function isConversationReply(
   return result.type === "conversation" && result.kind === "reply";
 }
 
+function isConversationClosed(
+  result: HandlerResult,
+): result is Extract<HandlerResult, { type: "conversation"; kind: "closed" }> {
+  return result.type === "conversation" && result.kind === "closed";
+}
+
 async function tryDeleteMessage(
   ctx: Context,
   message: TelegramMessage,
@@ -48,6 +54,14 @@ async function tryDeleteMessage(
     await ctx.api.deleteMessage(message.chat.id, message.message_id);
   } catch (error) {
     logError(label, error);
+  }
+}
+
+async function tryReactToStop(ctx: Context): Promise<void> {
+  try {
+    await ctx.react("👍", { is_big: false });
+  } catch (error) {
+    logError("failed to react to Stop message", error);
   }
 }
 
@@ -86,6 +100,10 @@ async function applyConversationOutcome(
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
+  if (isConversationClosed(result)) {
+    await tryReactToStop(ctx);
+    return;
+  }
   if (!isConversationReply(result)) {
     return;
   }
