@@ -13,5 +13,5 @@ export default {
   },
   dialect: "postgresql",
   out: "./drizzle",
-  schema: "./src/db/schema.ts",
+  schema: "./src/bot/db/schema.ts",
 } satisfies Config;

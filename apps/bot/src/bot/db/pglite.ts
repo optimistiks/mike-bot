@@ -7,7 +7,7 @@ import type { Schema } from "./schema.js";
 
 import { schema } from "./schema.js";
 
-const migrationsFolder = path.join(import.meta.dirname, "../../drizzle");
+const migrationsFolder = path.join(import.meta.dirname, "../../../drizzle");
 
 type AppDatabase = ReturnType<typeof drizzlePglite<Schema>>;
 

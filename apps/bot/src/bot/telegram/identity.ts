@@ -1,6 +1,6 @@
 import type { User } from "grammy/types";
 
-import { MS_PER_SECOND } from "#src/constants.js";
+import { MS_PER_SECOND } from "#src/bot/constants.js";
 
 function telegramDateToPostedAt(unixSeconds: number): Date {
   return new Date(unixSeconds * MS_PER_SECOND);

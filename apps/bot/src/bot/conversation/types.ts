@@ -1,4 +1,4 @@
-import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/bot/constants.js";
 
 const CONVERSATION_MODEL = "zai/glm-5.3-flash";
 

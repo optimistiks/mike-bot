@@ -2,13 +2,17 @@ import type { Update } from "grammy/types";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { PgliteDatabase } from "#src/db/pglite.js";
-import type { HandlerResult } from "#src/outcomes.js";
+import type { PgliteDatabase } from "#src/bot/db/pglite.js";
+import type { HandlerResult } from "#src/bot/outcomes.js";
 
-import { gatewayConversationModel } from "#src/conversation/model.js";
-import { closePgliteDb, createPgliteDb } from "#src/db/pglite.js";
-import { isConversationOpen, markExists, openConversationMemberTurns } from "#src/db/queries.js";
-import { handleUpdate } from "#src/handle-update.js";
+import { gatewayConversationModel } from "#src/bot/conversation/model.js";
+import { closePgliteDb, createPgliteDb } from "#src/bot/db/pglite.js";
+import {
+  isConversationOpen,
+  markExists,
+  openConversationMemberTurns,
+} from "#src/bot/db/queries.js";
+import { handleUpdate } from "#src/bot/handle-update.js";
 
 import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate } from "./helpers.js";
 import { modelServer, resetCapturedModelBodies, userTurnTextsFromModelBodies } from "./msw.js";

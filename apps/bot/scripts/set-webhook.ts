@@ -11,8 +11,8 @@
 import { config as loadDotenv } from "dotenv";
 import { Bot } from "grammy";
 
+import { logError, logInfo } from "#src/bot/log.js";
 import { requireEnv } from "#src/env.js";
-import { logError, logInfo } from "#src/log.js";
 import { TELEGRAM_WEBHOOK_ALLOWED_UPDATES } from "#src/webhook.js";
 
 loadDotenv({ path: [".env.local", ".env"] });

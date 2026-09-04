@@ -1,6 +1,6 @@
 import type { Context } from "grammy";
 
-import { Bot, webhookCallback } from "grammy";
+import { Bot } from "grammy";
 
 import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
@@ -8,12 +8,10 @@ import type { HandlerResult } from "./outcomes.js";
 import { gatewayConversationModel } from "./conversation/model.js";
 import { handleUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
-import { webhookHandlerOptions } from "./webhook.js";
 
 interface BotDependencies {
   db: BotDatabase;
   token: string;
-  secretToken: string;
 }
 
 type TelegramMessage = NonNullable<Context["message"] | Context["channelPost"]>;
@@ -123,10 +121,7 @@ async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<voi
   }
 }
 
-function createBot({ db, token, secretToken }: BotDependencies): {
-  bot: Bot;
-  handleWebhook: (request: Request) => Promise<Response>;
-} {
+function createBot({ db, token }: BotDependencies): Bot {
   const bot = new Bot(token);
 
   bot.use(async (ctx) => {
@@ -147,12 +142,7 @@ function createBot({ db, token, secretToken }: BotDependencies): {
     throw error.error;
   });
 
-  const webhook = webhookCallback(bot, "std/http", webhookHandlerOptions(secretToken));
-
-  return {
-    bot,
-    handleWebhook: (request: Request): Promise<Response> => webhook(request),
-  };
+  return bot;
 }
 
 export { createBot, type BotDependencies };

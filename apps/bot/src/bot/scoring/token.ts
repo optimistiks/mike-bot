@@ -1,4 +1,4 @@
-import type { MarkType } from "#src/domain/mark.js";
+import type { MarkType } from "#src/bot/domain/mark.js";
 
 const MARK_BY_TOKEN: Record<string, MarkType> = {
   "+": "karma.plus",

@@ -1,5 +1,4 @@
-import { MS_PER_SECOND } from "#src/constants.js";
-
+const MS_PER_SECOND = 1000;
 const WEBHOOK_MAX_DURATION_SECONDS = 60;
 const WEBHOOK_TIMEOUT_PADDING_SECONDS = 5;
 

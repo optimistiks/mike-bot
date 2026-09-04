@@ -1,15 +1,23 @@
+import { drizzle as drizzleNodePostgres } from "drizzle-orm/node-postgres";
+import { webhookCallback } from "grammy";
 import { Hono } from "hono";
 
-import { createBot } from "./bot.js";
-import { getProductionDb } from "./db/production.js";
-import { databaseUrl, requireEnv } from "./env.js";
+import { createBot, schema } from "#src/bot/index.js";
+import { databaseUrl, requireEnv } from "#src/env.js";
+import { getProductionPool } from "#src/production.js";
+import { webhookHandlerOptions } from "#src/webhook.js";
 
 const app = new Hono();
-const { handleWebhook } = createBot({
-  db: getProductionDb(databaseUrl()),
-  secretToken: requireEnv("BOT_WEBHOOK_SECRET"),
+const db = drizzleNodePostgres({ client: getProductionPool(databaseUrl()), schema });
+const bot = createBot({
+  db,
   token: requireEnv("BOT_TOKEN"),
 });
+const handleWebhook = webhookCallback(
+  bot,
+  "std/http",
+  webhookHandlerOptions(requireEnv("BOT_WEBHOOK_SECRET")),
+);
 
 app.get("/", (context) => context.text("ok"));
 app.post("/api/telegram", (context) => handleWebhook(context.req.raw));

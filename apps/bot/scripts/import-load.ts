@@ -12,10 +12,10 @@ import { config as loadDotenv } from "dotenv";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { createScriptDb } from "#src/db/production.js";
+import { loadImportedRows, parseImportRows } from "#src/bot/import/load.js";
+import { logError, logInfo } from "#src/bot/log.js";
 import { importJsonPath, unpooledDatabaseUrl } from "#src/env.js";
-import { loadImportedRows, parseImportRows } from "#src/import/load.js";
-import { logError, logInfo } from "#src/log.js";
+import { createScriptDb } from "#src/production.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 

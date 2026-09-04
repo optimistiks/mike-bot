@@ -1,7 +1,7 @@
-import type { BotSession } from "#src/db/runtime.js";
-import type { StandingsOutcome } from "#src/outcomes.js";
+import type { BotSession } from "#src/bot/db/runtime.js";
+import type { StandingsOutcome } from "#src/bot/outcomes.js";
 
-import { chatHasMarks } from "#src/db/store.js";
+import { chatHasMarks } from "#src/bot/db/store.js";
 
 import { formatStandings } from "./format.js";
 import { loadStandingRows } from "./query.js";

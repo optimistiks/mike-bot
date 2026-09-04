@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import type { BotSession } from "#src/db/runtime.js";
-import type { MarkType } from "#src/domain/mark.js";
+import type { BotSession } from "#src/bot/db/runtime.js";
+import type { MarkType } from "#src/bot/domain/mark.js";
 
-import { EMPTY_COUNT } from "#src/constants.js";
-import { marks, members, messages } from "#src/db/schema.js";
-import { markSlotForType } from "#src/domain/mark.js";
-import { telegramSecondTruncation } from "#src/telegram/identity.js";
+import { EMPTY_COUNT } from "#src/bot/constants.js";
+import { marks, members, messages } from "#src/bot/db/schema.js";
+import { markSlotForType } from "#src/bot/domain/mark.js";
+import { telegramSecondTruncation } from "#src/bot/telegram/identity.js";
 
 const v1LolRowSchema = z.object({
   chatId: z.number().int(),
