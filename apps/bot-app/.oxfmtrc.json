@@ -14,5 +14,10 @@
   },
   "sortPackageJson": {
     "sortScripts": true
+  },
+  "sortTailwindcss": {
+    "stylesheet": "./src/app/globals.css",
+    "functions": ["clsx", "cn"],
+    "preserveWhitespace": true
   }
 }

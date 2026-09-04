@@ -51,10 +51,10 @@
     "import/no-nodejs-modules": "off",
 
     "react/react-in-jsx-scope": "off",
-    "react/jsx-filename-extension": "off",
-    "react/jsx-no-literals": "off",
     "react/forbid-component-props": "off",
-    "react/jsx-max-depth": "off",
+    "react/jsx-max-depth": ["error", { "max": 4 }],
+    "react/jsx-no-literals": "off",
+    "react/jsx-filename-extension": ["error", { "extensions": ["jsx", "tsx"] }],
     "react/only-export-components": [
       "error",
       {
