@@ -13,9 +13,12 @@
     "typecheck": "next typegen && tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@tma.js/init-data-node": "^2.0.8",
+    "@tma.js/sdk-react": "^3.0.23",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

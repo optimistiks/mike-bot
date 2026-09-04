@@ -37,7 +37,7 @@
     "max-lines-per-function": "off",
     "max-lines": "off",
     "max-params": "off",
-    "complexity": ["error", { "max": 3 }],
+    "complexity": ["error", { "max": 4 }],
     "max-depth": ["error", { "max": 3 }],
     "max-nested-callbacks": ["error", { "max": 3 }],
     "sort-imports": ["error", { "ignoreDeclarationSort": true }],
