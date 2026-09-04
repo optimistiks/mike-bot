@@ -13,9 +13,13 @@
     "typecheck": "next typegen && tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@mike-bot/bot-core": "workspace:*",
     "@tma.js/init-data-node": "^2.0.8",
     "@tma.js/sdk-react": "^3.0.23",
+    "@vercel/functions": "^2.2.13",
+    "drizzle-orm": "^0.44.7",
     "next": "16.3.4",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
@@ -24,6 +28,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "oxfmt": "^0.66.0",

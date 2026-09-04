@@ -1,4 +1,4 @@
-import { isProduction } from "@/tma/env";
+import { isProduction } from "@/env";
 import { signMockInitData } from "@/tma/sign-mock-init-data";
 
 function GET(): Response {

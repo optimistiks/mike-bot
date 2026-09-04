@@ -33,63 +33,29 @@ importers:
         specifier: ^8.46.0
         version: 8.67.0(@typescript/typescript6@6.0.2)(eslint@9.39.3(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)
 
-  apps/bot:
+  apps/bot-app:
     dependencies:
       '@mike-bot/bot-core':
         specifier: workspace:*
         version: link:../../packages/bot-core
-      '@vercel/functions':
-        specifier: ^2.2.13
-        version: 2.2.13(@aws-sdk/credential-provider-web-identity@3.972.75)
-      drizzle-orm:
-        specifier: ^0.44.7
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(@types/pg@8.23.1)(pg@8.23.0)
-      grammy:
-        specifier: ^1.45.1
-        version: 1.45.1(supports-color@7.2.0)
-      hono:
-        specifier: ^4.13.5
-        version: 4.13.5
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.1
-        version: 22.20.1
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      oxfmt:
-        specifier: ^0.66.0
-        version: 0.66.0
-      oxlint:
-        specifier: ^1.81.0
-        version: 1.81.0(oxlint-tsgolint@7.0.2001)
-      oxlint-tsgolint:
-        specifier: ^7.0.2001
-        version: 7.0.2001
-      tsx:
-        specifier: ^4.23.12
-        version: 4.23.12
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  apps/bot-app:
-    dependencies:
       '@tma.js/init-data-node':
         specifier: ^2.0.8
         version: 2.0.8(typescript@7.0.2)
       '@tma.js/sdk-react':
         specifier: ^3.0.23
         version: 3.0.23(@types/react@19.2.18)(react@19.2.8)(typescript@7.0.2)
+      '@vercel/functions':
+        specifier: ^2.2.13
+        version: 2.2.13(@aws-sdk/credential-provider-web-identity@3.972.75)
+      drizzle-orm:
+        specifier: ^0.44.7
+        version: 0.44.7(@electric-sql/pglite@0.3.16)(@types/pg@8.23.1)(pg@8.23.0)
       next:
         specifier: 16.3.4
         version: 16.3.4(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -109,6 +75,9 @@ importers:
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
       '@types/react':
         specifier: ^19
         version: 19.2.18
@@ -3175,10 +3144,6 @@ packages:
   hermes-parser@0.25.1:
     resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
 
-  hono@4.13.5:
-    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
-    engines: {node: '>=16.9.0'}
-
   html-encoding-sniffer@6.0.0:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
@@ -4181,11 +4146,6 @@ packages:
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
-
-  tsx@4.23.12:
-    resolution: {integrity: sha512-FDf4L4sYzKtzWYhU/Xm0AQFdTjdIxNo9ElTf2mxXM6k8YMHXzYUe4yODVaXP4V9uMFbVg8c0qyBccK2OOxb45Q==}
-    engines: {node: '>=18.0.0'}
-    hasBin: true
 
   tsx@4.23.13:
     resolution: {integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==}
@@ -5832,7 +5792,7 @@ snapshots:
 
   '@types/pg@8.23.1':
     dependencies:
-      '@types/node': 22.20.1
+      '@types/node': 26.4.1
       pg-protocol: 1.16.0
       pg-types: 2.2.0
 
@@ -7113,8 +7073,6 @@ snapshots:
     dependencies:
       hermes-estree: 0.25.1
 
-  hono@4.13.5: {}
-
   html-encoding-sniffer@6.0.0:
     dependencies:
       '@exodus/bytes': 1.15.1
@@ -8217,12 +8175,6 @@ snapshots:
       strip-bom: 3.0.0
 
   tslib@2.8.1: {}
-
-  tsx@4.23.12:
-    dependencies:
-      esbuild: 0.28.2
-    optionalDependencies:
-      fsevents: 2.3.3
 
   tsx@4.23.13:
     dependencies:

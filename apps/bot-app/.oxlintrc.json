@@ -41,6 +41,7 @@
     "max-depth": ["error", { "max": 3 }],
     "max-nested-callbacks": ["error", { "max": 3 }],
     "sort-imports": ["error", { "ignoreDeclarationSort": true }],
+    "sort-vars": "off",
 
     "new-cap": ["error", { "capIsNew": false }],
 
@@ -49,6 +50,8 @@
     "import/no-default-export": "off",
     "import/no-unassigned-import": "off",
     "import/no-nodejs-modules": "off",
+    // fights Next.js export patterns
+    "import/group-exports": "off",
 
     "react/react-in-jsx-scope": "off",
     "react/forbid-component-props": "off",

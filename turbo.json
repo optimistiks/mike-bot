@@ -13,23 +13,38 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "BOT_TOKEN",
+        "BOT_WEBHOOK_SECRET",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "AI_GATEWAY_API_KEY"
+      ]
     },
     "topo": {
       "dependsOn": ["^topo"]
     },
     "typecheck": {
-      "dependsOn": ["topo"]
+      "dependsOn": ["topo", "^build"],
+      "env": [
+        "BOT_TOKEN",
+        "BOT_WEBHOOK_SECRET",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "AI_GATEWAY_API_KEY"
+      ]
     },
     "test": {
       "dependsOn": ["^build"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint", "^build"]
     },
     "lint:fix": {
-      "dependsOn": ["^lint:fix"]
+      "dependsOn": ["^lint:fix", "^build"]
     },
     "fmt": {
       "cache": false

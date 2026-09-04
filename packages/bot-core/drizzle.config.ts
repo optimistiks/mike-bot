@@ -2,7 +2,7 @@ import type { Config } from "drizzle-kit";
 
 import { config as loadDotenv } from "dotenv";
 
-import { unpooledDatabaseUrl } from "#src/env.js";
+import { unpooledDatabaseUrl } from "./src/env.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
