@@ -9,7 +9,6 @@ const gatewayConversationModel: ConversationModel = {
     const history = trimTurnsForContext(turns);
     const { text } = await generateText({
       instructions: CONVERSATION_SYSTEM_PROMPT,
-      maxOutputTokens: 20,
       maxRetries: 0,
       messages: history.map((turn) => ({
         content: turn.text,
