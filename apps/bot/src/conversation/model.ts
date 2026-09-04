@@ -15,6 +15,7 @@ const gatewayConversationModel: ConversationModel = {
         role: turn.role === "member" ? "user" : "assistant",
       })),
       model: CONVERSATION_MODEL,
+      reasoning: "low",
     });
     return text;
   },
