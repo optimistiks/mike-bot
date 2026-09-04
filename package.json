@@ -10,13 +10,18 @@
     "lint:fix": "turbo run lint:fix",
     "fmt": "prettier --write . --ignore-unknown --ignore-path .prettierignore && turbo run fmt",
     "fmt:check": "prettier --check . --ignore-unknown --ignore-path .prettierignore && turbo run fmt:check",
+    "db:generate": "pnpm --filter @mike-bot/bot-core db:generate",
+    "db:migrate": "pnpm --filter @mike-bot/bot-core db:migrate",
     "v1-export": "pnpm --filter @mike-bot/v1-export scan",
+    "v1-import": "pnpm --filter @mike-bot/v1-import load",
     "prepare": "husky"
   },
   "lint-staged": {
     "apps/bot/**": "pnpm --filter @mike-bot/bot run fmt",
     "apps/bot-app/**": "pnpm --filter @mike-bot/bot-app run fmt",
+    "packages/bot-core/**": "pnpm --filter @mike-bot/bot-core run fmt",
     "packages/v1-export/**": "pnpm --filter @mike-bot/v1-export run fmt",
+    "packages/v1-import/**": "pnpm --filter @mike-bot/v1-import run fmt",
     "*": "prettier --ignore-unknown --write"
   },
   "devDependencies": {

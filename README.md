@@ -18,7 +18,7 @@ pnpm build
 ```
 
 Bot tests use PGlite and MSW — no Neon, AWS, Telegram, or AI Gateway
-credentials required. `pnpm test` runs the bot's ten update-handler tests
+credentials required. `pnpm test` runs the bot-core update-handler tests
 only. The frozen Mini App in `apps/web` is not a workspace package.
 
 To run the Hono app locally the same way Vercel serves it in production,
@@ -27,8 +27,10 @@ install the [Vercel CLI](https://vercel.com/docs/cli) globally, then from
 
 ## Layout
 
-- `apps/bot` — Hono Telegram bot (webhook, Scoring, Standings, Conversations)
+- `packages/bot-core` — grammY bot, schema, migrations, AI Gateway, tests
+- `apps/bot` — Hono webhook host (wires `createBot` + Postgres)
 - `packages/v1-export` — DynamoDB scan to JSON (no Postgres)
+- `packages/v1-import` — JSON → Postgres (depends on bot-core + v1-export)
 - `apps/web` — frozen Next.js Mini App
 - `docs/adr/` — live decisions; Mini App docs live under `docs/archive/nextjs-v2/`
 
@@ -59,9 +61,10 @@ explicitly want Neon billing and a linked Neon project.
 2. **Production branch:** `v2`.
 3. **Root Directory:** `apps/bot`. Include files outside the root directory so
    pnpm workspaces resolve. Vercel detects Hono from `src/index.ts` (default
-   export of the app). Fluid compute is the Hono default.
+   export of the app). Fluid compute is the Hono default. `apps/bot/vercel.json`
+   builds `@mike-bot/bot` and migrates `@mike-bot/bot-core`.
 4. **Function region:** Frankfurt (`fra1`) in **Settings → Functions**, matching
-   the Neon region. There is no `vercel.json`.
+   the Neon region.
 5. [Neon on Vercel Marketplace](https://vercel.com/marketplace/neon) →
    **Install** → choose **Create New Neon Account** → pick region/plan → name
    the database.
@@ -79,21 +82,24 @@ explicitly want Neon billing and a linked Neon project.
 Do not paste a Neon console connection string manually unless you are
 debugging. Do not use `@neondatabase/serverless` HTTP for production.
 
-Pull env vars locally for migrations and import:
+Pull env vars locally for the Hono host, migrations, and import. Each package
+reads `.env.local` then `.env` from its own directory:
 
 ```bash
 cd apps/bot
 vercel env pull .env.local
 ```
 
-Run migration, load, and webhook scripts from `apps/bot`. Their dotenv
-configuration reads `.env.local` first and `.env` second from that workspace.
-The DynamoDB scan (`pnpm v1-export`) runs from the repository root.
+Copy `DATABASE_URL` / `DATABASE_URL_UNPOOLED` into
+`packages/bot-core/.env.local` (migrate) and `packages/v1-import/.env.local`
+(load), or export them in the shell. `pnpm db:migrate`, `pnpm v1-export`, and
+`pnpm v1-import` run from the repository root. `pnpm set-webhook` and
+`pnpm dev` still run from `apps/bot`.
 
 ### 2. Apply database migrations
 
 This repo uses Drizzle [**Option 3**](https://orm.drizzle.team/docs/migrations):
-TypeScript schema → generated SQL in `apps/bot/drizzle/` →
+TypeScript schema → generated SQL in `packages/bot-core/drizzle/` →
 `drizzle-kit migrate` applies pending files.
 
 | Context                  | Drizzle pattern                               | Command                         |
@@ -101,16 +107,14 @@ TypeScript schema → generated SQL in `apps/bot/drizzle/` →
 | **Production / Neon**    | Option 3 — `generate` + `drizzle-kit migrate` | `pnpm db:migrate` (below)       |
 | **Local tests (PGlite)** | Option 4 — same SQL files, runtime migrator   | automatic in `createPgliteDb()` |
 
-After schema changes, work from `apps/bot`: `pnpm db:generate` → commit new
-files under `apps/bot/drizzle/` → run `pnpm db:migrate` against each
+After schema changes, from the repo root: `pnpm db:generate` → commit new
+files under `packages/bot-core/drizzle/` → run `pnpm db:migrate` against each
 environment.
 
-Apply to **production** once from `apps/bot` after `vercel env pull .env.local`.
-`drizzle.config.ts` uses `DATABASE_URL_UNPOOLED` when present:
+Apply to **production** once after `vercel env pull` (step 1) with
+`DATABASE_URL_UNPOOLED` in `packages/bot-core/.env.local` when present:
 
 ```bash
-cd apps/bot
-vercel env pull .env.local
 pnpm db:migrate
 ```
 
@@ -153,9 +157,10 @@ e.g. `https://your-project.vercel.app`.
 
 ### 5. Import v1 history
 
-Scan DynamoDB into JSON from the **repo root**, then load that JSON into
-Postgres from `apps/bot`. The scan package does not know Postgres. The bot
-does not know DynamoDB. The file `tmp/v1-rows.json` is the only hand-off.
+Scan DynamoDB into JSON, then load that JSON into Postgres. Both commands run
+from the **repo root**. `v1-export` does not know Postgres. `bot-core` does not
+know DynamoDB or v1 JSON. `v1-import` is the translator. The file
+`tmp/v1-rows.json` is the only hand-off.
 
 ```bash
 # 1. DynamoDB -> JSON (the only step needing AWS credentials)
@@ -165,8 +170,7 @@ AWS_SECRET_ACCESS_KEY="..." \
 pnpm v1-export            # writes tmp/v1-rows.json at the repo root
 
 # 2. JSON -> members, messages, marks
-cd apps/bot
-pnpm import:load
+pnpm v1-import
 ```
 
 | Variable                | Step | Purpose                                                   |
@@ -263,8 +267,8 @@ There is no Mini App, `/register`, Scoring reactions, Undo, or Seasons.
 
 - **v1 → v2 cutover** (retire AWS bot, update `master`) — deferred until v2 is
   proven in production.
-- **Drizzle schema changes** — `pnpm --filter @mike-bot/bot db:generate`,
-  commit SQL under `apps/bot/drizzle/`, then `db:migrate` with
+- **Drizzle schema changes** — `pnpm db:generate`, commit SQL under
+  `packages/bot-core/drizzle/`, then `pnpm db:migrate` with
   `DATABASE_URL_UNPOOLED` like step 2.
 - **Thawing the Mini App** — `apps/web` stays unused.
 - **Neon-Managed integration** (link an existing Neon account) — only if you

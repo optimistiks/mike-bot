@@ -2,7 +2,8 @@
 /**
  * Load validated v1 lol-row JSON into members, messages, and marks.
  *
- *   pnpm import:load
+ *   pnpm load
+ *   pnpm v1-import   # from the repo root
  *
  * Optional: IMPORT_JSON (default <repo>/tmp/v1-rows.json)
  * Uses DATABASE_URL_UNPOOLED, then DATABASE_URL.
@@ -12,10 +13,10 @@ import { config as loadDotenv } from "dotenv";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { loadImportedRows, parseImportRows } from "#src/bot/import/load.js";
-import { logError, logInfo } from "#src/bot/log.js";
-import { importJsonPath, unpooledDatabaseUrl } from "#src/env.js";
-import { createScriptDb } from "#src/production.js";
+import { createScriptDb } from "./db.js";
+import { importJsonPath, unpooledDatabaseUrl } from "./env.js";
+import { loadImportedRows, parseImportRows } from "./load.js";
+import { logError, logInfo } from "./log.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
@@ -46,6 +47,6 @@ try {
   // eslint-disable-next-line node/no-top-level-await -- ESM script entry, never require()'d
   await main();
 } catch (error: unknown) {
-  logError("import-load failed", error);
+  logError("v1-import load failed", error);
   process.exitCode = 1;
 }

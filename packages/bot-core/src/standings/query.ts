@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 
-import type { BotSession } from "#src/bot/db/runtime.js";
-import type { MarkType } from "#src/bot/domain/mark.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { MarkType } from "#src/domain/mark.js";
 
-import { EMPTY_COUNT, SINGLE_COUNT } from "#src/bot/constants.js";
-import { marks, members } from "#src/bot/db/schema.js";
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
+import { marks, members } from "#src/db/schema.js";
 
 interface StandingRow {
   memberId: number;

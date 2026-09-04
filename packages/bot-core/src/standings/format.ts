@@ -1,4 +1,4 @@
-import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, SINGLE_COUNT } from "#src/bot/constants.js";
+import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
 
 import type { StandingRow } from "./query.js";
 

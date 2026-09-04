@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import type { MarkType } from "#src/bot/domain/mark.js";
+import type { MarkType } from "#src/domain/mark.js";
 
-import { EMPTY_COUNT, SINGLE_COUNT } from "#src/bot/constants.js";
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 
 import type { BotSession } from "./runtime.js";
 

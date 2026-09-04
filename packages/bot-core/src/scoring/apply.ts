@@ -1,11 +1,11 @@
 import type { Message, User } from "grammy/types";
 
-import type { BotSession } from "#src/bot/db/runtime.js";
-import type { MarkType } from "#src/bot/domain/mark.js";
-import type { ScoringOutcome } from "#src/bot/outcomes.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { MarkType } from "#src/domain/mark.js";
+import type { ScoringOutcome } from "#src/outcomes.js";
 
-import { ensureMessage, tryInsertMark, upsertMember } from "#src/bot/db/store.js";
-import { isBotUser, telegramDateToPostedAt } from "#src/bot/telegram/identity.js";
+import { ensureMessage, tryInsertMark, upsertMember } from "#src/db/store.js";
+import { isBotUser, telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import { acknowledgementText, scoringToken } from "./token.js";
 

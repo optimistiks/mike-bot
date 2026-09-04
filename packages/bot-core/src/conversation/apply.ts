@@ -1,7 +1,7 @@
 import type { Message, User } from "grammy/types";
 
-import type { BotSession } from "#src/bot/db/runtime.js";
-import type { ConversationOutcome } from "#src/bot/outcomes.js";
+import type { BotSession } from "#src/db/runtime.js";
+import type { ConversationOutcome } from "#src/outcomes.js";
 
 import {
   appendTurn,
@@ -9,9 +9,9 @@ import {
   findOpenConversation,
   listTurns,
   openConversation,
-} from "#src/bot/db/store.js";
-import { telegramDateToPostedAt } from "#src/bot/telegram/identity.js";
-import { isStopMessage, isWakeMessage } from "#src/bot/telegram/text.js";
+} from "#src/db/store.js";
+import { telegramDateToPostedAt } from "#src/telegram/identity.js";
+import { isStopMessage, isWakeMessage } from "#src/telegram/text.js";
 
 import type { ConversationModel } from "./types.js";
 

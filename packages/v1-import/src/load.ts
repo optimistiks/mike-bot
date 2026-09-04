@@ -1,30 +1,13 @@
-import { z } from "zod";
+import type { BotSession, MarkType } from "@mike-bot/bot-core";
+import type { V1LolRow } from "@mike-bot/v1-export";
 
-import type { BotSession } from "#src/bot/db/runtime.js";
-import type { MarkType } from "#src/bot/domain/mark.js";
+import { markSlotForType, schema } from "@mike-bot/bot-core";
+import { v1LolRowSchema } from "@mike-bot/v1-export";
 
-import { EMPTY_COUNT } from "#src/bot/constants.js";
-import { marks, members, messages } from "#src/bot/db/schema.js";
-import { markSlotForType } from "#src/bot/domain/mark.js";
-import { telegramSecondTruncation } from "#src/bot/telegram/identity.js";
+const { marks, members, messages } = schema;
 
-const v1LolRowSchema = z.object({
-  chatId: z.number().int(),
-  createdAt: z.number().int().nonnegative(),
-  fromUser: z.object({
-    id: z.number().int(),
-    username: z.string().optional(),
-  }),
-  id: z.uuid(),
-  lolType: z.enum(["plus", "minus", "lol"]),
-  toMessageId: z.number().int(),
-  toUser: z.object({
-    id: z.number().int(),
-    username: z.string().optional(),
-  }),
-});
-
-type V1LolRow = z.infer<typeof v1LolRowSchema>;
+const EMPTY_COUNT = 0;
+const MS_PER_SECOND = 1000;
 
 interface ImportedMessage {
   chatId: number;
@@ -41,6 +24,10 @@ const MARK_TYPE_BY_LOL: Record<V1LolRow["lolType"], MarkType> = {
 
 function convertType(lolType: V1LolRow["lolType"]): MarkType {
   return MARK_TYPE_BY_LOL[lolType];
+}
+
+function telegramSecondTruncation(epochMs: number): Date {
+  return new Date(Math.floor(epochMs / MS_PER_SECOND) * MS_PER_SECOND);
 }
 
 function isEarlier(row: V1LolRow, than: V1LolRow): boolean {

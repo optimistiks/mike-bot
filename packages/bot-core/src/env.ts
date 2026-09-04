@@ -20,16 +20,12 @@ function nonempty(value: string | undefined): string | undefined {
   return trimmedOrUndefined(value);
 }
 
-function requireEnv(name: string): string {
-  const value = nonempty(readEnv(name));
-  if (value === undefined) {
-    throw new Error(`${name} is unset`);
-  }
-  return value;
+function unpooledDatabaseUrl(): string {
+  return nonempty(readEnv("DATABASE_URL_UNPOOLED")) ?? nonempty(readEnv("DATABASE_URL")) ?? "";
 }
 
-function databaseUrl(): string {
-  return requireEnv("DATABASE_URL");
+function setEnvIfUnset(name: string, value: string): void {
+  processEnv[name] ??= value;
 }
 
-export { databaseUrl, requireEnv };
+export { setEnvIfUnset, unpooledDatabaseUrl };
