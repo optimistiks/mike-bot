@@ -1,41 +1,23 @@
 import "server-only";
+import { z } from "zod";
 
 // eslint-disable-next-line node/no-process-env -- env.ts is the process.env seam
 const processEnv: NodeJS.ProcessEnv = process.env;
 
-function readEnv(name: string): string | undefined {
-  return processEnv[name];
-}
-
-function trimmedOrUndefined(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    return undefined;
-  }
-  return trimmed;
-}
-
-function nonempty(value: string | undefined): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return trimmedOrUndefined(value);
-}
+const NONEMPTY_LENGTH = 1;
+const botTokenSchema = z.string().trim().min(NONEMPTY_LENGTH);
 
 function botToken(): string | undefined {
-  return nonempty(readEnv("BOT_TOKEN"));
+  const parsed = botTokenSchema.safeParse(processEnv.BOT_TOKEN);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function requireBotToken(): string {
-  const token = botToken();
-  if (token === undefined) {
-    throw new Error("BOT_TOKEN is unset");
-  }
-  return token;
+  return botTokenSchema.parse(processEnv.BOT_TOKEN);
 }
 
 function isProduction(): boolean {
-  return readEnv("NODE_ENV") === "production";
+  return processEnv.NODE_ENV === "production";
 }
 
 export { botToken, isProduction, requireBotToken };
