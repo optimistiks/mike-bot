@@ -45,6 +45,12 @@
     },
     "lint:fix": {
       "dependsOn": ["^lint:fix", "^build"]
+    },
+    "//#format": {
+      "cache": false
+    },
+    "//#format:check": {
+      "cache": false
     }
   }
 }
