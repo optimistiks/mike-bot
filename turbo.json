@@ -10,7 +10,7 @@
         "DATABASE_URL_UNPOOLED",
         "AI_GATEWAY_API_KEY"
       ],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "dev": {
       "cache": false,

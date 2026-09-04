@@ -15,6 +15,7 @@
   },
   "lint-staged": {
     "apps/bot/**": "pnpm --filter @mike-bot/bot run fmt",
+    "apps/bot-app/**": "pnpm --filter @mike-bot/bot-app run fmt",
     "packages/v1-export/**": "pnpm --filter @mike-bot/v1-export run fmt",
     "*": "prettier --ignore-unknown --write"
   },

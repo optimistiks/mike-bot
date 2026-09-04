@@ -1,0 +1,97 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "node",
+    "promise",
+    "vitest",
+    "react",
+    "react-perf",
+    "nextjs",
+    "jsx-a11y"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "error",
+    "perf": "error",
+    "style": "error",
+    "restriction": "error"
+  },
+  "options": {
+    "typeAware": true,
+    "typeCheck": true,
+    "maxWarnings": 0
+  },
+  "rules": {
+    "one-var": "off",
+    "func-style": "off",
+    "no-undefined": "off",
+    "no-ternary": "off",
+    "no-duplicate-imports": "off",
+    "max-statements": "off",
+    "max-lines-per-function": "off",
+    "max-lines": "off",
+    "max-params": "off",
+    "complexity": ["error", { "max": 3 }],
+    "max-depth": ["error", { "max": 3 }],
+    "max-nested-callbacks": ["error", { "max": 3 }],
+    "sort-imports": ["error", { "ignoreDeclarationSort": true }],
+
+    "new-cap": ["error", { "capIsNew": false }],
+
+    "import/no-named-export": "off",
+    "import/prefer-default-export": "off",
+    "import/no-default-export": "off",
+    "import/no-unassigned-import": "off",
+    "import/no-nodejs-modules": "off",
+
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-filename-extension": "off",
+    "react/jsx-no-literals": "off",
+    "react/forbid-component-props": "off",
+    "react/jsx-max-depth": "off",
+    "react/only-export-components": [
+      "error",
+      {
+        "allowExportNames": [
+          "dynamic",
+          "dynamicParams",
+          "fetchCache",
+          "generateImageMetadata",
+          "generateMetadata",
+          "generateStaticParams",
+          "generateViewport",
+          "maxDuration",
+          "metadata",
+          "preferredRegion",
+          "revalidate",
+          "runtime",
+          "viewport"
+        ]
+      }
+    ],
+
+    "unicorn/no-null": "off",
+
+    "oxc/no-async-await": "off",
+    "oxc/no-optional-chaining": "off",
+    "oxc/no-rest-spread-properties": "off",
+
+    "typescript/prefer-readonly-parameter-types": "off",
+    "typescript/promise-function-async": "off",
+
+    "vitest/prefer-to-be-falsy": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/no-hooks": "off",
+    "vitest/require-test-timeout": "off",
+    "vitest/no-importing-vitest-globals": "off",
+    "vitest/require-hook": "off",
+    "vitest/max-nested-describe": ["error", { "max": 2 }]
+  },
+  "ignorePatterns": ["dist", "node_modules", "drizzle", ".next"]
+}

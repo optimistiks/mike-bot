@@ -14,6 +14,7 @@ apps/web/drizzle
 apps/web/public/mockServiceWorker.js
 apps/web
 apps/bot
+apps/bot-app
 packages/v1-export
 .agents
 .scratch
