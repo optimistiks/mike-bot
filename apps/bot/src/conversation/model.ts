@@ -16,6 +16,7 @@ const gatewayConversationModel: ConversationModel = {
       })),
       model: CONVERSATION_MODEL,
       reasoning: "low",
+      temperature: 0.9,
     });
     return text;
   },
