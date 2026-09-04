@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [".next"],
+  "ignorePatterns": ["apps/web", "apps/bot", "docs", ".agents", ".scratch", "pnpm-lock.yaml"],
   "sortImports": {
     "groups": [
       "type-import",
@@ -15,9 +15,16 @@
   "sortPackageJson": {
     "sortScripts": true
   },
-  "sortTailwindcss": {
-    "stylesheet": "./src/app/globals.css",
-    "functions": ["clsx", "cn"],
-    "preserveWhitespace": true
-  }
+  "overrides": [
+    {
+      "files": ["apps/bot-app/**"],
+      "options": {
+        "sortTailwindcss": {
+          "stylesheet": "./apps/bot-app/src/app/globals.css",
+          "functions": ["clsx", "cn"],
+          "preserveWhitespace": true
+        }
+      }
+    }
+  ]
 }

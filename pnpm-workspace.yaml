@@ -1,6 +1,10 @@
 packages:
   - "apps/bot-app"
   - "packages/*"
+catalog:
+  typescript: 7.0.2
+overrides:
+  typescript: "catalog:"
 allowBuilds:
   esbuild: true
   msw: true

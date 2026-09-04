@@ -5,8 +5,6 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "fmt": "oxfmt .",
-    "fmt:check": "oxfmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "start": "next start",
@@ -31,10 +29,9 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",
     "oxlint-tsgolint": "^7.0.2001",
     "tailwindcss": "^4",
-    "typescript": "^7.0.2"
+    "typescript": "catalog:"
   }
 }

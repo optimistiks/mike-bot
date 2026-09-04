@@ -45,12 +45,6 @@
     },
     "lint:fix": {
       "dependsOn": ["^lint:fix", "^build"]
-    },
-    "fmt": {
-      "cache": false
-    },
-    "fmt:check": {
-      "cache": false
     }
   }
 }

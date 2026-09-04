@@ -3,37 +3,29 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix",
-    "fmt": "prettier --write . --ignore-unknown --ignore-path .prettierignore && turbo run fmt",
-    "fmt:check": "prettier --check . --ignore-unknown --ignore-path .prettierignore && turbo run fmt:check",
     "db:generate": "pnpm --filter @mike-bot/bot-core db:generate",
     "db:migrate": "pnpm --filter @mike-bot/bot-core db:migrate",
+    "dev": "turbo run dev",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "prepare": "husky",
     "set-webhook": "pnpm --filter @mike-bot/bot-core set-webhook",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
     "v1-export": "pnpm --filter @mike-bot/v1-export scan",
-    "v1-import": "pnpm --filter @mike-bot/v1-import load",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "apps/bot/**": "pnpm --filter @mike-bot/bot run fmt",
-    "apps/bot-app/**": "pnpm --filter @mike-bot/bot-app run fmt",
-    "packages/bot-core/**": "pnpm --filter @mike-bot/bot-core run fmt",
-    "packages/v1-export/**": "pnpm --filter @mike-bot/v1-export run fmt",
-    "packages/v1-import/**": "pnpm --filter @mike-bot/v1-import run fmt",
-    "*": "prettier --ignore-unknown --write"
+    "v1-import": "pnpm --filter @mike-bot/v1-import load"
   },
   "devDependencies": {
-    "eslint": "9.39.3",
-    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
-    "prettier": "^3.6.2",
+    "oxfmt": "^0.66.0",
     "turbo": "^2.5.4",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.46.0"
+    "typescript": "catalog:"
+  },
+  "lint-staged": {
+    "*": "oxfmt --no-error-on-unmatched-pattern"
   },
   "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621"
 }
