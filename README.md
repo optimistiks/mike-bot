@@ -92,9 +92,8 @@ vercel env pull .env.local
 
 Copy `DATABASE_URL` / `DATABASE_URL_UNPOOLED` into
 `packages/bot-core/.env.local` (migrate) and `packages/v1-import/.env.local`
-(load), or export them in the shell. `pnpm db:migrate`, `pnpm v1-export`, and
-`pnpm v1-import` run from the repository root. `pnpm set-webhook` and
-`pnpm dev` still run from `apps/bot`.
+(load), or export them in the shell. `pnpm db:migrate`, `pnpm v1-export`,
+`pnpm v1-import`, and `pnpm set-webhook` run from the repository root.
 
 ### 2. Apply database migrations
 
@@ -143,7 +142,7 @@ only):
 | Variable             | Required | Purpose                                                       |
 | -------------------- | -------- | ------------------------------------------------------------- |
 | `BOT_TOKEN`          | yes      | From BotFather (`/newbot`)                                    |
-| `BOT_WEBHOOK_SECRET` | yes      | Same value for `setWebhook.secret_token` and the Hono webhook |
+| `BOT_WEBHOOK_SECRET` | yes      | Same value for `setWebhook.secret_token` and the Next webhook |
 | `AI_GATEWAY_API_KEY` | yes      | Vercel AI Gateway key for Conversation `generateText`         |
 
 `DATABASE_URL` should already exist from step 1. Do not replace it with a
@@ -205,7 +204,7 @@ truncation). Re-running the load is safe (`ON CONFLICT DO NOTHING`).
 
 ### 6. Register the Telegram webhook
 
-After Vercel deployment is live, from `apps/bot`:
+After Vercel deployment is live, from the repository root:
 
 ```bash
 BOT_TOKEN="..." \
@@ -214,9 +213,10 @@ WEBHOOK_URL="https://your-project.vercel.app/api/telegram" \
 pnpm set-webhook
 ```
 
-The script publishes `/stats`, sets `secret_token` and `allowed_updates`
-(`message`, `channel_post`), then verifies via `getWebhookInfo`. Re-run safely
-after URL or secret changes.
+The script lives in `packages/bot-core` and reads that package's `.env.local` /
+`.env`, or the shell. It publishes `/stats`, sets `secret_token` and
+`allowed_updates` (`message`, `channel_post`), then verifies via
+`getWebhookInfo`. Re-run safely after URL or secret changes.
 
 ### 7. Each target Telegram chat
 
