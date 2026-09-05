@@ -98,10 +98,13 @@ are short, filtered, timed, and never queued twice for the same Participant.
     sample still does not post the break.
 35. As a Participant, I want the model not to keep writing the next speaker's
     line, so that one reply is mine only.
-36. As a Participant, I want few-shot examples in the same `[name]` shape as
-    live Turns, so that the model imitates the log it will see.
+36. As a Participant, I want few-shot examples in a fenced system-prompt block
+    with generic `[уn]` speakers in the same `[label]` shape as live Turns, so
+    that example names are not chat members and the transcript is only the
+    real log.
 37. As a Participant, I want a short reminder after the live log that I am the
-    addressee, so that background names in the log are not who it answers.
+    addressee, labeled `[:инструкция]` so it cannot be the last speaker, so
+    that background names in the log are not who it answers.
 38. As a maintainer, I want prompt prefix before the addressee reminder
     identical across Participants in the same Conversation, so that
     completions can share a cached prefix.
@@ -150,26 +153,32 @@ are short, filtered, timed, and never queued twice for the same Participant.
   `top_p` or frequency/presence penalties. Max output tokens 100. Stop sequences
   `\n\n` and `\n[`. Transport retries stay off. Wall clock for one `complete`
   including banned-phrase retries is ~8s; then abort and `silence`.
-- Prompt order, every call: system → frozen few-shot Turns → live transcript →
-  trailing user reminder. Nothing before the live transcript varies by
-  Participant or by time (no timestamps, no ids). The trailing reminder is the
-  only per-call suffix.
+- Prompt order, every call: system (persona, suffix disclaimer, fenced
+  few-shots) → live transcript → trailing user reminder. Nothing before the
+  live transcript varies by Participant or by time (no timestamps, no ids).
+  The trailing reminder is the only per-call suffix.
 - System prompt is the structured group-chat persona (format, punctuation,
   behaviour, references) plus the four poorly/хорошо contrastive pairs as
-  written, inserted before the section headers. Do not invent more contrastive
-  pairs in this pass.
-- Few-shots: the twelve examples from the raw-ideas draft, rewritten to
-  `[name] text`, one Chat message per example line (series and deixis become
-  consecutive `user` messages, then one `assistant`). Live transcript uses the
-  same delimiter. Do not merge consecutive humans into one `user` string.
+  written, inserted before the section headers, then
+  `[:инструкция] в конце лога — служебная реплика, не человек.`, then a
+  fenced few-shot block. Do not invent more contrastive pairs in this pass.
+- Few-shots live last in `instructions`, not in the message array. Fence:
+  `примеры, не этот чат:`. The twelve examples from the raw-ideas draft, with
+  глеб/дима/катя/саня mapped to reused `[у1]`–`[у4]`. Humans `[уn] text`,
+  assistant lines bare, consecutive humans as separate lines. Deixis reply is
+  `база`, not a vocative name. Live transcript uses the same `[label]`
+  delimiter. Do not merge consecutive humans into one `user` string.
 - Live member Turn text in the prompt is `[label] {raw}`. `label` is frozen at
   write time: Telegram `first_name` lowercased, colons stripped; if empty,
   username; if empty, `???`. Assistant Turns are unlabeled `assistant` content
   (the posted reply).
-- Trailing user message, two lines: a short format recap (at most two
-  sentences, no trailing question, no persona-break phrases), then
+- Trailing user message, two lines, one `role: "user"` element: first line
+  `[:инструкция] {format recap}` (at most two sentences, no trailing
+  question, no persona-break phrases), then
   `отвечаешь только пользователю {label}` with that completion's speaker
-  label (no extra brackets, no Russian inflection).
+  label (no extra brackets, no Russian inflection). The colon inside
+  `[:инструкция]` cannot appear in a live `label` (`first_name` colons are
+  stripped). Do not use a trailing `role: "system"` message.
 - History cap 80k characters on the serialized live transcript. When over,
   drop the oldest 20k-character block, not one Turn at a time. Do not
   re-render old labels.
@@ -267,8 +276,9 @@ they are; they are listed with Wake/Stop only so Conversation code can say
 handler, not the Telegram reaction.
 
 If the gateway rejects consecutive `user` messages, that is a bug against this
-spec (do not silently merge). Few-shot series/deixis are consecutive `user`
-messages on purpose.
+spec (do not silently merge). Live series/deixis stay consecutive `user`
+messages. Few-shot series/deixis are consecutive lines in the system block.
 
-The test seam is the update handler. If that is the wrong height, say so before
-implementation.
+The Chat-facing seam is the update handler. Prompt layout (live-only message
+array, `[:инструкция]` suffix, fenced `[уn]` system block) is tested at
+`conversationMessages` and `CONVERSATION_SYSTEM_PROMPT`.

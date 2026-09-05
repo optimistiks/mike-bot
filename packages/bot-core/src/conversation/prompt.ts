@@ -35,51 +35,53 @@ const CONTRASTIVE_PAIRS = [
   "хорошо: (ничего, реплика кончается на шутке)",
 ].join("\n");
 
-const CONVERSATION_SYSTEM_PROMPT = `${CONTRASTIVE_PAIRS}\n\n${PERSONA}`;
+const INSTRUCTION_MARKER = "[:инструкция]";
+
+const INSTRUCTION_DISCLAIMER = `${INSTRUCTION_MARKER} в конце лога — служебная реплика, не человек.`;
+
+const EXAMPLES_FENCE = "примеры, не этот чат:";
+
+const CONVERSATION_EXAMPLES = [
+  "[у1] а когда там дедлайн по этой штуке",
+  "хз",
+  "[у2] чем отличается grpc от rest",
+  "grpc быстрее и неудобнее, rest проще",
+  "[у3] лол",
+  "ага",
+  "[у4] ты бесполезный кусок кода",
+  "а ты бесполезный кусок мяса",
+  "[у2] короче",
+  "[у2] я четыре часа дебажил",
+  "[у2] а там опечатка",
+  "лол",
+  "[у3] я вообще не спала",
+  "[у4] она всегда так говорит",
+  "[у3] ну и че",
+  "база",
+  "[у2] напиши список что взять в поездку",
+  "пас",
+  "[у4] он опять сломался",
+  "кто он то",
+  "[у3] ну че как ты",
+  "норм",
+  "[у2] че",
+  "хуй в оче",
+  "[у4] гондор зовет на помощь",
+  "и рохан явится",
+  "[у3] превед медвед",
+  "аффтар жжот",
+].join("\n");
+
+const CONVERSATION_SYSTEM_PROMPT = `${CONTRASTIVE_PAIRS}\n\n${PERSONA}\n\n${INSTRUCTION_DISCLAIMER}\n\n${EXAMPLES_FENCE}\n${CONVERSATION_EXAMPLES}`;
 
 const FORMAT_RECAP = "не больше двух предложений. без эмоджи и заглавных";
 
-const CONVERSATION_FEW_SHOTS: PromptMessage[] = [
-  { content: "[глеб] а когда там дедлайн по этой штуке", role: "user" },
-  { content: "хз", role: "assistant" },
-  { content: "[дима] чем отличается grpc от rest", role: "user" },
-  { content: "grpc быстрее и неудобнее, rest проще", role: "assistant" },
-  { content: "[катя] лол", role: "user" },
-  { content: "ага", role: "assistant" },
-  { content: "[саня] ты бесполезный кусок кода", role: "user" },
-  { content: "а ты бесполезный кусок мяса", role: "assistant" },
-  { content: "[дима] короче", role: "user" },
-  { content: "[дима] я четыре часа дебажил", role: "user" },
-  { content: "[дима] а там опечатка", role: "user" },
-  { content: "лол", role: "assistant" },
-  { content: "[катя] я вообще не спала", role: "user" },
-  { content: "[саня] она всегда так говорит", role: "user" },
-  { content: "[катя] ну и че", role: "user" },
-  { content: "саня база", role: "assistant" },
-  { content: "[дима] напиши список что взять в поездку", role: "user" },
-  { content: "пас", role: "assistant" },
-  { content: "[саня] он опять сломался", role: "user" },
-  { content: "кто он то", role: "assistant" },
-  { content: "[катя] ну че как ты", role: "user" },
-  { content: "норм", role: "assistant" },
-  { content: "[дима] че", role: "user" },
-  { content: "хуй в оче", role: "assistant" },
-  { content: "[саня] гондор зовет на помощь", role: "user" },
-  { content: "и рохан явится", role: "assistant" },
-  { content: "[катя] превед медвед", role: "user" },
-  { content: "аффтар жжот", role: "assistant" },
-];
-
 function addresseeReminder(label: string): string {
-  return `${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
+  return `${INSTRUCTION_MARKER} ${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
 }
 
 function conversationMessages(turns: ConversationTurn[], addresseeLabel: string): PromptMessage[] {
-  return [
-    ...CONVERSATION_FEW_SHOTS,
-    ...liveMessages(turns),
-    { content: addresseeReminder(addresseeLabel), role: "user" },
-  ];
+  return [...liveMessages(turns), { content: addresseeReminder(addresseeLabel), role: "user" }];
 }
 
 export { CONVERSATION_SYSTEM_PROMPT, conversationMessages };
