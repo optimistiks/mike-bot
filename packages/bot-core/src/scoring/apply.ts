@@ -99,4 +99,11 @@ function applyScoring(db: BotSession, message: Message): Promise<ScoringOutcome>
   return applyScoringText(db, message, actor, text);
 }
 
-export { applyScoring };
+function tryApplyScoring(db: BotSession, message: Message): Promise<ScoringOutcome | null> {
+  if (message.text === undefined || scoringToken(message.text) === null) {
+    return Promise.resolve(null);
+  }
+  return applyScoring(db, message);
+}
+
+export { applyScoring, tryApplyScoring };

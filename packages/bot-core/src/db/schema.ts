@@ -54,14 +54,25 @@ const conversations = pgTable(
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     id: uuid("id").primaryKey().defaultRandom(),
-    memberId: bigint("member_id", { mode: "number" }).notNull(),
     openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("conversations_one_open_per_member_chat")
-      .on(table.memberId, table.chatId)
+    uniqueIndex("conversations_one_open_per_chat")
+      .on(table.chatId)
       .where(sql`${table.closedAt} is null`),
   ],
+);
+
+const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull(),
+    memberId: bigint("member_id", { mode: "number" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.conversationId, table.memberId] })],
 );
 
 const conversationTurns = pgTable(
@@ -73,6 +84,7 @@ const conversationTurns = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     role: text("role").notNull(),
     seq: integer("seq").notNull(),
+    speakerLabel: text("speaker_label"),
     text: text("text").notNull(),
   },
   (table) => [
@@ -85,6 +97,7 @@ const processedUpdates = pgTable("processed_updates", {
 });
 
 const schema = {
+  conversationParticipants,
   conversationTurns,
   conversations,
   marks,
@@ -96,6 +109,7 @@ const schema = {
 type Schema = typeof schema;
 
 export {
+  conversationParticipants,
   conversationTurns,
   conversations,
   marks,

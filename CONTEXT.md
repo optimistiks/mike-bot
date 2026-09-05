@@ -129,27 +129,41 @@ _Avoid_: Loser badge
 ## Conversation
 
 **Conversation**:
-A per-Member, per-Chat free-form exchange with the bot. It opens on a Wake
-message, closes on a Stop message, and while open holds that Member's Turns
-as context. Isolated from every other Conversation, including others in the
-same Chat. Not a Mark and not the Stats command.
-_Avoid_: Session, Dialogflow session, chat
+A per-Chat free-form exchange with the bot. At most one is open in a Chat. A
+Wake message activates it if needed, joins the speaker as a Participant, and
+logs the Wake as a Turn. Other Members join the same Conversation the same
+way. Everyone's text while it is open is shared context, labeled by speaker.
+Only Participants get a reply. The last Participant's Stop message closes it.
+Not a Mark and not the Stats command.
+_Avoid_: Session, Dialogflow session, private log, isolated thread
+
+**Participant**:
+A Member who joined the Chat's open Conversation by a Wake message. Later
+text without the Wake token stays a Turn and gets a reply until they Stop.
+A Member who has not joined is background: their text is still a Turn, they
+get no reply.
+_Avoid_: Session owner, speaker, user
 
 **Wake message**:
-A text message that opens a Conversation. The Member has no open Conversation
-in that Chat. After trim, the first whitespace-separated token is exactly
-`бот` — that spelling, that case. `Бот` does not wake. The whole message is
-one Turn and is forwarded as-is; the bot answers.
+A text message that activates a Conversation if none is open and joins the
+speaker as a Participant. After trim, the first whitespace-separated token is
+exactly `бот` — that spelling, that case. `Бот` does not wake. `ботан` does
+not wake. The whole message is one Turn. Repeating Wake while already a
+Participant is just another Turn.
 _Avoid_: Mention, command, trigger, case-insensitive бот
 
 **Stop message**:
-A text message that closes a Conversation. After trim, the entire text is
-exactly `довольно` — that spelling, that case. It is not a Turn and the bot
-does not answer.
+A text message that leaves a Conversation. After trim, the entire text is
+exactly `довольно` — that spelling, that case. It is not a Turn. If the
+speaker is a Participant they leave and the bot thumbs-up; if they were the
+last Participant, the Conversation closes. If they are not a Participant:
+silence, no reaction, not a Turn.
 _Avoid_: Cancel, exit, Довольно, довольно with extra words
 
 **Turn**:
 A text message in an open Conversation that becomes part of that
-Conversation's context. Wake messages are Turns. Commands, Scoring replies,
-Stop messages, and non-text messages are not.
+Conversation's shared context. Member Turns reach the model as `[label] text`,
+with `label` frozen at write time from the Telegram first name in lowercase.
+Assistant Turns are the posted reply, unlabeled. Wake messages are Turns.
+Commands, Scoring replies, Stop messages, and non-text messages are not.
 _Avoid_: Prompt, utterance, LLM call

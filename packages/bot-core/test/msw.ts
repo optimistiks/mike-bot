@@ -1,6 +1,9 @@
-import { HttpResponse, http } from "msw";
+import { HttpResponse, delay, http } from "msw";
 import { setupServer } from "msw/node";
+import { once } from "node:events";
 import { z } from "zod";
+
+import { EMPTY_COUNT, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
 
 const textPartSchema = z.object({
   text: z.string(),
@@ -16,30 +19,96 @@ const bodySchema = z.object({
   prompt: z.array(z.unknown()),
 });
 
+const LIVE_LABEL = /^\[(?:alice|bob|carol)\] /u;
+const POLL_MS = 10;
+const PAST_TIMEOUT_DELAY_MS = 9000;
+
 const capturedModelBodies: unknown[] = [];
+const queuedTexts: string[] = [];
+const holdEvents = new EventTarget();
+
+let extraDelayMs = EMPTY_COUNT;
+let holdGate: Promise<undefined> | null = null;
+
+function modelJson(text: string): ReturnType<typeof HttpResponse.json> {
+  return HttpResponse.json({
+    content: [{ text, type: "text" }],
+    finishReason: { raw: "stop", unified: "stop" },
+    usage: {
+      inputTokens: {
+        cacheRead: 0,
+        cacheWrite: 0,
+        noCache: 10,
+        total: 10,
+      },
+      outputTokens: { reasoning: 0, text: 1, total: 1 },
+    },
+  });
+}
+
+async function waitIfHeld(): Promise<void> {
+  if (holdGate === null) {
+    return;
+  }
+  const gate = holdGate;
+  holdGate = null;
+  await gate;
+}
+
+async function waitIfDelayed(): Promise<void> {
+  if (extraDelayMs > EMPTY_COUNT) {
+    await delay(extraDelayMs);
+  }
+}
+
+function nextModelText(): string {
+  return queuedTexts.shift() ?? "че";
+}
 
 const modelServer = setupServer(
   http.post("https://ai-gateway.vercel.sh/v4/ai/language-model", async ({ request }) => {
     const body: unknown = await request.json();
     capturedModelBodies.push(body);
-    return HttpResponse.json({
-      content: [{ text: "че", type: "text" }],
-      finishReason: { raw: "stop", unified: "stop" },
-      usage: {
-        inputTokens: {
-          cacheRead: 0,
-          cacheWrite: 0,
-          noCache: 10,
-          total: 10,
-        },
-        outputTokens: { reasoning: 0, text: 1, total: 1 },
-      },
-    });
+    await waitIfHeld();
+    await waitIfDelayed();
+    return modelJson(nextModelText());
   }),
 );
 
 function resetCapturedModelBodies(): void {
-  capturedModelBodies.length = 0;
+  capturedModelBodies.length = EMPTY_COUNT;
+  queuedTexts.length = EMPTY_COUNT;
+  extraDelayMs = EMPTY_COUNT;
+  holdEvents.dispatchEvent(new Event("release"));
+  holdGate = null;
+}
+
+function enqueueModelTexts(texts: string[]): void {
+  queuedTexts.push(...texts);
+}
+
+function delayModelPastTimeout(): void {
+  extraDelayMs = PAST_TIMEOUT_DELAY_MS;
+}
+
+async function waitForRelease(): Promise<undefined> {
+  await once(holdEvents, "release");
+  return undefined;
+}
+
+function holdNextModelResponse(): () => void {
+  holdGate = waitForRelease();
+  return () => {
+    holdEvents.dispatchEvent(new Event("release"));
+  };
+}
+
+async function waitUntilModelCallCount(count: number): Promise<void> {
+  if (capturedModelBodies.length >= count) {
+    return;
+  }
+  await delay(POLL_MS);
+  return waitUntilModelCallCount(count);
 }
 
 function textFromPart(part: unknown): string[] {
@@ -66,8 +135,39 @@ function userTextsFromBody(body: unknown): string[] {
   return parsed.data.prompt.flatMap((message) => userTextsFromMessage(message));
 }
 
-function userTurnTextsFromModelBodies(): string[] {
-  return capturedModelBodies.flatMap((body) => userTextsFromBody(body));
+function liveLabeledFromBody(body: unknown): string[] {
+  return userTextsFromBody(body).filter((text) => LIVE_LABEL.test(text));
 }
 
-export { capturedModelBodies, modelServer, resetCapturedModelBodies, userTurnTextsFromModelBodies };
+function liveLabeledTurnTextsFromModelBodies(): string[] {
+  return capturedModelBodies.flatMap((body) => liveLabeledFromBody(body));
+}
+
+function liveLabeledTurnTextsFromLastModelBody(): string[] {
+  const last = capturedModelBodies.at(LAST_FROM_END);
+  if (last === undefined) {
+    return [];
+  }
+  return liveLabeledFromBody(last);
+}
+
+function liveLabeledTurnTextsFromPreviousModelBody(): string[] {
+  const previous = capturedModelBodies.at(LAST_FROM_END - SINGLE_COUNT);
+  if (previous === undefined) {
+    return [];
+  }
+  return liveLabeledFromBody(previous);
+}
+
+export {
+  capturedModelBodies,
+  delayModelPastTimeout,
+  enqueueModelTexts,
+  holdNextModelResponse,
+  liveLabeledTurnTextsFromLastModelBody,
+  liveLabeledTurnTextsFromModelBodies,
+  liveLabeledTurnTextsFromPreviousModelBody,
+  modelServer,
+  resetCapturedModelBodies,
+  waitUntilModelCallCount,
+};

@@ -15,6 +15,13 @@
       "when": 1788559143170,
       "tag": "0001_slimy_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788639966232,
+      "tag": "0002_unusual_whirlwind",
+      "breakpoints": true
     }
   ]
 }

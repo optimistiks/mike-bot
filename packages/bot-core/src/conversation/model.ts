@@ -1,25 +1,165 @@
 import { generateText } from "ai";
 
-import type { ConversationModel, ConversationTurn } from "./types.js";
+import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 
-import { CONVERSATION_MODEL, CONVERSATION_SYSTEM_PROMPT, trimTurnsForContext } from "./types.js";
+import type { ConversationCompleteInput, ConversationModel, PromptMessage } from "./types.js";
+
+import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
+import { logCompletionAttempt } from "./log.js";
+import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
+
+const CONVERSATION_MODEL = "zai/glm-5.3-flash";
+const COMPLETE_TIMEOUT_MS = 8000;
+const MAX_BANNED_RETRIES = 2;
+const MAX_OUTPUT_TOKENS = 100;
+const STOP_SEQUENCES = ["\n\n", "\n["];
+const TEMPERATURE = 1;
+
+interface SampleState {
+  retries: number;
+  sample: string;
+}
+
+function retryFilters(retries: number): string[] {
+  if (retries > EMPTY_COUNT) {
+    return ["retry"];
+  }
+  return [];
+}
+
+function abortFilters(signal: AbortSignal): string[] {
+  if (signal.aborted) {
+    return ["timeout"];
+  }
+  return [];
+}
+
+async function generateSample(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
+  const { text } = await generateText({
+    abortSignal: signal,
+    instructions: CONVERSATION_SYSTEM_PROMPT,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    maxRetries: 0,
+    messages,
+    model: CONVERSATION_MODEL,
+    reasoning: "none",
+    stopSequences: STOP_SEQUENCES,
+    temperature: TEMPERATURE,
+  });
+  return text;
+}
+
+function finishSample(messages: PromptMessage[], sample: string, priorFilters: string[]): string {
+  const processed = postProcess(sample);
+  logCompletionAttempt({
+    completion: sample,
+    filters: [...priorFilters, ...processed.filters],
+    prompt: messages,
+  });
+  return processed.text;
+}
+
+function finishCut(messages: PromptMessage[], sample: string, retries: number): string {
+  const cut = cutBanned(sample);
+  const prior = [...retryFilters(retries), "banned-phrase", "truncate-banned"];
+  if (isBlank(cut)) {
+    logCompletionAttempt({
+      completion: sample,
+      filters: [...prior, "empty"],
+      prompt: messages,
+    });
+    return "";
+  }
+  return finishSample(messages, cut, prior);
+}
+
+function shouldStopRetrying(sample: string, retries: number): boolean {
+  if (isBlank(sample)) {
+    return true;
+  }
+  if (!hasBannedPhrase(sample)) {
+    return true;
+  }
+  return retries >= MAX_BANNED_RETRIES;
+}
+
+function logBannedAttempt(messages: PromptMessage[], state: SampleState): void {
+  logCompletionAttempt({
+    completion: state.sample,
+    filters: [...retryFilters(state.retries), "banned-phrase"],
+    prompt: messages,
+  });
+}
+
+async function skipBanned(
+  messages: PromptMessage[],
+  signal: AbortSignal,
+  state: SampleState,
+): Promise<SampleState> {
+  if (shouldStopRetrying(state.sample, state.retries)) {
+    return state;
+  }
+  logBannedAttempt(messages, state);
+  return skipBanned(messages, signal, {
+    retries: state.retries + SINGLE_COUNT,
+    sample: await generateSample(messages, signal),
+  });
+}
+
+function finalizeNonEmpty(messages: PromptMessage[], state: SampleState): string {
+  if (!hasBannedPhrase(state.sample)) {
+    return finishSample(messages, state.sample, retryFilters(state.retries));
+  }
+  return finishCut(messages, state.sample, state.retries);
+}
+
+function finalizeSample(messages: PromptMessage[], state: SampleState): string {
+  if (isBlank(state.sample)) {
+    logCompletionAttempt({ completion: state.sample, filters: ["empty"], prompt: messages });
+    return "";
+  }
+  return finalizeNonEmpty(messages, state);
+}
+
+async function sampleUntilClean(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
+  const state = await skipBanned(messages, signal, {
+    retries: EMPTY_COUNT,
+    sample: await generateSample(messages, signal),
+  });
+  return finalizeSample(messages, state);
+}
+
+async function completeWithSignal(
+  input: ConversationCompleteInput,
+  signal: AbortSignal,
+): Promise<string> {
+  const messages = conversationMessages(input.turns, input.addresseeLabel);
+  try {
+    return await sampleUntilClean(messages, signal);
+  } catch {
+    logCompletionAttempt({
+      completion: null,
+      filters: abortFilters(signal),
+      prompt: messages,
+    });
+    return "";
+  }
+}
+
+async function complete(input: ConversationCompleteInput): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, COMPLETE_TIMEOUT_MS);
+  try {
+    return await completeWithSignal(input, controller.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const gatewayConversationModel: ConversationModel = {
-  async complete(turns: ConversationTurn[]): Promise<string> {
-    const history = trimTurnsForContext(turns);
-    const { text } = await generateText({
-      instructions: CONVERSATION_SYSTEM_PROMPT,
-      maxRetries: 0,
-      messages: history.map((turn) => ({
-        content: turn.text,
-        role: turn.role === "member" ? "user" : "assistant",
-      })),
-      model: CONVERSATION_MODEL,
-      reasoning: "none",
-      temperature: 0.9,
-    });
-    return text;
-  },
+  complete,
 };
 
-export { gatewayConversationModel };
+export { COMPLETE_TIMEOUT_MS, CONVERSATION_MODEL, gatewayConversationModel };

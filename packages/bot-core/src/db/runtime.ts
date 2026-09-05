@@ -5,6 +5,6 @@ import type { Schema } from "./schema.js";
 
 type BotDatabase = AppDatabase | NodePgDatabase<Schema>;
 
-type BotSession = Pick<BotDatabase, "insert" | "select" | "update">;
+type BotSession = Pick<BotDatabase, "delete" | "insert" | "select" | "update">;
 
 export type { BotDatabase, BotSession };

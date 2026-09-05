@@ -7,7 +7,7 @@ import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 import type { BotSession } from "./runtime.js";
 
 import { conversationTurns, marks } from "./schema.js";
-import { findOpenConversation } from "./store.js";
+import { findOpenConversation, listParticipants } from "./store.js";
 
 async function markExists(
   db: BotSession,
@@ -33,30 +33,84 @@ async function markExists(
   return rows.length > EMPTY_COUNT;
 }
 
-async function isConversationOpen(
-  db: BotSession,
-  query: { chatId: number; memberId: number },
-): Promise<boolean> {
-  const open = await findOpenConversation(db, query.memberId, query.chatId);
+async function isConversationOpen(db: BotSession, query: { chatId: number }): Promise<boolean> {
+  const open = await findOpenConversation(db, query.chatId);
   return open !== null;
+}
+
+async function openConversationParticipantIds(
+  db: BotSession,
+  query: { chatId: number },
+): Promise<number[]> {
+  const open = await findOpenConversation(db, query.chatId);
+  if (open === null) {
+    return [];
+  }
+  const participants = await listParticipants(db, open.id);
+  return participants.map((participant) => participant.memberId);
+}
+
+function labeledMemberText(label: string | null, text: string): string {
+  return `[${label ?? "???"}] ${text}`;
+}
+
+function memberTurnText(turn: {
+  role: string;
+  speakerLabel: string | null;
+  text: string;
+}): string[] {
+  if (turn.role !== "member") {
+    return [];
+  }
+  return [labeledMemberText(turn.speakerLabel, turn.text)];
+}
+
+function assistantTurnText(turn: { role: string; text: string }): string[] {
+  if (turn.role !== "assistant") {
+    return [];
+  }
+  return [turn.text];
+}
+
+async function listOpenTurns(
+  db: BotSession,
+  chatId: number,
+): Promise<{ role: string; speakerLabel: string | null; text: string }[]> {
+  const open = await findOpenConversation(db, chatId);
+  if (open === null) {
+    return [];
+  }
+  return db
+    .select({
+      role: conversationTurns.role,
+      speakerLabel: conversationTurns.speakerLabel,
+      text: conversationTurns.text,
+    })
+    .from(conversationTurns)
+    .where(eq(conversationTurns.conversationId, open.id))
+    .orderBy(conversationTurns.seq);
 }
 
 async function openConversationMemberTurns(
   db: BotSession,
-  query: { chatId: number; memberId: number },
+  query: { chatId: number },
 ): Promise<string[]> {
-  const open = await findOpenConversation(db, query.memberId, query.chatId);
-  if (open === null) {
-    return [];
-  }
-
-  const turns = await db
-    .select({ role: conversationTurns.role, text: conversationTurns.text })
-    .from(conversationTurns)
-    .where(eq(conversationTurns.conversationId, open.id))
-    .orderBy(conversationTurns.seq);
-
-  return turns.filter((turn) => turn.role === "member").map((turn) => turn.text);
+  const turns = await listOpenTurns(db, query.chatId);
+  return turns.flatMap((turn) => memberTurnText(turn));
 }
 
-export { isConversationOpen, markExists, openConversationMemberTurns };
+async function openConversationAssistantTurns(
+  db: BotSession,
+  query: { chatId: number },
+): Promise<string[]> {
+  const turns = await listOpenTurns(db, query.chatId);
+  return turns.flatMap((turn) => assistantTurnText(turn));
+}
+
+export {
+  isConversationOpen,
+  markExists,
+  openConversationAssistantTurns,
+  openConversationMemberTurns,
+  openConversationParticipantIds,
+};
