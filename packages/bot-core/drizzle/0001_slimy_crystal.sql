@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "conversation_turns_conversation_id_seq" ON "conversation_turns" USING btree ("conversation_id","seq");

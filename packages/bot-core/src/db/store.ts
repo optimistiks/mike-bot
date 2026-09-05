@@ -1,11 +1,11 @@
 import type { SQL } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
-import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
+import { EMPTY_COUNT, FIRST_INDEX, SINGLE_COUNT } from "#src/constants.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import type { BotSession } from "./runtime.js";
@@ -98,7 +98,8 @@ async function findOpenConversation(
     .select()
     .from(conversations)
     .where(and(eq(conversations.chatId, chatId), isNull(conversations.closedAt)))
-    .limit(SINGLE_COUNT);
+    .limit(SINGLE_COUNT)
+    .for("update");
 
   return rows.at(FIRST_INDEX) ?? null;
 }
@@ -202,9 +203,13 @@ function listTurns(db: BotSession, conversationId: string): Promise<Conversation
 }
 
 async function nextTurnSeq(db: BotSession, conversationId: string): Promise<number> {
-  const existing = await listTurns(db, conversationId);
-  const last = existing.at(LAST_FROM_END);
-  return (last?.seq ?? EMPTY_COUNT) + SINGLE_COUNT;
+  const rows = await db
+    .select({ seq: conversationTurns.seq })
+    .from(conversationTurns)
+    .where(eq(conversationTurns.conversationId, conversationId))
+    .orderBy(desc(conversationTurns.seq))
+    .limit(SINGLE_COUNT);
+  return (rows.at(FIRST_INDEX)?.seq ?? EMPTY_COUNT) + SINGLE_COUNT;
 }
 
 async function tryInsertTurn(

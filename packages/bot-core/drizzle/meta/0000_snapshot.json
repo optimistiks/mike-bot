@@ -1,13 +1,65 @@
 {
-  "id": "61486bbc-ea68-4b80-9b46-9513b65e2a03",
+  "id": "4d2fb035-a8cc-4849-9d92-4591f09d8028",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.conversation_participants": {
+      "name": "conversation_participants",
+      "schema": "",
+      "columns": {
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "conversation_participants_conversation_id_conversations_id_fk": {
+          "name": "conversation_participants_conversation_id_conversations_id_fk",
+          "tableFrom": "conversation_participants",
+          "tableTo": "conversations",
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "conversation_participants_conversation_id_member_id_pk": {
+          "name": "conversation_participants_conversation_id_member_id_pk",
+          "columns": ["conversation_id", "member_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.conversation_turns": {
       "name": "conversation_turns",
       "schema": "",
       "columns": {
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "id": {
           "name": "id",
           "type": "uuid",
@@ -15,9 +67,9 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "conversation_id": {
-          "name": "conversation_id",
-          "type": "uuid",
+        "role": {
+          "name": "role",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -27,11 +79,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "role": {
-          "name": "role",
+        "speaker_label": {
+          "name": "speaker_label",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "text": {
           "name": "text",
@@ -40,7 +92,29 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "conversation_turns_conversation_id_seq": {
+          "name": "conversation_turns_conversation_id_seq",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "conversation_turns_conversation_id_conversations_id_fk": {
           "name": "conversation_turns_conversation_id_conversations_id_fk",
@@ -62,28 +136,9 @@
       "name": "conversations",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "member_id": {
-          "name": "member_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
         "chat_id": {
           "name": "chat_id",
           "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
@@ -92,18 +147,25 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {
-        "conversations_one_open_per_member_chat": {
-          "name": "conversations_one_open_per_member_chat",
+        "conversations_one_open_per_chat": {
+          "name": "conversations_one_open_per_chat",
           "columns": [
-            {
-              "expression": "member_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "chat_id",
               "isExpression": false,
@@ -129,33 +191,27 @@
       "name": "marks",
       "schema": "",
       "columns": {
-        "chat_id": {
-          "name": "chat_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
         "actor_id": {
           "name": "actor_id",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
-        "subject_id": {
-          "name": "subject_id",
+        "chat_id": {
+          "name": "chat_id",
           "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
         "message_id": {
           "name": "message_id",
           "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -169,9 +225,15 @@
             "type": "stored"
           }
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
+        "subject_id": {
+          "name": "subject_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
@@ -223,6 +285,12 @@
       "name": "messages",
       "schema": "",
       "columns": {
+        "author_id": {
+          "name": "author_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
         "chat_id": {
           "name": "chat_id",
           "type": "bigint",
@@ -231,12 +299,6 @@
         },
         "message_id": {
           "name": "message_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "author_id": {
-          "name": "author_id",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
