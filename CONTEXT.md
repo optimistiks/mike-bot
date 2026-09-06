@@ -163,7 +163,7 @@ _Avoid_: Cancel, exit, Довольно, довольно with extra words
 **Turn**:
 A text message in an open Conversation that becomes part of that
 Conversation's shared context. Member Turns reach the model as `[label] text`,
-with `label` frozen at write time from the Telegram first name in lowercase.
+with `label` frozen at write time from the Telegram first name, case kept as is.
 Assistant Turns are the posted reply, unlabeled. Wake messages are Turns.
 Commands, Scoring replies, Stop messages, and non-text messages are not.
 _Avoid_: Prompt, utterance, LLM call

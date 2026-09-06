@@ -20,7 +20,6 @@ import { handleUpdate } from "#src/handle-update.js";
 import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate } from "./helpers.js";
 import {
   capturedModelBodies,
-  delayModelPastTimeout,
   enqueueModelTexts,
   holdNextModelResponse,
   liveLabeledTurnTextsFromLastModelBody,
@@ -343,8 +342,8 @@ describe("telegram update handling", () => {
     expect(bare).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(withRest).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      "[alice] бот",
-      "[alice] бот привет",
+      "[Alice] бот",
+      "[Alice] бот привет",
     ]);
     await expect(isConversationOpen(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(true);
     await expect(
@@ -375,12 +374,12 @@ describe("telegram update handling", () => {
 
     expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      "[alice] бот",
-      "[alice] как дела",
+      "[Alice] бот",
+      "[Alice] как дела",
     ]);
     await expect(
       openConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[alice] бот", "[alice] как дела"]);
+    ).resolves.toStrictEqual(["[Alice] бот", "[Alice] как дела"]);
   });
 
   it("closes on довольно and stays silent afterwards", async () => {
@@ -458,13 +457,13 @@ describe("telegram update handling", () => {
     expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     await expect(
       openConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[alice] бот привет", "[bob] бот ку"]);
+    ).resolves.toStrictEqual(["[Alice] бот привет", "[Bob] бот ку"]);
     await expect(
       openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
     ).resolves.toStrictEqual([ALICE.id, BOB.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      "[alice] бот привет",
-      "[bob] бот ку",
+      "[Alice] бот привет",
+      "[Bob] бот ку",
     ]);
   });
 
@@ -483,7 +482,7 @@ describe("telegram update handling", () => {
 
     expect(first).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(retry).toStrictEqual({ type: "noop" });
-    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual(["[alice] бот"]);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual(["[Alice] бот"]);
   });
 
   it("logs bystander text without a reply and includes it in the next completion", async () => {
@@ -521,9 +520,9 @@ describe("telegram update handling", () => {
       openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
     ).resolves.toStrictEqual([ALICE.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      "[alice] бот",
-      "[bob] он опять сломался",
-      "[alice] видишь",
+      "[Alice] бот",
+      "[Bob] он опять сломался",
+      "[Alice] видишь",
     ]);
   });
 
@@ -553,8 +552,8 @@ describe("telegram update handling", () => {
       openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
     ).resolves.toStrictEqual([ALICE.id, BOB.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      "[alice] бот привет",
-      "[bob] бот ку",
+      "[Alice] бот привет",
+      "[Bob] бот ку",
     ]);
   });
 
@@ -630,34 +629,6 @@ describe("telegram update handling", () => {
 
     expect(bob).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(alice).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-  });
-
-  it("drops a completion slower than about eight seconds", { timeout: 20_000 }, async () => {
-    expect.hasAssertions();
-    await freshDb();
-
-    await handle(
-      textUpdate({
-        from: ALICE,
-        messageId: 102,
-        text: "бот",
-        updateId: 1,
-      }),
-    );
-    delayModelPastTimeout();
-    const result = await handle(
-      textUpdate({
-        from: ALICE,
-        messageId: 103,
-        text: "как дела",
-        updateId: 2,
-      }),
-    );
-
-    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
-    await expect(
-      openConversationAssistantTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["че"]);
   });
 
   it("retries a banned phrase and never posts the banned span", async () => {

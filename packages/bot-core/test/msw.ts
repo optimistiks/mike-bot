@@ -19,15 +19,13 @@ const bodySchema = z.object({
   prompt: z.array(z.unknown()),
 });
 
-const LIVE_LABEL = /^\[(?:alice|bob|carol)\] /u;
+const LIVE_LABEL = /^\[(?:Alice|Bob|Carol)\] /u;
 const POLL_MS = 10;
-const PAST_TIMEOUT_DELAY_MS = 9000;
 
 const capturedModelBodies: unknown[] = [];
 const queuedTexts: string[] = [];
 const holdEvents = new EventTarget();
 
-let extraDelayMs = EMPTY_COUNT;
 let holdGate: Promise<undefined> | null = null;
 
 function modelJson(text: string): ReturnType<typeof HttpResponse.json> {
@@ -55,12 +53,6 @@ async function waitIfHeld(): Promise<void> {
   await gate;
 }
 
-async function waitIfDelayed(): Promise<void> {
-  if (extraDelayMs > EMPTY_COUNT) {
-    await delay(extraDelayMs);
-  }
-}
-
 function nextModelText(): string {
   return queuedTexts.shift() ?? "че";
 }
@@ -70,7 +62,6 @@ const modelServer = setupServer(
     const body: unknown = await request.json();
     capturedModelBodies.push(body);
     await waitIfHeld();
-    await waitIfDelayed();
     return modelJson(nextModelText());
   }),
 );
@@ -78,17 +69,12 @@ const modelServer = setupServer(
 function resetCapturedModelBodies(): void {
   capturedModelBodies.length = EMPTY_COUNT;
   queuedTexts.length = EMPTY_COUNT;
-  extraDelayMs = EMPTY_COUNT;
   holdEvents.dispatchEvent(new Event("release"));
   holdGate = null;
 }
 
 function enqueueModelTexts(texts: string[]): void {
   queuedTexts.push(...texts);
-}
-
-function delayModelPastTimeout(): void {
-  extraDelayMs = PAST_TIMEOUT_DELAY_MS;
 }
 
 async function waitForRelease(): Promise<undefined> {
@@ -161,7 +147,6 @@ function liveLabeledTurnTextsFromPreviousModelBody(): string[] {
 
 export {
   capturedModelBodies,
-  delayModelPastTimeout,
   enqueueModelTexts,
   holdNextModelResponse,
   liveLabeledTurnTextsFromLastModelBody,

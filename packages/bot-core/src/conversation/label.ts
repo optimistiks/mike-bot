@@ -18,7 +18,7 @@ function fallbackLabel(username: string | undefined): string {
 }
 
 function speakerLabel(user: User): string {
-  const fromName = colonless(user.first_name).trim().toLowerCase();
+  const fromName = colonless(user.first_name).trim();
   if (fromName === "") {
     return fallbackLabel(user.username);
   }

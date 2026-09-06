@@ -7,18 +7,18 @@ import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "#src/conversat
 
 const INSTRUCTION_DISCLAIMER = "[:инструкция] в конце лога — служебная реплика, не человек.";
 const EXAMPLES_FENCE = "примеры, не этот чат:";
-const FIRST_EXAMPLE = "[у1] а когда там дедлайн по этой штуке";
-const DEIXIS_EXAMPLE = "[у3] я вообще не спала\n[у4] она всегда так говорит\n[у3] ну и че\nбаза";
+const FIRST_EXAMPLE = "[У1] а когда там дедлайн по этой штуке";
+const DEIXIS_EXAMPLE = "[У3] я вообще не спала\n[У4] она всегда так говорит\n[У3] ну и че\nбаза";
 
 const LIVE_TURN: ConversationTurn = {
-  label: "max",
+  label: "Max",
   role: "member",
   text: "че",
 };
 
 function addresseeReminderMessage(label: string): { content: string; role: "user" } {
   return {
-    content: `[:инструкция] не больше двух предложений. без эмоджи и заглавных\nотвечаешь только пользователю ${label}`,
+    content: `[:инструкция] не больше двух предложений. без эмоджи и заглавных, кроме имён как в метках\nотвечаешь только пользователю ${label}`,
     role: "user",
   };
 }
@@ -27,9 +27,9 @@ describe("conversation prompt", () => {
   it("puts only live turns and the instruction suffix in the message array", () => {
     expect.hasAssertions();
 
-    expect(conversationMessages([LIVE_TURN], "max")).toStrictEqual([
-      { content: "[max] че", role: "user" },
-      addresseeReminderMessage("max"),
+    expect(conversationMessages([LIVE_TURN], "Max")).toStrictEqual([
+      { content: "[Max] че", role: "user" },
+      addresseeReminderMessage("Max"),
     ]);
   });
 
@@ -66,13 +66,13 @@ describe("conversation prompt", () => {
   it("shares every message before the suffix across addressees", () => {
     expect.hasAssertions();
 
-    const forMax = conversationMessages([LIVE_TURN], "max");
-    const forGleb = conversationMessages([LIVE_TURN], "глеб");
+    const forMax = conversationMessages([LIVE_TURN], "Max");
+    const forGleb = conversationMessages([LIVE_TURN], "Глеб");
 
     expect(forMax.slice(FIRST_INDEX, LAST_FROM_END)).toStrictEqual(
       forGleb.slice(FIRST_INDEX, LAST_FROM_END),
     );
-    expect(forMax.at(LAST_FROM_END)).toStrictEqual(addresseeReminderMessage("max"));
-    expect(forGleb.at(LAST_FROM_END)).toStrictEqual(addresseeReminderMessage("глеб"));
+    expect(forMax.at(LAST_FROM_END)).toStrictEqual(addresseeReminderMessage("Max"));
+    expect(forGleb.at(LAST_FROM_END)).toStrictEqual(addresseeReminderMessage("Глеб"));
   });
 });
