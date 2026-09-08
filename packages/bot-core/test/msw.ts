@@ -83,6 +83,14 @@ function resetCapturedModelBodies(): void {
   holdGate = null;
 }
 
+function failNextModelRequest(): void {
+  modelServer.use(
+    http.post("https://ai-gateway.vercel.sh/v4/ai/language-model", () =>
+      HttpResponse.json({ error: "unavailable" }, { status: 500 }),
+    ),
+  );
+}
+
 function enqueueModelTexts(texts: string[]): void {
   queuedTexts.push(...texts);
 }
@@ -191,6 +199,7 @@ export {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
   enqueueModelTexts,
+  failNextModelRequest,
   holdNextModelResponse,
   lastCapturedModelBodyJson,
   liveLabeledTurnTextsFromLastModelBody,

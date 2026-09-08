@@ -6,6 +6,7 @@ import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
 import { gatewayConversationModel } from "./conversation/model.js";
+import { reportUnhandledFailure } from "./conversation/observability.js";
 import { handleUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
 import { telegramBotUserId } from "./telegram/identity.js";
@@ -137,6 +138,7 @@ async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<voi
     await applyOutcome(ctx, result);
   } catch (error) {
     logError("failed to answer in the Chat", error);
+    reportUnhandledFailure(error);
   }
 }
 

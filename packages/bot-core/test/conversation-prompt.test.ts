@@ -94,7 +94,7 @@ function completeInput(
   turns: ConversationTurn[] = [LIVE_TURN],
   now: Date = NOW,
 ): ConversationCompleteInput {
-  return { addresseeLabel, now, speakers, turns };
+  return { addresseeLabel, conversationId: "conv_test", memberId: 1, now, speakers, turns };
 }
 
 function ago(offsetMs: number): Date {

@@ -8,7 +8,12 @@
         "BOT_WEBHOOK_SECRET",
         "DATABASE_URL",
         "DATABASE_URL_UNPOOLED",
-        "AI_GATEWAY_API_KEY"
+        "AI_GATEWAY_API_KEY",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_DSN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT"
       ],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
@@ -21,7 +26,12 @@
         "BOT_WEBHOOK_SECRET",
         "DATABASE_URL",
         "DATABASE_URL_UNPOOLED",
-        "AI_GATEWAY_API_KEY"
+        "AI_GATEWAY_API_KEY",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_DSN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT"
       ]
     },
     "topo": {
@@ -34,7 +44,12 @@
         "BOT_WEBHOOK_SECRET",
         "DATABASE_URL",
         "DATABASE_URL_UNPOOLED",
-        "AI_GATEWAY_API_KEY"
+        "AI_GATEWAY_API_KEY",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_DSN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT"
       ]
     },
     "test": {

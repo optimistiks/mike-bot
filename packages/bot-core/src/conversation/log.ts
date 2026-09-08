@@ -9,3 +9,4 @@ function logCompletionAttempt(entry: {
 }
 
 export { logCompletionAttempt };
+export { reportUnhandledFailure } from "./observability.js";

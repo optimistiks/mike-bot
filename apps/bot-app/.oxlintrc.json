@@ -71,7 +71,10 @@
           "generateViewport",
           "maxDuration",
           "metadata",
+          "onRequestError",
+          "onRouterTransitionStart",
           "preferredRegion",
+          "register",
           "revalidate",
           "runtime",
           "viewport"

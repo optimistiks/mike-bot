@@ -24,6 +24,7 @@ import {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
   enqueueModelTexts,
+  failNextModelRequest,
   holdNextModelResponse,
   lastCapturedModelBodyJson,
   liveLabeledTurnTextsFromLastModelBody,
@@ -898,6 +899,31 @@ describe("telegram update handling", () => {
     await expect(
       openConversationAssistantTurns(currentDb().db, { chatId: CHAT_ID }),
     ).resolves.toStrictEqual(["че"]);
+  });
+
+  it("stays silent when the model request fails", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 120,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    failNextModelRequest();
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 121,
+        text: "как дела",
+        updateId: 2,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
   });
 
   it("lets Bob complete while Alice's completion is in flight", async () => {

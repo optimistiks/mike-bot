@@ -6,6 +6,7 @@ catalog:
 overrides:
   typescript: "catalog:"
 allowBuilds:
+  "@sentry/cli": true
   esbuild: true
   msw: true
   unrs-resolver: true

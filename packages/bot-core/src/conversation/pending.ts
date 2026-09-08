@@ -15,7 +15,7 @@ import type {
 
 import { endCompletion, tryBeginCompletion } from "./inflight.js";
 import { replyMark, speakerHandle } from "./label.js";
-import { logCompletionAttempt } from "./log.js";
+import { logCompletionAttempt, reportUnhandledFailure } from "./log.js";
 import { conversationMessages } from "./prompt.js";
 
 interface PendingTurn {
@@ -170,10 +170,17 @@ async function completeInput(
 ): Promise<ConversationCompleteInput> {
   return {
     addresseeLabel: pending.addresseeLabel,
+    conversationId: pending.conversationId,
+    memberId: pending.memberId,
     now: pending.now,
     speakers: await speakersForTurns(db, pending.history),
     turns: pending.history,
   };
+}
+
+function silenceAfterFailure(error: unknown): HandlerResult {
+  reportUnhandledFailure(error);
+  return CONVERSATION_SILENCE;
 }
 
 async function runCompletion(
@@ -184,8 +191,8 @@ async function runCompletion(
   try {
     const reply = await model.complete(await completeInput(db, pending));
     return await replyFromText(db, pending, reply);
-  } catch {
-    return CONVERSATION_SILENCE;
+  } catch (error) {
+    return silenceAfterFailure(error);
   }
 }
 

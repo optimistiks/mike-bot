@@ -29,6 +29,8 @@ interface SpeakerIdentity {
 
 interface ConversationCompleteInput {
   addresseeLabel: string;
+  conversationId: string;
+  memberId: number;
   now: Date;
   speakers: SpeakerIdentity[];
   turns: ConversationTurn[];

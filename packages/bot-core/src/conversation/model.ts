@@ -6,6 +6,7 @@ import type { ConversationCompleteInput, ConversationModel, PromptMessage } from
 
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
 import { logCompletionAttempt } from "./log.js";
+import { bindConversation, invokeAgent, reportCompletionFailure } from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
 
 const CONVERSATION_MODEL = "zai/glm-5.3-flash";
@@ -14,6 +15,12 @@ const MAX_BANNED_RETRIES = 2;
 const MAX_OUTPUT_TOKENS = 100;
 const STOP_SEQUENCES = ["\n\n", "\n["];
 const TEMPERATURE = 1;
+const COMPLETION_TELEMETRY = {
+  functionId: "conversation-complete",
+  isEnabled: true,
+  recordInputs: true,
+  recordOutputs: true,
+} as const;
 
 interface SampleState {
   retries: number;
@@ -45,6 +52,7 @@ async function generateSample(messages: PromptMessage[], signal: AbortSignal): P
     model: CONVERSATION_MODEL,
     reasoning: "none",
     stopSequences: STOP_SEQUENCES,
+    telemetry: COMPLETION_TELEMETRY,
     temperature: TEMPERATURE,
   });
   return text;
@@ -130,6 +138,16 @@ async function sampleUntilClean(messages: PromptMessage[], signal: AbortSignal):
   return finalizeSample(messages, state);
 }
 
+function failCompletion(messages: PromptMessage[], signal: AbortSignal, error: unknown): string {
+  reportCompletionFailure(error, signal);
+  logCompletionAttempt({
+    completion: null,
+    filters: abortFilters(signal),
+    prompt: messages,
+  });
+  return "";
+}
+
 async function completeWithSignal(
   input: ConversationCompleteInput,
   signal: AbortSignal,
@@ -137,17 +155,12 @@ async function completeWithSignal(
   const messages = conversationMessages(input);
   try {
     return await sampleUntilClean(messages, signal);
-  } catch {
-    logCompletionAttempt({
-      completion: null,
-      filters: abortFilters(signal),
-      prompt: messages,
-    });
-    return "";
+  } catch (error) {
+    return failCompletion(messages, signal, error);
   }
 }
 
-async function complete(input: ConversationCompleteInput): Promise<string> {
+async function completeWithTimeout(input: ConversationCompleteInput): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
@@ -157,6 +170,11 @@ async function complete(input: ConversationCompleteInput): Promise<string> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function complete(input: ConversationCompleteInput): Promise<string> {
+  bindConversation(input);
+  return invokeAgent(CONVERSATION_MODEL, () => completeWithTimeout(input));
 }
 
 const gatewayConversationModel: ConversationModel = {
