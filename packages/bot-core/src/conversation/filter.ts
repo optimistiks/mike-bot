@@ -53,6 +53,10 @@ function applyLabelTruncate(result: FilterResult): FilterResult {
   return withFilter(result, result.text.slice(FIRST_INDEX, index), "label-truncate");
 }
 
+function applyLowercase(result: FilterResult): FilterResult {
+  return withFilter(result, result.text.toLowerCase(), "lowercase");
+}
+
 function stripEmoji(text: string): string {
   EMOJI_PATTERN.lastIndex = EMPTY_COUNT;
   return text.replace(EMOJI_PATTERN, "");
@@ -123,7 +127,8 @@ function applyTrailingPeriod(result: FilterResult): FilterResult {
 }
 
 function postProcess(sample: string): FilterResult {
-  const withoutEmoji = applyEmoji({ filters: [], text: sample });
+  const lowered = applyLowercase({ filters: [], text: sample });
+  const withoutEmoji = applyEmoji(lowered);
   const capped = applySentenceCap(withoutEmoji);
   const noPeriod = applyTrailingPeriod(capped);
   return finalize(applyLabelTruncate(noPeriod));
