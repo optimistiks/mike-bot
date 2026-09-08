@@ -958,4 +958,29 @@ describe("telegram update handling", () => {
     );
     expect(liveLabeledTurnTextsFromLastModelBody().join("\n")).not.toMatch(/я пошутил/iu);
   });
+
+  it("strips leading speaker labels from the model reply", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 106,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    enqueueModelTexts(["[alice][0 сек. назад] че"]);
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 107,
+        text: "как дела",
+        updateId: 2,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
 });

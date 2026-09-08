@@ -1,10 +1,9 @@
-import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
+import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END } from "#src/constants.js";
 
 const BANNED_PHRASES = ["без обид", "если серьезно", "я пошутил"] as const;
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
 const LABEL_NEXT_LINE = "\n[";
-const MAX_SENTENCES = 2;
-const SENTENCE_ENDINGS = new Set([".", "!", "?", "\n"]);
+const LEADING_LABELS = /^\s*(?:\[[^\]]+\]\s*)+/u;
 
 interface FilterResult {
   filters: string[];
@@ -53,9 +52,12 @@ function applyLabelTruncate(result: FilterResult): FilterResult {
   return withFilter(result, result.text.slice(FIRST_INDEX, index), "label-truncate");
 }
 
+/*
+Disabled lowercase:
 function applyLowercase(result: FilterResult): FilterResult {
   return withFilter(result, result.text.toLowerCase(), "lowercase");
 }
+*/
 
 function stripEmoji(text: string): string {
   EMOJI_PATTERN.lastIndex = EMPTY_COUNT;
@@ -65,6 +67,23 @@ function stripEmoji(text: string): string {
 function applyEmoji(result: FilterResult): FilterResult {
   return withFilter(result, stripEmoji(result.text), "emoji");
 }
+
+function stripLeadingLabels(text: string): string {
+  const next = text.replace(LEADING_LABELS, "");
+  if (next === text) {
+    return text;
+  }
+  return next.trim();
+}
+
+function applyLeadingLabel(result: FilterResult): FilterResult {
+  return withFilter(result, stripLeadingLabels(result.text), "leading-label");
+}
+
+/*
+Disabled sentence cap:
+const MAX_SENTENCES = 2;
+const SENTENCE_ENDINGS = new Set([".", "!", "?", "\n"]);
 
 function isSentenceEnd(character: string | undefined): boolean {
   if (character === undefined) {
@@ -106,6 +125,7 @@ function cutAfterSentences(text: string): string {
 function applySentenceCap(result: FilterResult): FilterResult {
   return withFilter(result, cutAfterSentences(result.text), "sentence-cap");
 }
+*/
 
 function stripTrailingPeriod(text: string): string {
   if (text.endsWith(".")) {
@@ -127,10 +147,9 @@ function applyTrailingPeriod(result: FilterResult): FilterResult {
 }
 
 function postProcess(sample: string): FilterResult {
-  const lowered = applyLowercase({ filters: [], text: sample });
-  const withoutEmoji = applyEmoji(lowered);
-  const capped = applySentenceCap(withoutEmoji);
-  const noPeriod = applyTrailingPeriod(capped);
+  const withoutLabels = applyLeadingLabel({ filters: [], text: sample });
+  const withoutEmoji = applyEmoji(withoutLabels);
+  const noPeriod = applyTrailingPeriod(withoutEmoji);
   return finalize(applyLabelTruncate(noPeriod));
 }
 

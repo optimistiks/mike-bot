@@ -4,7 +4,7 @@ import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 
 import type { ConversationCompleteInput, ConversationModel, PromptMessage } from "./types.js";
 
-import { cutBanned, hasBannedPhrase, isBlank } from "./filter.js";
+import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
 import { logCompletionAttempt } from "./log.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
 
@@ -51,9 +51,6 @@ async function generateSample(messages: PromptMessage[], signal: AbortSignal): P
 }
 
 function finishSample(messages: PromptMessage[], sample: string, priorFilters: string[]): string {
-  // PostProcess (lowercase, emoji, sentence cap, trailing period, label truncate) is skipped.
-  /*
-  Disabled postProcess call:
   const processed = postProcess(sample);
   logCompletionAttempt({
     completion: sample,
@@ -61,13 +58,6 @@ function finishSample(messages: PromptMessage[], sample: string, priorFilters: s
     prompt: messages,
   });
   return processed.text;
-  */
-  logCompletionAttempt({
-    completion: sample,
-    filters: priorFilters,
-    prompt: messages,
-  });
-  return sample;
 }
 
 function finishCut(messages: PromptMessage[], sample: string, retries: number): string {

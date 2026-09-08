@@ -121,7 +121,7 @@ describe("conversation prompt", () => {
     ).not.toContain("[:инструкция]");
   });
 
-  it("starts with contrastive pairs, then persona, then few-shots", () => {
+  it("starts with persona, then contrastive pairs, then few-shots", () => {
     expect.hasAssertions();
 
     const contrastAt = CONVERSATION_SYSTEM_PROMPT.indexOf(CONTRASTIVE_START);
@@ -130,9 +130,9 @@ describe("conversation prompt", () => {
     const firstExampleAt = CONVERSATION_SYSTEM_PROMPT.indexOf(FIRST_EXAMPLE);
     const deixisAt = CONVERSATION_SYSTEM_PROMPT.indexOf(DEIXIS_EXAMPLE);
 
-    expect(contrastAt).toBe(FIRST_INDEX);
-    expect(personaAt).toBeGreaterThan(contrastAt);
-    expect(fenceAt).toBeGreaterThan(personaAt);
+    expect(personaAt).toBe(FIRST_INDEX);
+    expect(contrastAt).toBeGreaterThan(personaAt);
+    expect(fenceAt).toBeGreaterThan(contrastAt);
     expect(firstExampleAt).toBeGreaterThan(fenceAt);
     expect(deixisAt).toBeGreaterThan(firstExampleAt);
   });
@@ -195,9 +195,9 @@ describe("conversation prompt", () => {
   it("teaches username-shaped speaker labels", () => {
     expect.hasAssertions();
 
-    expect(CONVERSATION_SYSTEM_PROMPT).toContain("[username1] значит username1");
+    expect(CONVERSATION_SYSTEM_PROMPT).toContain("имена пиши ровно так как оно стоит в метке");
     expect(CONVERSATION_SYSTEM_PROMPT).toContain(
-      "скобки со временем это не имя и в ответ их не копируй",
+      "метка со временем это не имя, и в ответ их не копируй",
     );
     expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("[Дима]");
   });
