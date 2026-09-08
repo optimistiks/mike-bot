@@ -11,9 +11,9 @@ describe("conversation reply filters", () => {
     });
   });
 
-  it("strips consecutive name and time labels", () => {
+  it("strips self-reply labels with time and quote", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice][0 сек. назад] че")).toStrictEqual({
+    expect(postProcess('[Ты → alice][0 сек. назад][на "бот"] че')).toStrictEqual({
       filters: ["leading-label"],
       text: "че",
     });

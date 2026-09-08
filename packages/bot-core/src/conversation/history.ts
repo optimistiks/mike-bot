@@ -3,6 +3,7 @@ import { EMPTY_COUNT } from "#src/constants.js";
 import type { ConversationTurn, PromptMessage } from "./types.js";
 
 import { relativePastLabel } from "./age.js";
+import { SELF_LABEL, promptLine } from "./transcript.js";
 
 const MAX_HISTORY_CHARS = 80_000;
 const HISTORY_DROP_BLOCK_CHARS = 20_000;
@@ -11,15 +12,15 @@ function timeBracket(postedAt: Date, now: Date): string {
   return `[${relativePastLabel(postedAt, now)}]`;
 }
 
-function memberPromptText(turn: Extract<ConversationTurn, { role: "member" }>, now: Date): string {
-  return `[${turn.label}]${timeBracket(turn.postedAt, now)} ${turn.text}`;
+function speakerFor(turn: ConversationTurn): string {
+  if (turn.role === "assistant") {
+    return SELF_LABEL;
+  }
+  return turn.label;
 }
 
 function promptText(turn: ConversationTurn, now: Date): string {
-  if (turn.role === "assistant") {
-    return turn.text;
-  }
-  return memberPromptText(turn, now);
+  return promptLine(speakerFor(turn), timeBracket(turn.postedAt, now), turn.text, turn.reply);
 }
 
 function liveMessage(turn: ConversationTurn, now: Date): PromptMessage {

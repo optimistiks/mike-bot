@@ -8,6 +8,7 @@ import type { HandlerResult } from "./outcomes.js";
 import { gatewayConversationModel } from "./conversation/model.js";
 import { handleUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
+import { telegramBotUserId } from "./telegram/identity.js";
 
 interface BotDependencies {
   db: BotDatabase;
@@ -141,9 +142,11 @@ async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<voi
 
 function createBot({ db, token }: BotDependencies): Bot {
   const bot = new Bot(token);
+  const botUserId = telegramBotUserId(token);
 
   bot.use(async (ctx) => {
     const result = await handleUpdate(ctx.update, {
+      botUserId,
       db,
       model: gatewayConversationModel,
     });

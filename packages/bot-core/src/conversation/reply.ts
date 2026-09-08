@@ -1,0 +1,51 @@
+import type { Message, User } from "grammy/types";
+
+import type { ReplyMark } from "./types.js";
+
+import { speakerHandle, speakerLabel } from "./label.js";
+import { sanitizedQuote } from "./quote.js";
+import { SELF_LABEL } from "./transcript.js";
+
+function isSelfUser(from: User | undefined, botUserId: number | undefined): boolean {
+  if (from === undefined || botUserId === undefined) {
+    return false;
+  }
+  return from.id === botUserId;
+}
+
+function parentSpeakerLabel(from: User | undefined, botUserId: number | undefined): string {
+  if (isSelfUser(from, botUserId)) {
+    return SELF_LABEL;
+  }
+  if (from === undefined) {
+    return speakerHandle("", "");
+  }
+  return speakerLabel(from);
+}
+
+function messageBody(message: Message): string {
+  if (message.text !== undefined) {
+    return message.text;
+  }
+  if (message.caption !== undefined) {
+    return message.caption;
+  }
+  return "";
+}
+
+function replyFromParent(parent: Message, botUserId: number | undefined): ReplyMark {
+  return {
+    quote: sanitizedQuote(messageBody(parent)),
+    targetLabel: parentSpeakerLabel(parent.from, botUserId),
+  };
+}
+
+function replyFromMessage(message: Message, botUserId: number | undefined): ReplyMark | null {
+  const parent = message.reply_to_message;
+  if (parent === undefined) {
+    return null;
+  }
+  return replyFromParent(parent, botUserId);
+}
+
+export { replyFromMessage };

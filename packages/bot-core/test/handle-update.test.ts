@@ -38,9 +38,24 @@ const EMPTY_STATS_UPDATE_ID = 1;
 const CLOSED_TURN_WINDOW = 100;
 const ZERO_AGE = "0 сек. назад";
 const TWO_HOURS_SECONDS = 7200;
+const QUOTE_CAP = 200;
+const QUOTE_OVER_CAP = 201;
 
 function liveLabeled(handle: string, text: string, age = ZERO_AGE): string {
   return `[${handle}][${age}] ${text}`;
+}
+
+function liveReplyLabeled(
+  speaker: string,
+  target: string,
+  quote: string | null,
+  text: string,
+  age = ZERO_AGE,
+): string {
+  if (quote === null) {
+    return `[${speaker} → ${target}][${age}] ${text}`;
+  }
+  return `[${speaker} → ${target}][${age}][на "${quote}"] ${text}`;
 }
 
 function numberedTexts(prefix: string, count: number): string[] {
@@ -73,8 +88,9 @@ describe("telegram update handling", () => {
     return database;
   }
 
-  function handle(update: Update): Promise<HandlerResult> {
+  function handle(update: Update, botUserId?: number): Promise<HandlerResult> {
     return handleUpdate(update, {
+      botUserId,
       db: currentDb().db,
       model: gatewayConversationModel,
     });
@@ -478,7 +494,9 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот", "2 ч назад"),
       liveLabeled("alice", "как дела"),
     ]);
-    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual(["че"]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "бот", "че"),
+    ]);
   });
 
   it("closes on довольно and stays silent afterwards", async () => {
@@ -982,5 +1000,121 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
+
+  it("labels a member telegram reply with addressee and quote", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 108,
+        replyTo: { from: BOB, messageId: 10, text: "а когда дедлайн" },
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "bob", "а когда дедлайн", "бот"),
+    ]);
+  });
+
+  it("keeps the reply arrow and drops the quote when the parent has no text", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 109,
+        replyTo: { from: BOB, messageId: 10, text: null },
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "bob", null, "бот"),
+    ]);
+  });
+
+  it("uses Ты when a member replies to this bot", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 110,
+        replyTo: { from: BOT_USER, messageId: 11, text: "че" },
+        text: "бот",
+        updateId: 1,
+      }),
+      BOT_USER.id,
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "Ты", "че", "бот"),
+    ]);
+  });
+
+  it("uses the other bot handle when a member replies to a different bot", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 111,
+        replyTo: { from: BOT_USER, messageId: 11, text: "че" },
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "some_bot", "че", "бот"),
+    ]);
+  });
+
+  it("sanitizes reply quotes by stripping brackets and quotes and collapsing space", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 112,
+        replyTo: { from: BOB, messageId: 10, text: 'он сказал "привет"\n[alice]' },
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "bob", "он сказал привет alice", "бот"),
+    ]);
+  });
+
+  it("caps a long reply quote at 200 characters with ascii ellipsis", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const longParent = "я".repeat(QUOTE_OVER_CAP);
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 113,
+        replyTo: { from: BOB, messageId: 10, text: longParent },
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "bob", `${"я".repeat(QUOTE_CAP)}...`, "бот"),
+    ]);
   });
 });

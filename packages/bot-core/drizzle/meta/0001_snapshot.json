@@ -67,6 +67,30 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "member_id": {
+          "name": "member_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "posted_at": {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reply_quote": {
+          "name": "reply_quote",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reply_target_label": {
+          "name": "reply_target_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "role": {
           "name": "role",
           "type": "text",
@@ -85,21 +109,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "member_id": {
-          "name": "member_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "text": {
           "name": "text",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "posted_at": {
-          "name": "posted_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         }
@@ -271,18 +283,6 @@
       "name": "members",
       "schema": "",
       "columns": {
-        "telegram_id": {
-          "name": "telegram_id",
-          "type": "bigint",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "username": {
-          "name": "username",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "first_name": {
           "name": "first_name",
           "type": "text",
@@ -291,6 +291,18 @@
         },
         "last_name": {
           "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telegram_id": {
+          "name": "telegram_id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
           "type": "text",
           "primaryKey": false,
           "notNull": false

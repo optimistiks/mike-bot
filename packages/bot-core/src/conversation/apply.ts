@@ -1,11 +1,12 @@
 import type { Message, User } from "grammy/types";
 
 import type { SpecialToken } from "#src/conversation/tokens.js";
-import type { ConversationTurn } from "#src/conversation/types.js";
+import type { ConversationTurn, ReplyMark } from "#src/conversation/types.js";
 import type { BotSession } from "#src/db/runtime.js";
 
 import { CLOSED_TURN_WINDOW, EMPTY_COUNT } from "#src/constants.js";
 import { speakerLabel } from "#src/conversation/label.js";
+import { replyFromMessage } from "#src/conversation/reply.js";
 import { specialToken } from "#src/conversation/tokens.js";
 import {
   appendTurn,
@@ -37,15 +38,32 @@ type PersistedConversation =
     };
 
 const SILENCE: PersistedConversation = { kind: "silence" };
+const UNKNOWN_REPLY: ReplyMark = { quote: null, targetLabel: "???" };
+
+function optionalReply(row: ConversationTurnRow): ReplyMark | null {
+  if (row.replyTargetLabel === null) {
+    return null;
+  }
+  return { quote: row.replyQuote, targetLabel: row.replyTargetLabel };
+}
+
+function requiredReply(row: ConversationTurnRow): ReplyMark {
+  const reply = optionalReply(row);
+  if (reply === null) {
+    return UNKNOWN_REPLY;
+  }
+  return reply;
+}
 
 function modelTurn(row: ConversationTurnRow): ConversationTurn {
   if (row.role === "assistant") {
-    return { postedAt: row.postedAt, role: "assistant", text: row.text };
+    return { postedAt: row.postedAt, reply: requiredReply(row), role: "assistant", text: row.text };
   }
   return {
     label: row.speakerLabel ?? "???",
     memberId: row.memberId,
     postedAt: row.postedAt,
+    reply: optionalReply(row),
     role: "member",
     text: row.text,
   };
@@ -71,18 +89,58 @@ function conversationForTalk(
   return insertConversation(db, chatId, now, closedAtForNewTalk(now, token));
 }
 
+function replyColumns(reply: ReplyMark | null): {
+  replyQuote: string | null;
+  replyTargetLabel: string | null;
+} {
+  if (reply === null) {
+    return { replyQuote: null, replyTargetLabel: null };
+  }
+  return { replyQuote: reply.quote, replyTargetLabel: reply.targetLabel };
+}
+
+function memberTurnInput(
+  conversationId: string,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): {
+  conversationId: string;
+  memberId: number;
+  postedAt: Date;
+  replyQuote: string | null;
+  replyTargetLabel: string | null;
+  role: "member";
+  speakerLabel: string;
+  text: string;
+} {
+  const columns = replyColumns(reply);
+  return {
+    conversationId,
+    memberId: actor.id,
+    postedAt: now,
+    replyQuote: columns.replyQuote,
+    replyTargetLabel: columns.replyTargetLabel,
+    role: "member",
+    speakerLabel: speakerLabel(actor),
+    text,
+  };
+}
+
 async function persistMemberTurn(
   db: BotSession,
   conversation: ChatConversation,
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
-  const label = speakerLabel(actor);
-  await appendTurn(db, conversation.id, "member", text, label, actor.id, now);
+  const input = memberTurnInput(conversation.id, actor, text, now, reply);
+  await appendTurn(db, input);
   const history = await listTurns(db, conversation.id);
   return {
-    addresseeLabel: label,
+    addresseeLabel: input.speakerLabel,
     conversationId: conversation.id,
     history: history.map((row) => modelTurn(row)),
     kind: "turn",
@@ -97,8 +155,9 @@ async function persistBystanderTurn(
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
-  await appendTurn(db, conversation.id, "member", text, speakerLabel(actor), actor.id, now);
+  await appendTurn(db, memberTurnInput(conversation.id, actor, text, now, reply));
   return SILENCE;
 }
 
@@ -108,8 +167,9 @@ async function persistClosedTalk(
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
-  const result = await persistBystanderTurn(db, conversation, actor, text, now);
+  const result = await persistBystanderTurn(db, conversation, actor, text, now, reply);
   await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
   return result;
 }
@@ -120,9 +180,10 @@ async function persistWakeTurn(
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   await joinParticipant(db, conversation.id, actor.id, now);
-  return persistMemberTurn(db, conversation, actor, text, now);
+  return persistMemberTurn(db, conversation, actor, text, now, reply);
 }
 
 async function persistWakeOnConversation(
@@ -131,11 +192,12 @@ async function persistWakeOnConversation(
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   if (conversation.closedAt !== null) {
     await reopenConversation(db, conversation.id);
   }
-  return persistWakeTurn(db, conversation, actor, text, now);
+  return persistWakeTurn(db, conversation, actor, text, now, reply);
 }
 
 async function persistParticipantTalk(
@@ -144,11 +206,12 @@ async function persistParticipantTalk(
   actor: User,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   if (await isParticipant(db, conversation.id, actor.id)) {
-    return persistMemberTurn(db, conversation, actor, text, now);
+    return persistMemberTurn(db, conversation, actor, text, now, reply);
   }
-  return persistBystanderTurn(db, conversation, actor, text, now);
+  return persistBystanderTurn(db, conversation, actor, text, now, reply);
 }
 
 function persistTalkInConversation(
@@ -158,14 +221,15 @@ function persistTalkInConversation(
   text: string,
   now: Date,
   token: SpecialToken | null,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   if (token === "wake") {
-    return persistWakeOnConversation(db, conversation, actor, text, now);
+    return persistWakeOnConversation(db, conversation, actor, text, now, reply);
   }
   if (conversation.closedAt !== null) {
-    return persistClosedTalk(db, conversation, actor, text, now);
+    return persistClosedTalk(db, conversation, actor, text, now, reply);
   }
-  return persistParticipantTalk(db, conversation, actor, text, now);
+  return persistParticipantTalk(db, conversation, actor, text, now, reply);
 }
 
 async function persistTalk(
@@ -175,10 +239,11 @@ async function persistTalk(
   chatId: number,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   const token = specialToken(text);
   const conversation = await conversationForTalk(db, existing, chatId, now, token);
-  return persistTalkInConversation(db, conversation, actor, text, now, token);
+  return persistTalkInConversation(db, conversation, actor, text, now, token, reply);
 }
 
 async function leaveAndMaybeClose(
@@ -226,11 +291,12 @@ function persistStopOrTalk(
   chatId: number,
   text: string,
   now: Date,
+  reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   if (specialToken(text) === "stop") {
     return persistStop(db, conversation, actor, now);
   }
-  return persistTalk(db, conversation, actor, chatId, text, now);
+  return persistTalk(db, conversation, actor, chatId, text, now, reply);
 }
 
 async function persistConversationMessage(
@@ -238,19 +304,32 @@ async function persistConversationMessage(
   message: Message,
   actor: User,
   text: string,
+  botUserId: number | undefined,
 ): Promise<PersistedConversation> {
   const now = telegramDateToPostedAt(message.date);
   const conversation = await findConversation(db, message.chat.id);
-  return persistStopOrTalk(db, conversation, actor, message.chat.id, text, now);
+  return persistStopOrTalk(
+    db,
+    conversation,
+    actor,
+    message.chat.id,
+    text,
+    now,
+    replyFromMessage(message, botUserId),
+  );
 }
 
-function persistConversation(db: BotSession, message: Message): Promise<PersistedConversation> {
+function persistConversation(
+  db: BotSession,
+  message: Message,
+  botUserId: number | undefined,
+): Promise<PersistedConversation> {
   const actor = message.from;
   const { text } = message;
   if (actor === undefined || text === undefined) {
     return Promise.resolve(SILENCE);
   }
-  return persistConversationMessage(db, message, actor, text);
+  return persistConversationMessage(db, message, actor, text, botUserId);
 }
 
 export { persistConversation, type PersistedConversation };

@@ -34,45 +34,61 @@ async function handleCommand(
   return { type: "noop" };
 }
 
-async function handleNonCommand(db: BotSession, message: Message): Promise<ConversationWork> {
+async function handleNonCommand(
+  db: BotSession,
+  message: Message,
+  botUserId: number | undefined,
+): Promise<ConversationWork> {
   const scoring = await tryApplyScoring(db, message);
   if (scoring !== null) {
     return { type: "scoring", ...scoring };
   }
-  return conversationWork(await persistConversation(db, message));
+  return conversationWork(await persistConversation(db, message, botUserId));
 }
 
-function routeMessage(db: BotSession, message: Message): Promise<ConversationWork> {
+function routeMessage(
+  db: BotSession,
+  message: Message,
+  botUserId: number | undefined,
+): Promise<ConversationWork> {
   const command = botCommandName(message);
   if (command !== null) {
     return handleCommand(db, message.chat.id, command);
   }
-  return handleNonCommand(db, message);
+  return handleNonCommand(db, message, botUserId);
 }
 
-async function dispatchClaimed(db: BotSession, update: Update): Promise<ConversationWork> {
+async function dispatchClaimed(
+  db: BotSession,
+  update: Update,
+  botUserId: number | undefined,
+): Promise<ConversationWork> {
   const message = inboundMessage(update);
   if (!hasSender(message)) {
     return { type: "noop" };
   }
   await upsertMember(db, message.from);
-  return routeMessage(db, message);
+  return routeMessage(db, message, botUserId);
 }
 
-function claimAndDispatch(db: BotDatabase, update: Update): Promise<ConversationWork> {
+function claimAndDispatch(
+  db: BotDatabase,
+  update: Update,
+  botUserId: number | undefined,
+): Promise<ConversationWork> {
   return db.transaction(async (session) => {
     if (!(await claimUpdate(session, update.update_id))) {
       return { type: "noop" };
     }
-    return dispatchClaimed(session, update);
+    return dispatchClaimed(session, update, botUserId);
   });
 }
 
 async function handleUpdate(
   update: Update,
-  ports: { db: BotDatabase; model: ConversationModel },
+  ports: { botUserId?: number; db: BotDatabase; model: ConversationModel },
 ): Promise<HandlerResult> {
-  const work = await claimAndDispatch(ports.db, update);
+  const work = await claimAndDispatch(ports.db, update, ports.botUserId);
   return finishConversationWork(ports.db, ports.model, work);
 }
 

@@ -1,5 +1,9 @@
 import type { User } from "grammy/types";
 
+import type { ReplyMark } from "./types.js";
+
+import { sanitizedQuote } from "./quote.js";
+
 const UNKNOWN_LABEL = "???";
 
 function colonless(name: string): string {
@@ -33,4 +37,8 @@ function speakerLabel(user: User): string {
   return speakerHandle(user.username, user.first_name);
 }
 
-export { speakerHandle, speakerLabel };
+function replyMark(targetLabel: string, rawQuote: string): ReplyMark {
+  return { quote: sanitizedQuote(rawQuote), targetLabel };
+}
+
+export { replyMark, speakerHandle, speakerLabel };

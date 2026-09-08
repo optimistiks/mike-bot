@@ -262,46 +262,46 @@ async function nextTurnSeq(db: BotSession, conversationId: string): Promise<numb
   return (rows.at(FIRST_INDEX)?.seq ?? EMPTY_COUNT) + SINGLE_COUNT;
 }
 
+interface AppendTurnInput {
+  conversationId: string;
+  memberId: number | null;
+  postedAt: Date;
+  replyQuote: string | null;
+  replyTargetLabel: string | null;
+  role: "member" | "assistant";
+  speakerLabel: string | null;
+  text: string;
+}
+
 async function tryInsertTurn(
   db: BotSession,
-  conversationId: string,
-  role: "member" | "assistant",
-  text: string,
-  speakerLabel: string | null,
-  memberId: number | null,
-  postedAt: Date,
+  input: AppendTurnInput,
   seq: number,
 ): Promise<boolean> {
   const inserted = await db
     .insert(conversationTurns)
     .values({
-      conversationId,
-      memberId,
-      postedAt,
-      role,
+      conversationId: input.conversationId,
+      memberId: input.memberId,
+      postedAt: input.postedAt,
+      replyQuote: input.replyQuote,
+      replyTargetLabel: input.replyTargetLabel,
+      role: input.role,
       seq,
-      speakerLabel,
-      text,
+      speakerLabel: input.speakerLabel,
+      text: input.text,
     })
     .onConflictDoNothing()
     .returning();
   return inserted.length === SINGLE_COUNT;
 }
 
-async function appendTurn(
-  db: BotSession,
-  conversationId: string,
-  role: "member" | "assistant",
-  text: string,
-  speakerLabel: string | null,
-  memberId: number | null,
-  postedAt: Date,
-): Promise<void> {
-  const seq = await nextTurnSeq(db, conversationId);
-  if (await tryInsertTurn(db, conversationId, role, text, speakerLabel, memberId, postedAt, seq)) {
+async function appendTurn(db: BotSession, input: AppendTurnInput): Promise<void> {
+  const seq = await nextTurnSeq(db, input.conversationId);
+  if (await tryInsertTurn(db, input, seq)) {
     return;
   }
-  await appendTurn(db, conversationId, role, text, speakerLabel, memberId, postedAt);
+  await appendTurn(db, input);
 }
 
 async function deleteTurnsBefore(

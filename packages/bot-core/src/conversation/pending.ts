@@ -1,7 +1,7 @@
 import type { BotDatabase } from "#src/db/runtime.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { EMPTY_COUNT, MS_PER_SECOND } from "#src/constants.js";
+import { EMPTY_COUNT, LAST_FROM_END, MS_PER_SECOND } from "#src/constants.js";
 import { appendTurn, listMembersByIds, trimIfClosed } from "#src/db/store.js";
 
 import type { PersistedConversation } from "./apply.js";
@@ -9,11 +9,12 @@ import type {
   ConversationCompleteInput,
   ConversationModel,
   ConversationTurn,
+  ReplyMark,
   SpeakerIdentity,
 } from "./types.js";
 
 import { endCompletion, tryBeginCompletion } from "./inflight.js";
-import { speakerHandle } from "./label.js";
+import { replyMark, speakerHandle } from "./label.js";
 import { logCompletionAttempt } from "./log.js";
 import { conversationMessages } from "./prompt.js";
 
@@ -52,13 +53,31 @@ function completionPostedAt(): Date {
   return new Date(Math.floor(Date.now() / MS_PER_SECOND) * MS_PER_SECOND);
 }
 
+function wakeReply(pending: PendingTurn): ReplyMark {
+  const last = pending.history.at(LAST_FROM_END);
+  if (last === undefined || last.role !== "member") {
+    return replyMark(pending.addresseeLabel, "");
+  }
+  return replyMark(pending.addresseeLabel, last.text);
+}
+
 async function persistAssistantTurn(
   db: BotDatabase,
   conversationId: string,
   text: string,
+  reply: ReplyMark,
 ): Promise<void> {
   await db.transaction(async (session) => {
-    await appendTurn(session, conversationId, "assistant", text, null, null, completionPostedAt());
+    await appendTurn(session, {
+      conversationId,
+      memberId: null,
+      postedAt: completionPostedAt(),
+      replyQuote: reply.quote,
+      replyTargetLabel: reply.targetLabel,
+      role: "assistant",
+      speakerLabel: null,
+      text,
+    });
     await trimIfClosed(session, conversationId);
   });
 }
@@ -67,20 +86,21 @@ async function persistAssistantAndReply(
   db: BotDatabase,
   conversationId: string,
   text: string,
+  reply: ReplyMark,
 ): Promise<HandlerResult> {
-  await persistAssistantTurn(db, conversationId, text);
+  await persistAssistantTurn(db, conversationId, text, reply);
   return { kind: "reply", text, type: "conversation" };
 }
 
 function replyFromText(
   db: BotDatabase,
-  conversationId: string,
+  pending: PendingTurn,
   text: string,
 ): Promise<HandlerResult> {
   if (text === "") {
     return Promise.resolve(CONVERSATION_SILENCE);
   }
-  return persistAssistantAndReply(db, conversationId, text);
+  return persistAssistantAndReply(db, pending.conversationId, text, wakeReply(pending));
 }
 
 function memberTurnId(turn: ConversationTurn): number | null {
@@ -163,7 +183,7 @@ async function runCompletion(
 ): Promise<HandlerResult> {
   try {
     const reply = await model.complete(await completeInput(db, pending));
-    return await replyFromText(db, pending.conversationId, reply);
+    return await replyFromText(db, pending, reply);
   } catch {
     return CONVERSATION_SILENCE;
   }

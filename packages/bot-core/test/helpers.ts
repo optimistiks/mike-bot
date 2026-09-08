@@ -46,7 +46,7 @@ interface TextUpdateOptions {
   messageId: number;
   from: User;
   text: string;
-  replyTo?: { messageId: number; from: User };
+  replyTo?: { messageId: number; from: User; text?: string | null };
   entities?: MessageEntity[];
   chatId?: number;
   date?: number;
@@ -56,6 +56,35 @@ interface ChatRef {
   id: number;
   title: string;
   type: "supergroup";
+}
+
+function replyToParentText(text: string | null | undefined): string | undefined {
+  if (text === null) {
+    return undefined;
+  }
+  if (text === undefined) {
+    return "target";
+  }
+  return text;
+}
+
+function replyToMessage(
+  options: NonNullable<TextUpdateOptions["replyTo"]>,
+  chat: ChatRef,
+  date: number,
+): NonNullable<Update["message"]>["reply_to_message"] {
+  const parentText = replyToParentText(options.text);
+  const parent = {
+    chat,
+    date,
+    from: options.from,
+    message_id: options.messageId,
+    reply_to_message: undefined,
+  };
+  if (parentText === undefined) {
+    return parent;
+  }
+  return { ...parent, text: parentText };
 }
 
 function applyOptionalMessageFields(
@@ -68,14 +97,7 @@ function applyOptionalMessageFields(
     message.entities = options.entities;
   }
   if (options.replyTo !== undefined) {
-    message.reply_to_message = {
-      chat,
-      date,
-      from: options.replyTo.from,
-      message_id: options.replyTo.messageId,
-      reply_to_message: undefined,
-      text: "target",
-    };
+    message.reply_to_message = replyToMessage(options.replyTo, chat, date);
   }
   return message;
 }

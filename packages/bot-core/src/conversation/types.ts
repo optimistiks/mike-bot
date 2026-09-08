@@ -1,14 +1,21 @@
+interface ReplyMark {
+  quote: string | null;
+  targetLabel: string;
+}
+
 interface MemberTurn {
   role: "member";
   label: string;
   memberId: number | null;
   postedAt: Date;
+  reply: ReplyMark | null;
   text: string;
 }
 
 interface AssistantTurn {
   role: "assistant";
   postedAt: Date;
+  reply: ReplyMark;
   text: string;
 }
 
@@ -41,5 +48,6 @@ export type {
   ConversationModel,
   ConversationTurn,
   PromptMessage,
+  ReplyMark,
   SpeakerIdentity,
 };
