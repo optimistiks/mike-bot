@@ -33,17 +33,19 @@ type PersistedConversation =
       conversationId: string;
       history: ConversationTurn[];
       memberId: number;
+      now: Date;
     };
 
 const SILENCE: PersistedConversation = { kind: "silence" };
 
 function modelTurn(row: ConversationTurnRow): ConversationTurn {
   if (row.role === "assistant") {
-    return { role: "assistant", text: row.text };
+    return { postedAt: row.postedAt, role: "assistant", text: row.text };
   }
   return {
     label: row.speakerLabel ?? "???",
     memberId: row.memberId,
+    postedAt: row.postedAt,
     role: "member",
     text: row.text,
   };
@@ -74,9 +76,10 @@ async function persistMemberTurn(
   conversation: ChatConversation,
   actor: User,
   text: string,
+  now: Date,
 ): Promise<PersistedConversation> {
   const label = speakerLabel(actor);
-  await appendTurn(db, conversation.id, "member", text, label, actor.id);
+  await appendTurn(db, conversation.id, "member", text, label, actor.id, now);
   const history = await listTurns(db, conversation.id);
   return {
     addresseeLabel: label,
@@ -84,6 +87,7 @@ async function persistMemberTurn(
     history: history.map((row) => modelTurn(row)),
     kind: "turn",
     memberId: actor.id,
+    now,
   };
 }
 
@@ -92,8 +96,9 @@ async function persistBystanderTurn(
   conversation: ChatConversation,
   actor: User,
   text: string,
+  now: Date,
 ): Promise<PersistedConversation> {
-  await appendTurn(db, conversation.id, "member", text, speakerLabel(actor), actor.id);
+  await appendTurn(db, conversation.id, "member", text, speakerLabel(actor), actor.id, now);
   return SILENCE;
 }
 
@@ -102,8 +107,9 @@ async function persistClosedTalk(
   conversation: ChatConversation,
   actor: User,
   text: string,
+  now: Date,
 ): Promise<PersistedConversation> {
-  const result = await persistBystanderTurn(db, conversation, actor, text);
+  const result = await persistBystanderTurn(db, conversation, actor, text, now);
   await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
   return result;
 }
@@ -116,7 +122,7 @@ async function persistWakeTurn(
   now: Date,
 ): Promise<PersistedConversation> {
   await joinParticipant(db, conversation.id, actor.id, now);
-  return persistMemberTurn(db, conversation, actor, text);
+  return persistMemberTurn(db, conversation, actor, text, now);
 }
 
 async function persistWakeOnConversation(
@@ -137,11 +143,12 @@ async function persistParticipantTalk(
   conversation: ChatConversation,
   actor: User,
   text: string,
+  now: Date,
 ): Promise<PersistedConversation> {
   if (await isParticipant(db, conversation.id, actor.id)) {
-    return persistMemberTurn(db, conversation, actor, text);
+    return persistMemberTurn(db, conversation, actor, text, now);
   }
-  return persistBystanderTurn(db, conversation, actor, text);
+  return persistBystanderTurn(db, conversation, actor, text, now);
 }
 
 function persistTalkInConversation(
@@ -156,9 +163,9 @@ function persistTalkInConversation(
     return persistWakeOnConversation(db, conversation, actor, text, now);
   }
   if (conversation.closedAt !== null) {
-    return persistClosedTalk(db, conversation, actor, text);
+    return persistClosedTalk(db, conversation, actor, text, now);
   }
-  return persistParticipantTalk(db, conversation, actor, text);
+  return persistParticipantTalk(db, conversation, actor, text, now);
 }
 
 async function persistTalk(

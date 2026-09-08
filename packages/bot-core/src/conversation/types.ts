@@ -2,11 +2,13 @@ interface MemberTurn {
   role: "member";
   label: string;
   memberId: number | null;
+  postedAt: Date;
   text: string;
 }
 
 interface AssistantTurn {
   role: "assistant";
+  postedAt: Date;
   text: string;
 }
 
@@ -20,6 +22,7 @@ interface SpeakerIdentity {
 
 interface ConversationCompleteInput {
   addresseeLabel: string;
+  now: Date;
   speakers: SpeakerIdentity[];
   turns: ConversationTurn[];
 }

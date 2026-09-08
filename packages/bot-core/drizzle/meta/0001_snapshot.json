@@ -96,6 +96,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "posted_at": {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {

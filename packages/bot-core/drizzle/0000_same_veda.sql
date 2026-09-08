@@ -12,7 +12,8 @@ CREATE TABLE "conversation_turns" (
 	"seq" integer NOT NULL,
 	"speaker_label" text,
 	"member_id" bigint,
-	"text" text NOT NULL
+	"text" text NOT NULL,
+	"posted_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "conversations" (

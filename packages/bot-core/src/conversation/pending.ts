@@ -1,7 +1,7 @@
 import type { BotDatabase } from "#src/db/runtime.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { EMPTY_COUNT } from "#src/constants.js";
+import { EMPTY_COUNT, MS_PER_SECOND } from "#src/constants.js";
 import { appendTurn, listMembersByIds, trimIfClosed } from "#src/db/store.js";
 
 import type { PersistedConversation } from "./apply.js";
@@ -23,6 +23,7 @@ interface PendingTurn {
   conversationId: string;
   history: ConversationTurn[];
   memberId: number;
+  now: Date;
 }
 
 type ConversationWork = HandlerResult | PendingTurn;
@@ -36,6 +37,7 @@ function conversationWork(persisted: PersistedConversation): ConversationWork {
       conversationId: persisted.conversationId,
       history: persisted.history,
       memberId: persisted.memberId,
+      now: persisted.now,
       type: "pending-turn",
     };
   }
@@ -46,13 +48,17 @@ function isPendingTurn(work: ConversationWork): work is PendingTurn {
   return work.type === "pending-turn";
 }
 
+function completionPostedAt(): Date {
+  return new Date(Math.floor(Date.now() / MS_PER_SECOND) * MS_PER_SECOND);
+}
+
 async function persistAssistantTurn(
   db: BotDatabase,
   conversationId: string,
   text: string,
 ): Promise<void> {
   await db.transaction(async (session) => {
-    await appendTurn(session, conversationId, "assistant", text, null, null);
+    await appendTurn(session, conversationId, "assistant", text, null, null, completionPostedAt());
     await trimIfClosed(session, conversationId);
   });
 }
@@ -144,6 +150,7 @@ async function completeInput(
 ): Promise<ConversationCompleteInput> {
   return {
     addresseeLabel: pending.addresseeLabel,
+    now: pending.now,
     speakers: await speakersForTurns(db, pending.history),
     turns: pending.history,
   };

@@ -81,6 +81,7 @@ const conversationTurns = pgTable(
       .references(() => conversations.id),
     id: uuid("id").primaryKey().defaultRandom(),
     memberId: bigint("member_id", { mode: "number" }),
+    postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
     role: text("role").notNull(),
     seq: integer("seq").notNull(),
     speakerLabel: text("speaker_label"),

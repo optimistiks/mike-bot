@@ -269,6 +269,7 @@ async function tryInsertTurn(
   text: string,
   speakerLabel: string | null,
   memberId: number | null,
+  postedAt: Date,
   seq: number,
 ): Promise<boolean> {
   const inserted = await db
@@ -276,6 +277,7 @@ async function tryInsertTurn(
     .values({
       conversationId,
       memberId,
+      postedAt,
       role,
       seq,
       speakerLabel,
@@ -293,12 +295,13 @@ async function appendTurn(
   text: string,
   speakerLabel: string | null,
   memberId: number | null,
+  postedAt: Date,
 ): Promise<void> {
   const seq = await nextTurnSeq(db, conversationId);
-  if (await tryInsertTurn(db, conversationId, role, text, speakerLabel, memberId, seq)) {
+  if (await tryInsertTurn(db, conversationId, role, text, speakerLabel, memberId, postedAt, seq)) {
     return;
   }
-  await appendTurn(db, conversationId, role, text, speakerLabel, memberId);
+  await appendTurn(db, conversationId, role, text, speakerLabel, memberId, postedAt);
 }
 
 async function deleteTurnsBefore(
