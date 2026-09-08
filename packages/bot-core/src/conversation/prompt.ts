@@ -35,10 +35,6 @@ const CONTRASTIVE_PAIRS = [
   "хорошо: (ничего, реплика кончается на шутке)",
 ].join("\n");
 
-const INSTRUCTION_MARKER = "[:инструкция]";
-
-const INSTRUCTION_DISCLAIMER = `${INSTRUCTION_MARKER} в конце лога — служебная реплика, не человек.`;
-
 const EXAMPLES_FENCE = "примеры, не этот чат:";
 
 const CONVERSATION_EXAMPLES = [
@@ -74,16 +70,16 @@ const CONVERSATION_EXAMPLES = [
   "аффтар жжот",
 ].join("\n");
 
-const CONVERSATION_SYSTEM_PROMPT = `${CONTRASTIVE_PAIRS}\n\n${PERSONA}\n\n${INSTRUCTION_DISCLAIMER}\n\n${EXAMPLES_FENCE}\n${CONVERSATION_EXAMPLES}`;
+const CONVERSATION_SYSTEM_PROMPT = `${CONTRASTIVE_PAIRS}\n\n${PERSONA}\n\n${EXAMPLES_FENCE}\n${CONVERSATION_EXAMPLES}`;
 
 const FORMAT_RECAP = "не больше двух предложений. без эмоджи и заглавных, кроме имён как в метках";
 
 function addresseeReminder(label: string): string {
-  return `${INSTRUCTION_MARKER} ${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
+  return `${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
 }
 
 function conversationMessages(turns: ConversationTurn[], addresseeLabel: string): PromptMessage[] {
-  return [...liveMessages(turns), { content: addresseeReminder(addresseeLabel), role: "user" }];
+  return [...liveMessages(turns), { content: addresseeReminder(addresseeLabel), role: "system" }];
 }
 
 export { CONVERSATION_SYSTEM_PROMPT, conversationMessages };

@@ -37,6 +37,7 @@ function abortFilters(signal: AbortSignal): string[] {
 async function generateSample(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
   const { text } = await generateText({
     abortSignal: signal,
+    allowSystemInMessages: true,
     instructions: CONVERSATION_SYSTEM_PROMPT,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     maxRetries: 0,

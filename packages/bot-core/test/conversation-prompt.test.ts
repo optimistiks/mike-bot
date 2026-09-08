@@ -5,7 +5,7 @@ import type { ConversationTurn } from "#src/conversation/types.js";
 import { FIRST_INDEX, LAST_FROM_END } from "#src/constants.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "#src/conversation/prompt.js";
 
-const INSTRUCTION_DISCLAIMER = "[:инструкция] в конце лога — служебная реплика, не человек.";
+const PERSONA_START = "формат:";
 const EXAMPLES_FENCE = "примеры, не этот чат:";
 const FIRST_EXAMPLE = "[У1] а когда там дедлайн по этой штуке";
 const DEIXIS_EXAMPLE = "[У3] я вообще не спала\n[У4] она всегда так говорит\n[У3] ну и че\nбаза";
@@ -16,10 +16,10 @@ const LIVE_TURN: ConversationTurn = {
   text: "че",
 };
 
-function addresseeReminderMessage(label: string): { content: string; role: "user" } {
+function addresseeReminderMessage(label: string): { content: string; role: "system" } {
   return {
-    content: `[:инструкция] не больше двух предложений. без эмоджи и заглавных, кроме имён как в метках\nотвечаешь только пользователю ${label}`,
-    role: "user",
+    content: `не больше двух предложений. без эмоджи и заглавных, кроме имён как в метках\nотвечаешь только пользователю ${label}`,
+    role: "system",
   };
 }
 
@@ -33,22 +33,25 @@ describe("conversation prompt", () => {
     ]);
   });
 
-  it("marks the suffix token as a service line, not a person", () => {
+  it("does not mention a fake instruction token", () => {
     expect.hasAssertions();
 
-    expect(CONVERSATION_SYSTEM_PROMPT).toContain(INSTRUCTION_DISCLAIMER);
+    expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("[:инструкция]");
+    expect(conversationMessages([LIVE_TURN], "Max").at(LAST_FROM_END)?.content).not.toContain(
+      "[:инструкция]",
+    );
   });
 
-  it("keeps generic few-shots in a fenced system block after the disclaimer", () => {
+  it("keeps generic few-shots in a fenced system block after the persona", () => {
     expect.hasAssertions();
 
-    const disclaimerAt = CONVERSATION_SYSTEM_PROMPT.indexOf(INSTRUCTION_DISCLAIMER);
+    const personaAt = CONVERSATION_SYSTEM_PROMPT.indexOf(PERSONA_START);
     const fenceAt = CONVERSATION_SYSTEM_PROMPT.indexOf(EXAMPLES_FENCE);
     const firstExampleAt = CONVERSATION_SYSTEM_PROMPT.indexOf(FIRST_EXAMPLE);
     const deixisAt = CONVERSATION_SYSTEM_PROMPT.indexOf(DEIXIS_EXAMPLE);
 
-    expect(disclaimerAt).toBeGreaterThan(LAST_FROM_END);
-    expect(fenceAt).toBeGreaterThan(disclaimerAt);
+    expect(personaAt).toBeGreaterThan(LAST_FROM_END);
+    expect(fenceAt).toBeGreaterThan(personaAt);
     expect(firstExampleAt).toBeGreaterThan(fenceAt);
     expect(deixisAt).toBeGreaterThan(firstExampleAt);
   });
