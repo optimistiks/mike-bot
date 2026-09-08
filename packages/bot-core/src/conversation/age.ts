@@ -49,4 +49,10 @@ function relativePastLabel(postedAt: Date, now: Date): string {
   return RELATIVE_PAST.format(-parts.value, parts.unit);
 }
 
-export { relativePastLabel };
+const ISO_FRACTIONAL_SECONDS = /\.\d{3}Z$/u;
+
+function absolutePostedAtLabel(postedAt: Date): string {
+  return postedAt.toISOString().replace(ISO_FRACTIONAL_SECONDS, "Z");
+}
+
+export { absolutePostedAtLabel, relativePastLabel };

@@ -1,8 +1,30 @@
-import { captureException, setConversationId, setUser, startSpan } from "@sentry/core";
+import { captureException, getClient, setConversationId, setUser, startSpan } from "@sentry/core";
 
+import type { SentrySpanBag } from "./sentry-transcript.js";
 import type { ConversationCompleteInput } from "./types.js";
 
+import { rewriteSentryAiSpan } from "./sentry-transcript.js";
+
+let processSpanHooked = false;
+
+function onSentryProcessSpan(span: SentrySpanBag): void {
+  rewriteSentryAiSpan(span);
+}
+
+function hookSentryTranscriptRewrite(): void {
+  if (processSpanHooked) {
+    return;
+  }
+  const client = getClient();
+  if (client === undefined) {
+    return;
+  }
+  processSpanHooked = true;
+  client.on("processSpan", onSentryProcessSpan);
+}
+
 function bindConversation(input: ConversationCompleteInput): void {
+  hookSentryTranscriptRewrite();
   setConversationId(input.conversationId);
   setUser({ id: String(input.memberId) });
 }
