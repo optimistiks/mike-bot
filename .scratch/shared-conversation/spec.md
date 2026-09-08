@@ -25,7 +25,7 @@ are short, filtered, timed, and never queued twice for the same Participant.
 1. As a Member, I want `бот` to activate a Conversation in this Chat and join
    me as a Participant, so that I can talk to the bot.
 2. As a Member, I want `бот привет` to activate, join, log the whole text, and
-   get a reply, so that the Wake token plus the rest is the first Turn.
+   get a reply, so that the Wake token plus the rest is one Turn.
 3. As a Member, I want `Бот` not to wake or join, so that Wake stays
    case-sensitive.
 4. As a Member, I want `ботан` not to wake or join, so that only the token `бот`
@@ -44,8 +44,9 @@ are short, filtered, timed, and never queued twice for the same Participant.
     not become a Turn, so that bystanders cannot close or pollute talk.
 11. As a Member, I want nothing I say after I leave to get a bot reply until I
     Wake again, so that leaving sticks.
-12. As a Member, I want a new Wake after the Conversation closed to start a
-    fresh Conversation with empty context, so that old talk does not leak in.
+12. As a Member, I want a new Wake after the Conversation closed to reopen the
+    same Conversation with the latest 100 Turns already in the log, so that
+    recent Chat is still context.
 13. As a Member, I want the Conversation to stay open across days with no
     expiry while any Participant remains, so that a pause is not a Stop.
 14. As a second Member, I want `бот` or `бот ку` while a Conversation is already
@@ -127,14 +128,21 @@ are short, filtered, timed, and never queued twice for the same Participant.
   reply (Participants only), not what the model sees. Update live `CONTEXT.md`
   Conversation, Wake, Stop, and Turn entries, and add Participant (a Member who
   joined the Chat's open Conversation by a Wake message). Avoid session.
-- One open Conversation per Chat. Schema: Conversation keyed by Chat, with
-  opened/closed time; Participants keyed by Conversation and Member; Turns
-  belong to that Conversation (shared log), not to one Member. Replace the
-  one-open-per-Member-Chat uniqueness with one-open-per-Chat.
+- One Conversation per Chat, open or closed. Schema: Conversation uniquely
+  keyed by Chat, with opened/closed time; Participants keyed by Conversation
+  and Member; Turns belong to that Conversation (shared log), not to one
+  Member. Unique `chatId` — not a partial unique on open rows.
+- Ordinary text is a Turn while the Conversation is closed. First eligible
+  text in a Chat creates the Conversation; if it is not a Wake, the row is
+  born closed (no Participants, no replies). A later Wake reopens that same
+  row. While closed the log stays at the latest 100 Turns (append, drop
+  oldest). Last Stop snaps to 100. While open the log may grow; the 80k
+  character prompt trim stays as a safety net.
 - Wake message: after trim, first whitespace-separated token is exactly `бот`
-  (case-sensitive). Activates if none is open, joins the speaker if not already
-  a Participant, logs the whole message as a Turn, calls the model, replies.
-  Repeating Wake while already a Participant is just another Turn.
+  (case-sensitive). Opens the Chat's Conversation if it is closed, joins the
+  speaker if not already a Participant, logs the whole message as a Turn,
+  calls the model, replies. Repeating Wake while already a Participant is
+  just another Turn.
 - Stop message: after trim, entire text is exactly `довольно` (case-sensitive).
   Not a Turn. If the speaker is a Participant, they leave; outcome `closed` so
   the adapter can thumbs-up; if they were the last Participant, the Conversation
@@ -144,7 +152,8 @@ are short, filtered, timed, and never queued twice for the same Participant.
   trimmed case-folded `лол`). Scoring replies and Commands are never Turns.
   Routing order unchanged: Command → Scoring reply → Conversation.
 - Bystander text (not a special token, speaker not a Participant) is a Turn and
-  `silence` (no model call).
+  `silence` (no model call). That includes ordinary text while the Conversation
+  is closed.
 - Adapter already replies to the Member's message and thumbs-up on `closed`.
   Keep both. Never send a standalone Conversation reply.
 - Conversation outcome kinds stay `reply`, `closed`, `silence`.

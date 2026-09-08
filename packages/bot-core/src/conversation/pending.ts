@@ -1,7 +1,7 @@
 import type { BotDatabase } from "#src/db/runtime.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { appendTurn } from "#src/db/store.js";
+import { appendTurn, trimIfClosed } from "#src/db/store.js";
 
 import type { PersistedConversation } from "./apply.js";
 import type { ConversationModel, ConversationTurn } from "./types.js";
@@ -46,6 +46,7 @@ async function persistAssistantTurn(
 ): Promise<void> {
   await db.transaction(async (session) => {
     await appendTurn(session, conversationId, "assistant", text, null);
+    await trimIfClosed(session, conversationId);
   });
 }
 

@@ -9,6 +9,8 @@ import { SINGLE_COUNT } from "#src/constants.js";
 import { gatewayConversationModel } from "#src/conversation/model.js";
 import { closePgliteDb, createPgliteDb } from "#src/db/pglite.js";
 import {
+  chatConversationMemberTurns,
+  chatConversationTurnCount,
   isConversationOpen,
   markExists,
   openConversationAssistantTurns,
@@ -31,6 +33,22 @@ import {
 
 const STANDINGS_UPDATE_ID = 8;
 const EMPTY_STATS_UPDATE_ID = 1;
+const CLOSED_TURN_WINDOW = 100;
+
+function numberedTexts(prefix: string, count: number): string[] {
+  const texts: string[] = [];
+  for (let index = SINGLE_COUNT; index <= count; index += SINGLE_COUNT) {
+    texts.push(`${prefix} ${String(index)}`);
+  }
+  return texts;
+}
+
+function silenceResults(count: number): HandlerResult[] {
+  return Array.from({ length: count }, () => ({
+    kind: "silence" as const,
+    type: "conversation" as const,
+  }));
+}
 
 describe("telegram update handling", () => {
   // eslint-disable-next-line init-declarations -- assigned in freshDb
@@ -52,6 +70,27 @@ describe("telegram update handling", () => {
       db: currentDb().db,
       model: gatewayConversationModel,
     });
+  }
+
+  async function handleNumberedTexts(
+    from: typeof ALICE,
+    texts: string[],
+    firstId: number,
+  ): Promise<HandlerResult[]> {
+    const [text, ...rest] = texts;
+    if (text === undefined) {
+      return [];
+    }
+    const result = await handle(
+      textUpdate({
+        from,
+        messageId: firstId,
+        text,
+        updateId: firstId,
+      }),
+    );
+    const following = await handleNumberedTexts(from, rest, firstId + SINGLE_COUNT);
+    return [result, ...following];
   }
 
   async function freshDb(): Promise<void> {
@@ -417,6 +456,203 @@ describe("telegram update handling", () => {
     await expect(
       openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
     ).resolves.toStrictEqual([]);
+    await expect(
+      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
+    ).resolves.toStrictEqual(["[Alice] бот", "[Alice] ещё слово"]);
+  });
+
+  it("seeds a Wake from ordinary Turns logged while the Conversation was closed", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const beforeWake = await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 200,
+        text: "он опять сломался",
+        updateId: 200,
+      }),
+    );
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 201,
+        text: "бот",
+        updateId: 201,
+      }),
+    );
+
+    expect(beforeWake).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    await expect(isConversationOpen(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(true);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      "[Bob] он опять сломался",
+      "[Alice] бот",
+    ]);
+  });
+
+  it("reopens the same Conversation on a later Wake with Turns from the closed gap", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 202,
+        text: "бот",
+        updateId: 202,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 203,
+        text: "довольно",
+        updateId: 203,
+      }),
+    );
+    const gap = await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 204,
+        text: "как дела",
+        updateId: 204,
+      }),
+    );
+    const reopened = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 205,
+        text: "бот",
+        updateId: 205,
+      }),
+    );
+
+    expect(gap).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(reopened).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    await expect(
+      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
+    ).resolves.toStrictEqual([ALICE.id]);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      "[Alice] бот",
+      "[Bob] как дела",
+      "[Alice] бот",
+    ]);
+  });
+
+  it("keeps 100 Turns while closed and drops the oldest on the 101st", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    const firstClosedId = 300;
+    const overflowId = firstClosedId + CLOSED_TURN_WINDOW;
+    const texts = numberedTexts("лог", CLOSED_TURN_WINDOW + SINGLE_COUNT);
+    const results = await handleNumberedTexts(ALICE, texts, firstClosedId);
+
+    expect(results).toStrictEqual(silenceResults(texts.length));
+    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
+      CLOSED_TURN_WINDOW,
+    );
+    await expect(
+      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
+    ).resolves.toStrictEqual(texts.slice(SINGLE_COUNT).map((text) => `[Alice] ${text}`));
+
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: overflowId + SINGLE_COUNT,
+        text: "бот",
+        updateId: overflowId + SINGLE_COUNT,
+      }),
+    );
+
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      ...texts.slice(SINGLE_COUNT).map((text) => `[Alice] ${text}`),
+      "[Alice] бот",
+    ]);
+  });
+
+  it("lets an open Conversation grow past 100 Turns and snaps to 100 on close", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 500,
+        text: "бот",
+        updateId: 500,
+      }),
+    );
+    const bystanderStart = 501;
+    const bystanderTexts = numberedTexts("фон", CLOSED_TURN_WINDOW);
+    const bystanderResults = await handleNumberedTexts(BOB, bystanderTexts, bystanderStart);
+
+    expect(bystanderResults).toStrictEqual(silenceResults(bystanderTexts.length));
+
+    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
+      CLOSED_TURN_WINDOW + SINGLE_COUNT + SINGLE_COUNT,
+    );
+
+    const stopped = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 700,
+        text: "довольно",
+        updateId: 700,
+      }),
+    );
+
+    expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
+    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
+      CLOSED_TURN_WINDOW,
+    );
+    await expect(
+      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
+    ).resolves.toStrictEqual(bystanderTexts.map((text) => `[Bob] ${text}`));
+  });
+
+  it("does not log a Scoring reply as a Turn while the Conversation is closed", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 800,
+        text: "привет",
+        updateId: 800,
+      }),
+    );
+    const scoring = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 801,
+        replyTo: { from: BOB, messageId: 10 },
+        text: "+",
+        updateId: 801,
+      }),
+    );
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 802,
+        text: "бот",
+        updateId: 802,
+      }),
+    );
+
+    expect(scoring).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      "[Alice] привет",
+      "[Alice] бот",
+    ]);
   });
 
   it("accepts Scoring during a Conversation and lets a second Member join the same one", async () => {

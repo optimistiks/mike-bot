@@ -8,6 +8,13 @@
       "when": 1788642172145,
       "tag": "0000_same_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788825933803,
+      "tag": "0001_bouncy_synch",
+      "breakpoints": true
     }
   ]
 }

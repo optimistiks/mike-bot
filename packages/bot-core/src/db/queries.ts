@@ -7,7 +7,7 @@ import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 import type { BotSession } from "./runtime.js";
 
 import { conversationTurns, marks } from "./schema.js";
-import { findOpenConversation, listParticipants } from "./store.js";
+import { findConversation, findOpenConversation, listParticipants } from "./store.js";
 
 async function markExists(
   db: BotSession,
@@ -72,12 +72,12 @@ function assistantTurnText(turn: { role: string; text: string }): string[] {
   return [turn.text];
 }
 
-async function listOpenTurns(
+async function listChatTurns(
   db: BotSession,
   chatId: number,
 ): Promise<{ role: string; speakerLabel: string | null; text: string }[]> {
-  const open = await findOpenConversation(db, chatId);
-  if (open === null) {
+  const conversation = await findConversation(db, chatId);
+  if (conversation === null) {
     return [];
   }
   return db
@@ -87,8 +87,35 @@ async function listOpenTurns(
       text: conversationTurns.text,
     })
     .from(conversationTurns)
-    .where(eq(conversationTurns.conversationId, open.id))
+    .where(eq(conversationTurns.conversationId, conversation.id))
     .orderBy(conversationTurns.seq);
+}
+
+async function listOpenTurns(
+  db: BotSession,
+  chatId: number,
+): Promise<{ role: string; speakerLabel: string | null; text: string }[]> {
+  const open = await findOpenConversation(db, chatId);
+  if (open === null) {
+    return [];
+  }
+  return listChatTurns(db, chatId);
+}
+
+async function chatConversationMemberTurns(
+  db: BotSession,
+  query: { chatId: number },
+): Promise<string[]> {
+  const turns = await listChatTurns(db, query.chatId);
+  return turns.flatMap((turn) => memberTurnText(turn));
+}
+
+async function chatConversationTurnCount(
+  db: BotSession,
+  query: { chatId: number },
+): Promise<number> {
+  const turns = await listChatTurns(db, query.chatId);
+  return turns.length;
 }
 
 async function openConversationMemberTurns(
@@ -108,6 +135,8 @@ async function openConversationAssistantTurns(
 }
 
 export {
+  chatConversationMemberTurns,
+  chatConversationTurnCount,
   isConversationOpen,
   markExists,
   openConversationAssistantTurns,

@@ -1,11 +1,11 @@
 import type { SQL } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
-import { EMPTY_COUNT, FIRST_INDEX, SINGLE_COUNT } from "#src/constants.js";
+import { CLOSED_TURN_WINDOW, EMPTY_COUNT, FIRST_INDEX, SINGLE_COUNT } from "#src/constants.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import type { BotSession } from "./runtime.js";
@@ -90,48 +90,77 @@ async function chatHasMarks(db: BotSession, chatId: number): Promise<boolean> {
   return rows.length > EMPTY_COUNT;
 }
 
-async function findOpenConversation(
-  db: BotSession,
-  chatId: number,
-): Promise<ConversationRow | null> {
+async function findConversation(db: BotSession, chatId: number): Promise<ConversationRow | null> {
   const rows = await db
     .select()
     .from(conversations)
-    .where(and(eq(conversations.chatId, chatId), isNull(conversations.closedAt)))
+    .where(eq(conversations.chatId, chatId))
     .limit(SINGLE_COUNT)
     .for("update");
 
   return rows.at(FIRST_INDEX) ?? null;
 }
 
+async function findConversationById(
+  db: BotSession,
+  conversationId: string,
+): Promise<ConversationRow | null> {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(SINGLE_COUNT);
+  return rows.at(FIRST_INDEX) ?? null;
+}
+
+async function findOpenConversation(
+  db: BotSession,
+  chatId: number,
+): Promise<ConversationRow | null> {
+  const conversation = await findConversation(db, chatId);
+  if (conversation === null || conversation.closedAt !== null) {
+    return null;
+  }
+  return conversation;
+}
+
 async function tryInsertConversation(
   db: BotSession,
   chatId: number,
   openedAt: Date,
+  closedAt: Date | null,
 ): Promise<ConversationRow | null> {
   const inserted = await db
     .insert(conversations)
-    .values({ chatId, openedAt })
-    .onConflictDoNothing()
+    .values({ chatId, closedAt, openedAt })
+    .onConflictDoNothing({ target: conversations.chatId })
     .returning();
   const [conversation] = inserted;
   return conversation ?? null;
 }
 
-async function openConversation(
+async function insertConversation(
   db: BotSession,
   chatId: number,
   openedAt: Date,
+  closedAt: Date | null,
 ): Promise<ConversationRow> {
-  const inserted = await tryInsertConversation(db, chatId, openedAt);
+  const inserted = await tryInsertConversation(db, chatId, openedAt, closedAt);
   if (inserted !== null) {
     return inserted;
   }
-  const existing = await findOpenConversation(db, chatId);
+  const existing = await findConversation(db, chatId);
   if (existing !== null) {
     return existing;
   }
-  return openConversation(db, chatId, openedAt);
+  return insertConversation(db, chatId, openedAt, closedAt);
+}
+
+async function reopenConversation(db: BotSession, conversationId: string): Promise<void> {
+  await db
+    .update(conversations)
+    .set({ closedAt: null })
+    .where(eq(conversations.id, conversationId));
 }
 
 function participantWhere(conversationId: string, memberId: number): SQL | undefined {
@@ -248,19 +277,59 @@ async function appendTurn(
   await appendTurn(db, conversationId, role, text, speakerLabel);
 }
 
+async function deleteTurnsBefore(
+  db: BotSession,
+  conversationId: string,
+  seq: number,
+): Promise<void> {
+  await db
+    .delete(conversationTurns)
+    .where(
+      and(eq(conversationTurns.conversationId, conversationId), lt(conversationTurns.seq, seq)),
+    );
+}
+
+async function trimOldestTurns(
+  db: BotSession,
+  conversationId: string,
+  keep: number,
+): Promise<void> {
+  const turns = await listTurns(db, conversationId);
+  if (turns.length <= keep) {
+    return;
+  }
+  const cutoff = turns.at(turns.length - keep);
+  if (cutoff === undefined) {
+    return;
+  }
+  await deleteTurnsBefore(db, conversationId, cutoff.seq);
+}
+
+async function trimIfClosed(db: BotSession, conversationId: string): Promise<void> {
+  const conversation = await findConversationById(db, conversationId);
+  if (conversation === null || conversation.closedAt === null) {
+    return;
+  }
+  await trimOldestTurns(db, conversationId, CLOSED_TURN_WINDOW);
+}
+
 export {
   appendTurn,
   chatHasMarks,
   claimUpdate,
   closeConversation,
   ensureMessage,
+  findConversation,
   findOpenConversation,
+  insertConversation,
   isParticipant,
   joinParticipant,
   leaveParticipant,
   listParticipants,
   listTurns,
-  openConversation,
+  reopenConversation,
+  trimIfClosed,
+  trimOldestTurns,
   tryInsertMark,
   upsertMember,
 };
