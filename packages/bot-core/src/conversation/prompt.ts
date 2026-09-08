@@ -1,4 +1,6 @@
-import type { ConversationTurn, PromptMessage } from "./types.js";
+import { EMPTY_COUNT } from "#src/constants.js";
+
+import type { ConversationCompleteInput, PromptMessage, SpeakerIdentity } from "./types.js";
 
 import { liveMessages } from "./history.js";
 
@@ -9,7 +11,7 @@ const BEHAVIOUR =
   "подкололи тебя, колни обратно. злятся на тебя, злись. добрые, будь нормальным, не нянькой. грустные, не поднимай настроение и не раскручивай драму. настроение не называй.";
 
 const PUNCTUATION =
-  "пунктуация как в чате: запятые и вопросы можно, без длинных тире многоточий кавычек и точек в конце. никогда не используй эмоджи и заглавные буквы. единственное исключение это имена: имя пиши ровно так как оно стоит в метке говорящего, [Дима] значит Дима, остальное строчными.";
+  "пунктуация как в чате: запятые и вопросы можно, без длинных тире многоточий кавычек и точек в конце. никогда не используй эмоджи и заглавные буквы. единственное исключение это имена: имя пиши ровно так как оно стоит в метке говорящего, [username1] значит username1, остальное строчными.";
 
 const REFERENCES =
   "отсылки только на то что кинули они, не на то что ты сам только что выдумал. если узнаёшь их отсылку даже кривую (фильм игра мем олдскульный интернет сленг поколенческая фишка перевод игры) отвечай из того же мира тем же тоном: либо следующей репликой, либо в том же стиле. не называй источник не говори это из не объясняй. если не уверен не выдумывай просто болтай. например на в чем сила брат: в правде. на нужно больше золота: нужно построить зиккурат. на превед медвед: аффтар жжот. на тебе она не светит: тебе тоже она не светит";
@@ -74,12 +76,48 @@ const CONVERSATION_SYSTEM_PROMPT = `${CONTRASTIVE_PAIRS}\n\n${PERSONA}\n\n${EXAM
 
 const FORMAT_RECAP = "не больше двух предложений. без эмоджи и заглавных, кроме имён как в метках";
 
-function addresseeReminder(label: string): string {
-  return `${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
+function trimmedPart(value: string | null): string {
+  return value?.trim() ?? "";
 }
 
-function conversationMessages(turns: ConversationTurn[], addresseeLabel: string): PromptMessage[] {
-  return [...liveMessages(turns), { content: addresseeReminder(addresseeLabel), role: "system" }];
+function joinPresent(parts: string[]): string {
+  const present: string[] = [];
+  for (const part of parts) {
+    if (part !== "") {
+      present.push(part);
+    }
+  }
+  return present.join(" ");
+}
+
+function rosterDisplayName(firstName: string | null, lastName: string | null): string {
+  return joinPresent([trimmedPart(firstName), trimmedPart(lastName)]);
+}
+
+function rosterEntry(speaker: SpeakerIdentity): string {
+  const display = rosterDisplayName(speaker.firstName, speaker.lastName);
+  if (display === "") {
+    return speaker.handle;
+  }
+  return `${speaker.handle} (${display})`;
+}
+
+function rosterLine(speakers: readonly SpeakerIdentity[]): string {
+  return `в чате разговаривают: ${speakers.map((speaker) => rosterEntry(speaker)).join(", ")}`;
+}
+
+function addresseeReminder(label: string, speakers: readonly SpeakerIdentity[]): string {
+  if (speakers.length === EMPTY_COUNT) {
+    return `${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
+  }
+  return `${FORMAT_RECAP}\n${rosterLine(speakers)}\nотвечаешь только пользователю ${label}`;
+}
+
+function conversationMessages(input: ConversationCompleteInput): PromptMessage[] {
+  return [
+    ...liveMessages(input.turns),
+    { content: addresseeReminder(input.addresseeLabel, input.speakers), role: "system" },
+  ];
 }
 
 export { CONVERSATION_SYSTEM_PROMPT, conversationMessages };

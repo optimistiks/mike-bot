@@ -1,6 +1,7 @@
 interface MemberTurn {
   role: "member";
   label: string;
+  memberId: number | null;
   text: string;
 }
 
@@ -11,8 +12,15 @@ interface AssistantTurn {
 
 type ConversationTurn = MemberTurn | AssistantTurn;
 
+interface SpeakerIdentity {
+  handle: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 interface ConversationCompleteInput {
   addresseeLabel: string;
+  speakers: SpeakerIdentity[];
   turns: ConversationTurn[];
 }
 
@@ -25,4 +33,10 @@ interface PromptMessage {
   content: string;
 }
 
-export type { ConversationCompleteInput, ConversationModel, ConversationTurn, PromptMessage };
+export type {
+  ConversationCompleteInput,
+  ConversationModel,
+  ConversationTurn,
+  PromptMessage,
+  SpeakerIdentity,
+};

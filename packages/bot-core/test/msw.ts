@@ -19,7 +19,7 @@ const bodySchema = z.object({
   prompt: z.array(z.unknown()),
 });
 
-const LIVE_LABEL = /^\[(?:Alice|Bob|Carol)\] /u;
+const LIVE_LABEL = /^\[(?:alice|bob|carol)\] /u;
 const POLL_MS = 10;
 
 const capturedModelBodies: unknown[] = [];
@@ -145,10 +145,15 @@ function liveLabeledTurnTextsFromPreviousModelBody(): string[] {
   return liveLabeledFromBody(previous);
 }
 
+function lastCapturedModelBodyJson(): string {
+  return JSON.stringify(capturedModelBodies.at(LAST_FROM_END) ?? null);
+}
+
 export {
   capturedModelBodies,
   enqueueModelTexts,
   holdNextModelResponse,
+  lastCapturedModelBodyJson,
   liveLabeledTurnTextsFromLastModelBody,
   liveLabeledTurnTextsFromModelBodies,
   liveLabeledTurnTextsFromPreviousModelBody,

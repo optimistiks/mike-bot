@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
@@ -23,6 +23,7 @@ import {
 type ConversationRow = typeof conversations.$inferSelect;
 type ConversationTurnRow = typeof conversationTurns.$inferSelect;
 type ConversationParticipantRow = typeof conversationParticipants.$inferSelect;
+type MemberRow = typeof members.$inferSelect;
 
 async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
   const inserted = await db
@@ -33,18 +34,38 @@ async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
   return inserted.length === SINGLE_COUNT;
 }
 
+function optionalText(value: string | undefined): string | null {
+  return value ?? null;
+}
+
+function memberFields(telegramUser: Pick<User, "id" | "username" | "first_name" | "last_name">): {
+  firstName: string;
+  lastName: string | null;
+  telegramId: number;
+  username: string | null;
+} {
+  return {
+    firstName: telegramUser.first_name,
+    lastName: optionalText(telegramUser.last_name),
+    telegramId: telegramUser.id,
+    username: optionalText(telegramUser.username),
+  };
+}
+
 async function upsertMember(
   db: BotSession,
-  telegramUser: Pick<User, "id" | "username">,
+  telegramUser: Pick<User, "id" | "username" | "first_name" | "last_name">,
 ): Promise<void> {
+  const fields = memberFields(telegramUser);
   await db
     .insert(members)
-    .values({
-      telegramId: telegramUser.id,
-      username: telegramUser.username ?? null,
-    })
+    .values(fields)
     .onConflictDoUpdate({
-      set: { username: telegramUser.username ?? null },
+      set: {
+        firstName: fields.firstName,
+        lastName: fields.lastName,
+        username: fields.username,
+      },
       target: members.telegramId,
     });
 }
@@ -247,12 +268,14 @@ async function tryInsertTurn(
   role: "member" | "assistant",
   text: string,
   speakerLabel: string | null,
+  memberId: number | null,
   seq: number,
 ): Promise<boolean> {
   const inserted = await db
     .insert(conversationTurns)
     .values({
       conversationId,
+      memberId,
       role,
       seq,
       speakerLabel,
@@ -269,12 +292,13 @@ async function appendTurn(
   role: "member" | "assistant",
   text: string,
   speakerLabel: string | null,
+  memberId: number | null,
 ): Promise<void> {
   const seq = await nextTurnSeq(db, conversationId);
-  if (await tryInsertTurn(db, conversationId, role, text, speakerLabel, seq)) {
+  if (await tryInsertTurn(db, conversationId, role, text, speakerLabel, memberId, seq)) {
     return;
   }
-  await appendTurn(db, conversationId, role, text, speakerLabel);
+  await appendTurn(db, conversationId, role, text, speakerLabel, memberId);
 }
 
 async function deleteTurnsBefore(
@@ -313,6 +337,13 @@ async function trimIfClosed(db: BotSession, conversationId: string): Promise<voi
   await trimOldestTurns(db, conversationId, CLOSED_TURN_WINDOW);
 }
 
+function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
+  if (ids.length === EMPTY_COUNT) {
+    return Promise.resolve([]);
+  }
+  return db.select().from(members).where(inArray(members.telegramId, ids));
+}
+
 export {
   appendTurn,
   chatHasMarks,
@@ -325,6 +356,7 @@ export {
   isParticipant,
   joinParticipant,
   leaveParticipant,
+  listMembersByIds,
   listParticipants,
   listTurns,
   reopenConversation,

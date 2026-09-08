@@ -41,7 +41,12 @@ function modelTurn(row: ConversationTurnRow): ConversationTurn {
   if (row.role === "assistant") {
     return { role: "assistant", text: row.text };
   }
-  return { label: row.speakerLabel ?? "???", role: "member", text: row.text };
+  return {
+    label: row.speakerLabel ?? "???",
+    memberId: row.memberId,
+    role: "member",
+    text: row.text,
+  };
 }
 
 function closedAtForNewTalk(now: Date, token: SpecialToken | null): Date | null {
@@ -71,7 +76,7 @@ async function persistMemberTurn(
   text: string,
 ): Promise<PersistedConversation> {
   const label = speakerLabel(actor);
-  await appendTurn(db, conversation.id, "member", text, label);
+  await appendTurn(db, conversation.id, "member", text, label, actor.id);
   const history = await listTurns(db, conversation.id);
   return {
     addresseeLabel: label,
@@ -88,7 +93,7 @@ async function persistBystanderTurn(
   actor: User,
   text: string,
 ): Promise<PersistedConversation> {
-  await appendTurn(db, conversation.id, "member", text, speakerLabel(actor));
+  await appendTurn(db, conversation.id, "member", text, speakerLabel(actor), actor.id);
   return SILENCE;
 }
 

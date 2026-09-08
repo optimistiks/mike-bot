@@ -134,7 +134,7 @@ async function completeWithSignal(
   input: ConversationCompleteInput,
   signal: AbortSignal,
 ): Promise<string> {
-  const messages = conversationMessages(input.turns, input.addresseeLabel);
+  const messages = conversationMessages(input);
   try {
     return await sampleUntilClean(messages, signal);
   } catch {

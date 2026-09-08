@@ -11,6 +11,7 @@ CREATE TABLE "conversation_turns" (
 	"role" text NOT NULL,
 	"seq" integer NOT NULL,
 	"speaker_label" text,
+	"member_id" bigint,
 	"text" text NOT NULL
 );
 --> statement-breakpoint
@@ -35,7 +36,9 @@ CREATE TABLE "marks" (
 --> statement-breakpoint
 CREATE TABLE "members" (
 	"telegram_id" bigint PRIMARY KEY NOT NULL,
-	"username" text
+	"username" text,
+	"first_name" text,
+	"last_name" text
 );
 --> statement-breakpoint
 CREATE TABLE "messages" (

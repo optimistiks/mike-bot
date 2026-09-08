@@ -27,6 +27,13 @@ const CAROL: User = {
   username: "carol",
 };
 
+const LENA: User = {
+  first_name: "Лена",
+  id: 104,
+  is_bot: false,
+  last_name: "Иванова",
+};
+
 const BOT_USER: User = {
   first_name: "Bot",
   id: 900,
@@ -110,4 +117,4 @@ function statsUpdate(updateId: number, from: User, chatId = CHAT_ID): Update {
   });
 }
 
-export { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, statsUpdate, textUpdate };
+export { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, LENA, statsUpdate, textUpdate };

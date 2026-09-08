@@ -13,16 +13,24 @@ function nonemptyOrUnknown(value: string): string {
   return value;
 }
 
-function fallbackLabel(username: string | undefined): string {
-  return nonemptyOrUnknown(username?.trim() ?? "");
+function trimmed(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function fallbackHandle(firstName: string | undefined): string {
+  return nonemptyOrUnknown(colonless(trimmed(firstName)));
+}
+
+function speakerHandle(username: string | undefined, firstName: string | undefined): string {
+  const fromUsername = trimmed(username);
+  if (fromUsername === "") {
+    return fallbackHandle(firstName);
+  }
+  return fromUsername;
 }
 
 function speakerLabel(user: User): string {
-  const fromName = colonless(user.first_name).trim();
-  if (fromName === "") {
-    return fallbackLabel(user.username);
-  }
-  return fromName;
+  return speakerHandle(user.username, user.first_name);
 }
 
-export { speakerLabel };
+export { speakerHandle, speakerLabel };

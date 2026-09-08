@@ -12,6 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 const members = pgTable("members", {
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   telegramId: bigint("telegram_id", { mode: "number" }).primaryKey(),
   username: text("username"),
 });
@@ -78,6 +80,7 @@ const conversationTurns = pgTable(
       .notNull()
       .references(() => conversations.id),
     id: uuid("id").primaryKey().defaultRandom(),
+    memberId: bigint("member_id", { mode: "number" }),
     role: text("role").notNull(),
     seq: integer("seq").notNull(),
     speakerLabel: text("speaker_label"),
