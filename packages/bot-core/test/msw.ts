@@ -15,8 +15,13 @@ const userMessageSchema = z.object({
   role: z.literal("user"),
 });
 
-const assistantMessageSchema = z.object({
-  content: z.union([z.string(), z.array(z.unknown())]),
+const assistantPartsSchema = z.object({
+  content: z.array(z.unknown()),
+  role: z.literal("assistant"),
+});
+
+const assistantStringSchema = z.object({
+  content: z.string(),
   role: z.literal("assistant"),
 });
 
@@ -127,14 +132,15 @@ function userTextsFromBody(body: unknown): string[] {
 }
 
 function assistantTextsFromMessage(message: unknown): string[] {
-  const parsed = assistantMessageSchema.safeParse(message);
-  if (!parsed.success) {
+  const asParts = assistantPartsSchema.safeParse(message);
+  if (asParts.success) {
+    return asParts.data.content.flatMap((part) => textFromPart(part));
+  }
+  const asString = assistantStringSchema.safeParse(message);
+  if (!asString.success) {
     return [];
   }
-  if (typeof parsed.data.content === "string") {
-    return [parsed.data.content];
-  }
-  return parsed.data.content.flatMap((part) => textFromPart(part));
+  return [asString.data.content];
 }
 
 function assistantTurnTextsFromBody(body: unknown): string[] {

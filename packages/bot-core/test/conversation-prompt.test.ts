@@ -6,7 +6,13 @@ import type {
   SpeakerIdentity,
 } from "#src/conversation/types.js";
 
-import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, MS_PER_SECOND, SINGLE_COUNT } from "#src/constants.js";
+import {
+  EMPTY_COUNT,
+  FIRST_INDEX,
+  LAST_FROM_END,
+  MS_PER_SECOND,
+  SINGLE_COUNT,
+} from "#src/constants.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "#src/conversation/prompt.js";
 
 const PERSONA_START = "формат:";
@@ -15,7 +21,7 @@ const FIRST_EXAMPLE = "[username1][2 ч назад] а когда там дед�
 const DEIXIS_EXAMPLE =
   "[username3][5 дн. назад] я вообще не спала\n[username4][5 дн. назад] она всегда так говорит\n[username3][5 дн. назад] ну и че\nбаза";
 const CONTRASTIVE_START = "плохо:";
-const MEMBER_EXAMPLE_LINE = /^\[username\d+]\[.+ назад] /u;
+const MEMBER_EXAMPLE_LINE = /^\[username\d+\]\[.+ назад\] /u;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
@@ -129,6 +135,11 @@ describe("conversation prompt", () => {
     expect(fenceAt).toBeGreaterThan(personaAt);
     expect(firstExampleAt).toBeGreaterThan(fenceAt);
     expect(deixisAt).toBeGreaterThan(firstExampleAt);
+  });
+
+  it("does not keep the metadata explainer or У-labels", () => {
+    expect.hasAssertions();
+
     expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("входящие сообщения приходят с метаданными");
     expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("mpotapov");
     expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("[У1]");
@@ -145,17 +156,29 @@ describe("conversation prompt", () => {
     const memberLines = lines.filter((line) => line.startsWith("[username"));
     const botLines = lines.filter((line) => !line.startsWith("[username"));
 
-    expect(memberLines.length).toBeGreaterThan(EMPTY_COUNT);
-    expect(botLines.length).toBeGreaterThan(EMPTY_COUNT);
-    expect(memberLines.every((line) => MEMBER_EXAMPLE_LINE.test(line))).toBe(true);
-    expect(botLines.some((line) => line.includes("назад"))).toBe(false);
-    expect(botLines.some((line) => line.startsWith("["))).toBe(false);
-    expect(examples).toContain("[2 ч назад]");
-    expect(examples).toContain("[5 сек. назад]");
-    expect(examples).toContain("[0 сек. назад]");
-    expect(examples).toContain("[2 мин. назад]");
-    expect(examples).toContain("[5 дн. назад]");
-    expect(examples).toContain("[45 сек. назад]");
+    expect(memberLines).not.toHaveLength(EMPTY_COUNT);
+    expect(memberLines.filter((line) => MEMBER_EXAMPLE_LINE.test(line))).toStrictEqual(memberLines);
+    expect(botLines).not.toHaveLength(EMPTY_COUNT);
+    expect(botLines.filter((line) => line.includes("назад"))).toStrictEqual([]);
+    expect(botLines.filter((line) => line.startsWith("["))).toStrictEqual([]);
+  });
+
+  it("mixes ICU ages in few-shots and names speakers like live handles", () => {
+    expect.hasAssertions();
+
+    const examples = CONVERSATION_SYSTEM_PROMPT.slice(
+      CONVERSATION_SYSTEM_PROMPT.indexOf(EXAMPLES_FENCE),
+    );
+    const ages = [
+      "[2 ч назад]",
+      "[5 сек. назад]",
+      "[0 сек. назад]",
+      "[2 мин. назад]",
+      "[5 дн. назад]",
+      "[45 сек. назад]",
+    ];
+
+    expect(ages.filter((age) => examples.includes(age))).toStrictEqual(ages);
     expect(examples).toContain("username4, кто еще");
   });
 
