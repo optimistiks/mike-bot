@@ -2,7 +2,8 @@ import { EMPTY_COUNT } from "#src/constants.js";
 
 import type { ConversationCompleteInput, PromptMessage, SpeakerIdentity } from "./types.js";
 
-import { liveMessages, sentryLiveMessages } from "./history.js";
+import { absolutePostedAtLabel, relativePastLabel } from "./age.js";
+import { liveMessages } from "./history.js";
 
 const FORMAT =
   'ты в групповом чате где все друзья которые давно друг друга знают. пиши как в неформальной переписке онлайн: обрывок фразы, одно слово, или несколько предложений если есть что сказать. всё это нормально. без приветствий, прощаний, извинений, представлений, и прочей вежливости. не будь технической поддержкой, не объясняй с нуля, не подводи итоги. не возвращай вопрос обратно: никаких "а ты", "как сам", "а у тебя", "ну и ты". сказал что хотел - и всё. не выдумывай себе день, занятия, истории, на "как дела" отвечай коротко, без сценки. если ты придумал шутку, историю, или отсылку, то не развивай ее дальше и не строй лор вокруг нее, особенно после того как тебе написали "че". английские слова использовать можно. сарказм приветствуется. мат - ок.';
@@ -135,22 +136,18 @@ function addresseeReminder(label: string, speakers: readonly SpeakerIdentity[]):
   return `${FORMAT_RECAP}\n${rosterLine(speakers)}\nотвечаешь только пользователю ${label}`;
 }
 
-function conversationMessagesWith(
+function conversationMessages(
   input: ConversationCompleteInput,
-  history: (turns: ConversationCompleteInput["turns"], now: Date) => PromptMessage[],
+  timeLabel: (postedAt: Date, now: Date) => string = relativePastLabel,
 ): PromptMessage[] {
   return [
-    ...history(input.turns, input.now),
+    ...liveMessages(input.turns, input.now, timeLabel),
     { content: addresseeReminder(input.addresseeLabel, input.speakers), role: "system" },
   ];
 }
 
-function conversationMessages(input: ConversationCompleteInput): PromptMessage[] {
-  return conversationMessagesWith(input, liveMessages);
-}
-
 function sentryConversationMessages(input: ConversationCompleteInput): PromptMessage[] {
-  return conversationMessagesWith(input, sentryLiveMessages);
+  return conversationMessages(input, absolutePostedAtLabel);
 }
 
 export { CONVERSATION_SYSTEM_PROMPT, conversationMessages, sentryConversationMessages };

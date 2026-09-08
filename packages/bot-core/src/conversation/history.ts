@@ -2,7 +2,7 @@ import { EMPTY_COUNT } from "#src/constants.js";
 
 import type { ConversationTurn, PromptMessage } from "./types.js";
 
-import { absolutePostedAtLabel, relativePastLabel } from "./age.js";
+import { relativePastLabel } from "./age.js";
 import { SELF_LABEL, promptLine } from "./transcript.js";
 
 const MAX_HISTORY_CHARS = 80_000;
@@ -34,11 +34,7 @@ function promptText(
   );
 }
 
-function liveMessage(
-  turn: ConversationTurn,
-  now: Date,
-  timeLabel: TimeLabel = relativePastLabel,
-): PromptMessage {
+function liveMessage(turn: ConversationTurn, now: Date, timeLabel: TimeLabel): PromptMessage {
   if (turn.role === "assistant") {
     return { content: promptText(turn, now, timeLabel), role: "assistant" };
   }
@@ -72,20 +68,12 @@ function trimTurnsForContext(turns: ConversationTurn[], now: Date): Conversation
   return kept;
 }
 
-function labeledMessages(
+function liveMessages(
   turns: ConversationTurn[],
   now: Date,
-  timeLabel: TimeLabel,
+  timeLabel: TimeLabel = relativePastLabel,
 ): PromptMessage[] {
   return trimTurnsForContext(turns, now).map((turn) => liveMessage(turn, now, timeLabel));
 }
 
-function liveMessages(turns: ConversationTurn[], now: Date): PromptMessage[] {
-  return labeledMessages(turns, now, relativePastLabel);
-}
-
-function sentryLiveMessages(turns: ConversationTurn[], now: Date): PromptMessage[] {
-  return labeledMessages(turns, now, absolutePostedAtLabel);
-}
-
-export { liveMessages, promptText, sentryLiveMessages, trimTurnsForContext };
+export { liveMessages, promptText, trimTurnsForContext };

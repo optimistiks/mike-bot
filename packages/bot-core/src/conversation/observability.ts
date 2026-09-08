@@ -1,13 +1,4 @@
-import type { Span } from "@sentry/core";
-
-import {
-  captureException,
-  getClient,
-  setConversationId,
-  setUser,
-  spanToJSON,
-  startSpan,
-} from "@sentry/core";
+import { captureException, getClient, setConversationId, setUser, startSpan } from "@sentry/core";
 
 import type { SentrySpanBag } from "./sentry-transcript.js";
 import type { ConversationCompleteInput } from "./types.js";
@@ -16,22 +7,8 @@ import { rewriteSentryAiSpan } from "./sentry-transcript.js";
 
 let processSpanHooked = false;
 
-function onSentrySpanStart(span: Span): void {
-  rewriteSentryAiSpan({
-    data: spanToJSON(span).data,
-    setAttribute: (key, value) => {
-      span.setAttribute(key, value);
-    },
-  });
-}
-
 function onSentryProcessSpan(span: SentrySpanBag): void {
   rewriteSentryAiSpan(span);
-}
-
-function listenForSentrySpans(client: NonNullable<ReturnType<typeof getClient>>): void {
-  client.on("spanStart", onSentrySpanStart);
-  client.on("processSpan", onSentryProcessSpan);
 }
 
 function hookSentryTranscriptRewrite(): void {
@@ -43,7 +20,7 @@ function hookSentryTranscriptRewrite(): void {
     return;
   }
   processSpanHooked = true;
-  listenForSentrySpans(client);
+  client.on("processSpan", onSentryProcessSpan);
 }
 
 function bindConversation(input: ConversationCompleteInput): void {
