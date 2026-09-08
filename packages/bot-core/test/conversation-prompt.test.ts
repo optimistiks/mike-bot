@@ -6,15 +6,16 @@ import type {
   SpeakerIdentity,
 } from "#src/conversation/types.js";
 
-import { FIRST_INDEX, LAST_FROM_END, MS_PER_SECOND } from "#src/constants.js";
+import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, MS_PER_SECOND, SINGLE_COUNT } from "#src/constants.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "#src/conversation/prompt.js";
 
 const PERSONA_START = "формат:";
 const EXAMPLES_FENCE = "примеры, не этот чат:";
-const FIRST_EXAMPLE = "[У1] а когда там дедлайн по этой штуке";
-const DEIXIS_EXAMPLE = "[У3] я вообще не спала\n[У4] она всегда так говорит\n[У3] ну и че\nбаза";
-const METADATA_START = "входящие сообщения приходят с метаданными";
+const FIRST_EXAMPLE = "[username1][2 ч назад] а когда там дедлайн по этой штуке";
+const DEIXIS_EXAMPLE =
+  "[username3][5 дн. назад] я вообще не спала\n[username4][5 дн. назад] она всегда так говорит\n[username3][5 дн. назад] ну и че\nбаза";
 const CONTRASTIVE_START = "плохо:";
+const MEMBER_EXAMPLE_LINE = /^\[username\d+]\[.+ назад] /u;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
@@ -114,45 +115,48 @@ describe("conversation prompt", () => {
     ).not.toContain("[:инструкция]");
   });
 
-  it("explains incoming time brackets before the contrastive rules", () => {
+  it("starts with contrastive pairs, then persona, then few-shots", () => {
     expect.hasAssertions();
 
-    const metadataAt = CONVERSATION_SYSTEM_PROMPT.indexOf(METADATA_START);
     const contrastAt = CONVERSATION_SYSTEM_PROMPT.indexOf(CONTRASTIVE_START);
-    const personaAt = CONVERSATION_SYSTEM_PROMPT.indexOf(PERSONA_START);
-
-    expect(metadataAt).toBe(FIRST_INDEX);
-    expect(contrastAt).toBeGreaterThan(metadataAt);
-    expect(personaAt).toBeGreaterThan(contrastAt);
-    expect(CONVERSATION_SYSTEM_PROMPT).toContain(
-      '"[mpotapov][2 ч назад] привет" значит что mpotapov написал "привет" 2 часа назад',
-    );
-    expect(CONVERSATION_SYSTEM_PROMPT).toContain(
-      '"[5 сек. назад] ок" значит что ты написал "ок" 5 секунд назад',
-    );
-  });
-
-  it("keeps generic few-shots in a fenced system block after the persona", () => {
-    expect.hasAssertions();
-
     const personaAt = CONVERSATION_SYSTEM_PROMPT.indexOf(PERSONA_START);
     const fenceAt = CONVERSATION_SYSTEM_PROMPT.indexOf(EXAMPLES_FENCE);
     const firstExampleAt = CONVERSATION_SYSTEM_PROMPT.indexOf(FIRST_EXAMPLE);
     const deixisAt = CONVERSATION_SYSTEM_PROMPT.indexOf(DEIXIS_EXAMPLE);
 
-    expect(personaAt).toBeGreaterThan(LAST_FROM_END);
+    expect(contrastAt).toBe(FIRST_INDEX);
+    expect(personaAt).toBeGreaterThan(contrastAt);
     expect(fenceAt).toBeGreaterThan(personaAt);
     expect(firstExampleAt).toBeGreaterThan(fenceAt);
     expect(deixisAt).toBeGreaterThan(firstExampleAt);
+    expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("входящие сообщения приходят с метаданными");
+    expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("mpotapov");
+    expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("[У1]");
+    expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("У4, кто еще");
   });
 
-  it("does not timestamp the few-shot block", () => {
+  it("stamps few-shot members with username and age and leaves bot lines bare", () => {
     expect.hasAssertions();
 
     const examples = CONVERSATION_SYSTEM_PROMPT.slice(
       CONVERSATION_SYSTEM_PROMPT.indexOf(EXAMPLES_FENCE),
     );
-    expect(examples).not.toContain("назад");
+    const lines = examples.split("\n").slice(SINGLE_COUNT);
+    const memberLines = lines.filter((line) => line.startsWith("[username"));
+    const botLines = lines.filter((line) => !line.startsWith("[username"));
+
+    expect(memberLines.length).toBeGreaterThan(EMPTY_COUNT);
+    expect(botLines.length).toBeGreaterThan(EMPTY_COUNT);
+    expect(memberLines.every((line) => MEMBER_EXAMPLE_LINE.test(line))).toBe(true);
+    expect(botLines.some((line) => line.includes("назад"))).toBe(false);
+    expect(botLines.some((line) => line.startsWith("["))).toBe(false);
+    expect(examples).toContain("[2 ч назад]");
+    expect(examples).toContain("[5 сек. назад]");
+    expect(examples).toContain("[0 сек. назад]");
+    expect(examples).toContain("[2 мин. назад]");
+    expect(examples).toContain("[5 дн. назад]");
+    expect(examples).toContain("[45 сек. назад]");
+    expect(examples).toContain("username4, кто еще");
   });
 
   it("does not use live member names in the few-shot block", () => {
@@ -175,7 +179,7 @@ describe("conversation prompt", () => {
     expect(CONVERSATION_SYSTEM_PROMPT).not.toContain("[Дима]");
   });
 
-  it("ages member and assistant turns with ICU short Russian labels", () => {
+  it("ages member turns with ICU short Russian labels and leaves assistant text bare", () => {
     expect.hasAssertions();
 
     const turns: ConversationTurn[] = [
@@ -195,7 +199,7 @@ describe("conversation prompt", () => {
       ),
     ).toStrictEqual([
       { content: "[username1][2 ч назад] че", role: "user" },
-      { content: "[5 сек. назад] хуй в оче", role: "assistant" },
+      { content: "хуй в оче", role: "assistant" },
       { content: "[username1][45 сек. назад] ещё", role: "user" },
       { content: "[username1][2 мин. назад] минуты", role: "user" },
       { content: "[username1][5 дн. назад] день", role: "user" },
