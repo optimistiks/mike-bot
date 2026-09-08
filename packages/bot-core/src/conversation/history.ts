@@ -2,14 +2,16 @@ import { EMPTY_COUNT } from "#src/constants.js";
 
 import type { ConversationTurn, PromptMessage } from "./types.js";
 
-import { relativePastLabel } from "./age.js";
+import { absolutePostedAtLabel, relativePastLabel } from "./age.js";
 import { SELF_LABEL, promptLine } from "./transcript.js";
 
 const MAX_HISTORY_CHARS = 80_000;
 const HISTORY_DROP_BLOCK_CHARS = 20_000;
 
-function timeBracket(postedAt: Date, now: Date): string {
-  return `[${relativePastLabel(postedAt, now)}]`;
+type TimeLabel = (postedAt: Date, now: Date) => string;
+
+function timeBracket(postedAt: Date, now: Date, timeLabel: TimeLabel): string {
+  return `[${timeLabel(postedAt, now)}]`;
 }
 
 function speakerFor(turn: ConversationTurn): string {
@@ -19,15 +21,28 @@ function speakerFor(turn: ConversationTurn): string {
   return turn.label;
 }
 
-function promptText(turn: ConversationTurn, now: Date): string {
-  return promptLine(speakerFor(turn), timeBracket(turn.postedAt, now), turn.text, turn.reply);
+function promptText(
+  turn: ConversationTurn,
+  now: Date,
+  timeLabel: TimeLabel = relativePastLabel,
+): string {
+  return promptLine(
+    speakerFor(turn),
+    timeBracket(turn.postedAt, now, timeLabel),
+    turn.text,
+    turn.reply,
+  );
 }
 
-function liveMessage(turn: ConversationTurn, now: Date): PromptMessage {
+function liveMessage(
+  turn: ConversationTurn,
+  now: Date,
+  timeLabel: TimeLabel = relativePastLabel,
+): PromptMessage {
   if (turn.role === "assistant") {
-    return { content: promptText(turn, now), role: "assistant" };
+    return { content: promptText(turn, now, timeLabel), role: "assistant" };
   }
-  return { content: promptText(turn, now), role: "user" };
+  return { content: promptText(turn, now, timeLabel), role: "user" };
 }
 
 function serializedLength(turns: ConversationTurn[], now: Date): number {
@@ -57,8 +72,20 @@ function trimTurnsForContext(turns: ConversationTurn[], now: Date): Conversation
   return kept;
 }
 
-function liveMessages(turns: ConversationTurn[], now: Date): PromptMessage[] {
-  return trimTurnsForContext(turns, now).map((turn) => liveMessage(turn, now));
+function labeledMessages(
+  turns: ConversationTurn[],
+  now: Date,
+  timeLabel: TimeLabel,
+): PromptMessage[] {
+  return trimTurnsForContext(turns, now).map((turn) => liveMessage(turn, now, timeLabel));
 }
 
-export { liveMessages, promptText, trimTurnsForContext };
+function liveMessages(turns: ConversationTurn[], now: Date): PromptMessage[] {
+  return labeledMessages(turns, now, relativePastLabel);
+}
+
+function sentryLiveMessages(turns: ConversationTurn[], now: Date): PromptMessage[] {
+  return labeledMessages(turns, now, absolutePostedAtLabel);
+}
+
+export { liveMessages, promptText, sentryLiveMessages, trimTurnsForContext };

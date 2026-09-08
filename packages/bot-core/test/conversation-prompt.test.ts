@@ -14,7 +14,11 @@ import {
   MS_PER_SECOND,
   SINGLE_COUNT,
 } from "#src/constants.js";
-import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "#src/conversation/prompt.js";
+import {
+  CONVERSATION_SYSTEM_PROMPT,
+  conversationMessages,
+  sentryConversationMessages,
+} from "#src/conversation/prompt.js";
 
 const PERSONA_START = "формат:";
 const EXAMPLES_FENCE = "примеры, не этот чат:";
@@ -253,6 +257,38 @@ describe("conversation prompt", () => {
       { content: "[username1][5 дн. назад] день", role: "user" },
       { content: "[username1][0 сек. назад] сейчас", role: "user" },
       { content: "[username1][0 сек. назад] будущее", role: "user" },
+    ]);
+  });
+
+  it("stamps Sentry transcript lines with absolute ISO times", () => {
+    expect.hasAssertions();
+
+    const turns: ConversationTurn[] = [
+      memberTurn("че", ago(TWO_HOURS_MS)),
+      assistantTurn("хуй в оче", ago(FIVE_SECONDS_MS), "username1", "че"),
+      memberTurn("ещё", ago(FORTY_FIVE_SECONDS_MS)),
+      memberTurn("минуты", ago(TWO_MINUTES_MS)),
+      memberTurn("день", ago(FIVE_DAYS_MS)),
+      memberTurn("сейчас", NOW),
+      memberTurn("будущее", new Date(NOW.getTime() + FIVE_SECONDS_MS)),
+    ];
+
+    expect(
+      sentryConversationMessages(completeInput("username1", [USERNAME1], turns)).slice(
+        FIRST_INDEX,
+        LAST_FROM_END,
+      ),
+    ).toStrictEqual([
+      { content: "[username1][2024-06-15T10:00:00Z] че", role: "user" },
+      {
+        content: '[Ты → username1][2024-06-15T11:59:55Z][на "че"] хуй в оче',
+        role: "assistant",
+      },
+      { content: "[username1][2024-06-15T11:59:15Z] ещё", role: "user" },
+      { content: "[username1][2024-06-15T11:58:00Z] минуты", role: "user" },
+      { content: "[username1][2024-06-10T12:00:00Z] день", role: "user" },
+      { content: "[username1][2024-06-15T12:00:00Z] сейчас", role: "user" },
+      { content: "[username1][2024-06-15T12:00:05Z] будущее", role: "user" },
     ]);
   });
 

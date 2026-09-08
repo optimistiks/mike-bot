@@ -8,6 +8,7 @@ import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
 import { logCompletionAttempt } from "./log.js";
 import { bindConversation, invokeAgent, reportCompletionFailure } from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
+import { withSentryTranscript } from "./sentry-transcript.js";
 
 const CONVERSATION_MODEL = "zai/glm-5.3-flash";
 const COMPLETE_TIMEOUT_MS = 8000;
@@ -174,7 +175,9 @@ async function completeWithTimeout(input: ConversationCompleteInput): Promise<st
 
 function complete(input: ConversationCompleteInput): Promise<string> {
   bindConversation(input);
-  return invokeAgent(CONVERSATION_MODEL, () => completeWithTimeout(input));
+  return withSentryTranscript(input, () =>
+    invokeAgent(CONVERSATION_MODEL, () => completeWithTimeout(input)),
+  );
 }
 
 const gatewayConversationModel: ConversationModel = {
