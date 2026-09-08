@@ -1,1 +1,0 @@
-ALTER TABLE "marks" ADD COLUMN "update_id" bigint;

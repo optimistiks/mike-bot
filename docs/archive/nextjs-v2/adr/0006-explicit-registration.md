@@ -1,3 +1,0 @@
-# Require explicit Registration for Mini App access
-
-Mini App access is an explicit per-Chat Registration established when a Member invokes `/stats` — or its `/register` alias — in that Chat, rather than being inferred from Telegram membership or scoring activity. Group `/stats` replies with a Main Mini App deep link to the Chat's current Leaderboard as an ephemeral message visible only to the caller, so registering never clutters the Chat; private `/stats` links to the generic Chat selector without creating Registration. Leaving or being removed from the Chat revokes access, and a returning Member must register again. Protected API authorization remains authoritative even when a client edits a start parameter.

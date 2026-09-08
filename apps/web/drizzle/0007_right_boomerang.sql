@@ -1,1 +1,0 @@
-ALTER TABLE "marks" ADD COLUMN "undone_at" timestamp with time zone;

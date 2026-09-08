@@ -1,3 +1,0 @@
-# Cache Message identity for Subject resolution
-
-Telegram reaction updates identify the Actor but not the Message author, and the Bot API cannot fetch an arbitrary Message, so the bot stores only the Chat and Message identifiers, original author identity, bot status, and timestamp. It deliberately stores no Message content, limiting its privacy surface at the cost of ignoring reactions on Messages it did not observe. Live message observations and embedded reply targets populate the cache without changing an existing author. The v1 importer creates one Message per `(chatId, toMessageId)` using the agreed author and earliest associated Event timestamp truncated to Telegram seconds; author disagreements are logged and skipped rather than aborting reconciliation.
