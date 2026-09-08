@@ -21,6 +21,7 @@ import { handleUpdate } from "#src/handle-update.js";
 
 import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, LENA, statsUpdate, textUpdate } from "./helpers.js";
 import {
+  assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
   enqueueModelTexts,
   holdNextModelResponse,
@@ -477,6 +478,7 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот", "2 ч назад"),
       liveLabeled("alice", "как дела"),
     ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual(["че"]);
   });
 
   it("closes on довольно and stays silent afterwards", async () => {

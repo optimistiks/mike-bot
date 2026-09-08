@@ -15,6 +15,11 @@ const userMessageSchema = z.object({
   role: z.literal("user"),
 });
 
+const assistantMessageSchema = z.object({
+  content: z.union([z.string(), z.array(z.unknown())]),
+  role: z.literal("assistant"),
+});
+
 const bodySchema = z.object({
   prompt: z.array(z.unknown()),
 });
@@ -121,6 +126,33 @@ function userTextsFromBody(body: unknown): string[] {
   return parsed.data.prompt.flatMap((message) => userTextsFromMessage(message));
 }
 
+function assistantTextsFromMessage(message: unknown): string[] {
+  const parsed = assistantMessageSchema.safeParse(message);
+  if (!parsed.success) {
+    return [];
+  }
+  if (typeof parsed.data.content === "string") {
+    return [parsed.data.content];
+  }
+  return parsed.data.content.flatMap((part) => textFromPart(part));
+}
+
+function assistantTurnTextsFromBody(body: unknown): string[] {
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    return [];
+  }
+  return parsed.data.prompt.flatMap((message) => assistantTextsFromMessage(message));
+}
+
+function assistantTurnTextsFromLastModelBody(): string[] {
+  const last = capturedModelBodies.at(LAST_FROM_END);
+  if (last === undefined) {
+    return [];
+  }
+  return assistantTurnTextsFromBody(last);
+}
+
 function liveLabeledFromBody(body: unknown): string[] {
   return userTextsFromBody(body).filter((text) => LIVE_LABEL.test(text));
 }
@@ -150,6 +182,7 @@ function lastCapturedModelBodyJson(): string {
 }
 
 export {
+  assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
   enqueueModelTexts,
   holdNextModelResponse,

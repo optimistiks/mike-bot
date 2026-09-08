@@ -17,7 +17,7 @@ function memberPromptText(turn: Extract<ConversationTurn, { role: "member" }>, n
 
 function promptText(turn: ConversationTurn, now: Date): string {
   if (turn.role === "assistant") {
-    return `${timeBracket(turn.postedAt, now)} ${turn.text}`;
+    return turn.text;
   }
   return memberPromptText(turn, now);
 }
