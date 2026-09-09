@@ -46,7 +46,7 @@ interface TextUpdateOptions {
   messageId: number;
   from: User;
   text: string;
-  replyTo?: { messageId: number; from: User; text?: string | null };
+  replyTo?: { date?: number; from: User; messageId: number; text?: string | null };
   entities?: MessageEntity[];
   chatId?: number;
   date?: number;
@@ -71,8 +71,9 @@ function replyToParentText(text: string | null | undefined): string | undefined 
 function replyToMessage(
   options: NonNullable<TextUpdateOptions["replyTo"]>,
   chat: ChatRef,
-  date: number,
+  fallbackDate: number,
 ): NonNullable<Update["message"]>["reply_to_message"] {
+  const date = options.date ?? fallbackDate;
   const parentText = replyToParentText(options.text);
   const parent = {
     chat,
@@ -128,13 +129,28 @@ function textUpdate(options: TextUpdateOptions): Update {
   return { message: buildMessage(options, chat, date), update_id: options.updateId };
 }
 
-function statsUpdate(updateId: number, from: User, chatId = CHAT_ID): Update {
+function commandEntityLength(text: string): number {
+  const match = /^\/[A-Za-z0-9_]+(?:@[A-Za-z0-9_]+)?/u.exec(text);
+  const matched = match?.[0];
+  if (matched === undefined) {
+    return STATS_COMMAND_LENGTH;
+  }
+  return matched.length;
+}
+
+function statsUpdate(
+  updateId: number,
+  from: User,
+  options: { chatId?: number; date?: number; text?: string } = {},
+): Update {
+  const text = options.text ?? "/stats";
   return textUpdate({
-    chatId,
-    entities: [{ length: STATS_COMMAND_LENGTH, offset: 0, type: "bot_command" }],
+    chatId: options.chatId ?? CHAT_ID,
+    date: options.date,
+    entities: [{ length: commandEntityLength(text), offset: 0, type: "bot_command" }],
     from,
     messageId: STATS_MESSAGE_ID_BASE + updateId,
-    text: "/stats",
+    text,
     updateId,
   });
 }

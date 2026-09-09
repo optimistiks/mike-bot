@@ -4,8 +4,6 @@ const CROWN = "\u{1F451}";
 const CHICKEN = "\u{1F414}";
 const PLUS = "\u2795";
 const MINUS = "\u2796";
-const HUMOR_DECAY_RATE = 40;
-const PERCENT = 100;
 const UNKNOWN_MEMBER = "???";
 const TABLE_OPEN = "<table bordered striped compact>";
 
@@ -75,30 +73,6 @@ function rank(
   });
 }
 
-function humorAfterDecay(row: StandingRow, index: number, memberCount: number): number {
-  const loss = ((memberCount - index - 1) * (HUMOR_DECAY_RATE / memberCount)) / PERCENT;
-  return row.humorReceived - Math.round(row.humorReceived * loss);
-}
-
-function withHumorReceived(row: StandingRow, humorReceived: number): StandingRow {
-  return {
-    humorGiven: row.humorGiven,
-    humorReceived,
-    karmaMinusGiven: row.karmaMinusGiven,
-    karmaPlusGiven: row.karmaPlusGiven,
-    karmaReceived: row.karmaReceived,
-    memberId: row.memberId,
-    name: row.name,
-  };
-}
-
-function applyHumorDecay(rows: StandingRow[], memberCount: number): StandingRow[] {
-  const ordered = [...rows].toSorted(compareScore((row) => row.humorReceived));
-  return ordered.map((row, index) =>
-    withHumorReceived(row, humorAfterDecay(row, index, memberCount)),
-  );
-}
-
 function escapeHtml(text: string): string {
   return text
     .replaceAll("&", "&amp;")
@@ -140,21 +114,20 @@ function section(title: string, lines: RankedLine[]): string {
   return `<h2>${title}</h2>${formatTable(lines)}`;
 }
 
-function formatStandings(rows: StandingRow[]): string {
-  const memberCount = rows.length;
+function formatStandings(rows: StandingRow[], year: number): string {
   const karma = rank(rows, (row) => row.karmaReceived, true);
-  const humor = rank(applyHumorDecay(rows, memberCount), (row) => row.humorReceived, true);
+  const humor = rank(rows, (row) => row.humorReceived, true);
   const plusGiven = rank(rows, (row) => row.karmaPlusGiven, false);
   const minusGiven = rank(rows, (row) => row.karmaMinusGiven, false);
   const humorGiven = rank(rows, (row) => row.humorGiven, false);
 
-  return [
+  return `<h1>Сезон ${String(year)}</h1>${[
     section("Уважаемые люди", karma),
     section("Юмористы", humor),
     section(`Поставили ${PLUS}`, plusGiven),
     section(`Поставили ${MINUS}`, minusGiven),
     section("Поставили лол", humorGiven),
-  ].join("<hr/>");
+  ].join("<hr/>")}`;
 }
 
 export { formatStandings };

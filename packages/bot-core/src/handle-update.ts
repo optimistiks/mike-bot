@@ -9,7 +9,7 @@ import { conversationWork, finishConversationWork } from "./conversation/pending
 import { claimUpdate, upsertMember } from "./db/store.js";
 import { tryApplyScoring } from "./scoring/apply.js";
 import { applyStandings } from "./standings/apply.js";
-import { botCommandName } from "./telegram/text.js";
+import { botCommand } from "./telegram/text.js";
 
 function inboundMessage(update: Update): Message | undefined {
   return update.message ?? update.channel_post;
@@ -23,11 +23,11 @@ function hasSender(
 
 async function handleCommand(
   db: BotSession,
-  chatId: number,
+  message: Message,
   command: string,
 ): Promise<HandlerResult> {
   if (command === "stats") {
-    const outcome = await applyStandings(db, chatId);
+    const outcome = await applyStandings(db, message);
     return { type: "standings", ...outcome };
   }
   return { type: "noop" };
@@ -50,9 +50,9 @@ function routeMessage(
   message: Message,
   botUserId: number | undefined,
 ): Promise<ConversationWork> {
-  const command = botCommandName(message);
+  const command = botCommand(message);
   if (command !== null) {
-    return handleCommand(db, message.chat.id, command);
+    return handleCommand(db, message, command.name);
   }
   return handleNonCommand(db, message, botUserId);
 }

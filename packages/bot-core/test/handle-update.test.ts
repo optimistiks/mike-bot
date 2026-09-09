@@ -25,6 +25,11 @@ import {
 
 const STANDINGS_UPDATE_ID = 8;
 const EMPTY_STATS_UPDATE_ID = 1;
+const MOSCOW_2024_MID = 1_718_442_000;
+const MOSCOW_2025_MID = 1_749_978_000;
+const MOSCOW_2026_MID = 1_781_514_000;
+const MOSCOW_2025_START = 1_735_678_800;
+const MOSCOW_BEFORE_2025 = 1_735_678_799;
 const CLOSED_TURN_WINDOW = 100;
 const ZERO_AGE = "0 сек. назад";
 const TWO_HOURS_SECONDS = 7200;
@@ -54,6 +59,41 @@ function numberedTexts(prefix: string, count: number): string[] {
     texts.push(`${prefix} ${String(index)}`);
   }
   return texts;
+}
+
+function plusOnlySeasonHtml(year: string, receiver: string, giver: string): string {
+  const names = [receiver, giver].toSorted((left, right) => left.localeCompare(right));
+  const humorRows = names
+    .map((name) => `<tr><td><b>${name} 👑</b></td><td align="center"><b>0</b></td></tr>`)
+    .join("");
+  const zeroGivenRows = names
+    .map((name) => `<tr><td>${name}</td><td align="center">0</td></tr>`)
+    .join("");
+  return [
+    `<h1>Сезон ${year}</h1>`,
+    "<h2>Уважаемые люди</h2>",
+    "<table bordered striped compact>",
+    `<tr><td><b>${receiver} 👑</b></td><td align="center"><b>1</b></td></tr>`,
+    `<tr><td>${giver} 🐔</td><td align="center">0</td></tr>`,
+    "</table><hr/>",
+    "<h2>Юмористы</h2>",
+    "<table bordered striped compact>",
+    humorRows,
+    "</table><hr/>",
+    "<h2>Поставили ➕</h2>",
+    "<table bordered striped compact>",
+    `<tr><td>${giver}</td><td align="center">1</td></tr>`,
+    `<tr><td>${receiver}</td><td align="center">0</td></tr>`,
+    "</table><hr/>",
+    "<h2>Поставили ➖</h2>",
+    "<table bordered striped compact>",
+    zeroGivenRows,
+    "</table><hr/>",
+    "<h2>Поставили лол</h2>",
+    "<table bordered striped compact>",
+    zeroGivenRows,
+    "</table>",
+  ].join("");
 }
 
 function silenceResults(count: number): HandlerResult[] {
@@ -301,6 +341,7 @@ describe("telegram update handling", () => {
     expect(result).toStrictEqual({
       kind: "posted",
       text: [
+        "<h1>Сезон 2023</h1>",
         "<h2>Уважаемые люди</h2>",
         "<table bordered striped compact>",
         '<tr><td><b>alice 👑</b></td><td align="center"><b>2</b></td></tr>',
@@ -309,8 +350,8 @@ describe("telegram update handling", () => {
         "</table><hr/>",
         "<h2>Юмористы</h2>",
         "<table bordered striped compact>",
-        '<tr><td><b>alice 👑</b></td><td align="center"><b>1</b></td></tr>',
-        '<tr><td><b>carol 👑</b></td><td align="center"><b>1</b></td></tr>',
+        '<tr><td><b>alice 👑</b></td><td align="center"><b>2</b></td></tr>',
+        '<tr><td>carol</td><td align="center">1</td></tr>',
         '<tr><td>bob 🐔</td><td align="center">0</td></tr>',
         "</table><hr/>",
         "<h2>Поставили ➕</h2>",
@@ -341,6 +382,137 @@ describe("telegram update handling", () => {
     const result = await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
 
     expect(result).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("posts Standings for an explicit year and ignores extra tokens", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        date: MOSCOW_2024_MID,
+        from: BOB,
+        messageId: 20,
+        replyTo: { date: MOSCOW_2024_MID, from: CAROL, messageId: 21 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        date: MOSCOW_2025_MID,
+        from: ALICE,
+        messageId: 22,
+        replyTo: { date: MOSCOW_2025_MID, from: BOB, messageId: 23 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+
+    const season2024 = await handle(
+      statsUpdate(STANDINGS_UPDATE_ID, ALICE, { text: "/stats 2024 extra" }),
+    );
+    const season2025 = await handle(
+      statsUpdate(STANDINGS_UPDATE_ID + 1, ALICE, {
+        date: MOSCOW_2025_MID,
+        text: "/stats@some_bot",
+      }),
+    );
+
+    expect(season2024).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2024", "carol", "bob"),
+      type: "standings",
+    });
+    expect(season2025).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2025", "bob", "alice"),
+      type: "standings",
+    });
+  });
+
+  it("leaves /stats untouched when the year is empty or not four digits", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        date: MOSCOW_2025_MID,
+        from: ALICE,
+        messageId: 22,
+        replyTo: { date: MOSCOW_2025_MID, from: BOB, messageId: 23 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+
+    const future = await handle(statsUpdate(2, ALICE, { text: "/stats 2099" }));
+    const garbage = await handle(statsUpdate(3, ALICE, { text: "/stats foo" }));
+    const short = await handle(statsUpdate(4, ALICE, { text: "/stats 25" }));
+    const dotted = await handle(statsUpdate(5, ALICE, { text: "/stats 2025." }));
+
+    expect(future).toStrictEqual({ kind: "empty", type: "standings" });
+    expect(garbage).toStrictEqual({ kind: "empty", type: "standings" });
+    expect(short).toStrictEqual({ kind: "empty", type: "standings" });
+    expect(dotted).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("counts a Mark in the scored Message's year, not the vote year", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        date: MOSCOW_2026_MID,
+        from: ALICE,
+        messageId: 30,
+        replyTo: { date: MOSCOW_2025_MID, from: BOB, messageId: 23 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+
+    const season2025 = await handle(statsUpdate(2, ALICE, { text: "/stats 2025" }));
+    const season2026 = await handle(statsUpdate(3, ALICE, { date: MOSCOW_2026_MID }));
+
+    expect(season2025).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2025", "bob", "alice"),
+      type: "standings",
+    });
+    expect(season2026).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("assigns a Message on the Moscow New Year boundary to that year", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        date: MOSCOW_2025_START,
+        from: ALICE,
+        messageId: 40,
+        replyTo: { date: MOSCOW_BEFORE_2025, from: BOB, messageId: 41 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        date: MOSCOW_2025_START,
+        from: CAROL,
+        messageId: 42,
+        replyTo: { date: MOSCOW_2025_START, from: ALICE, messageId: 43 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+
+    const season2024 = await handle(statsUpdate(3, ALICE, { text: "/stats 2024" }));
+    const season2025 = await handle(statsUpdate(4, ALICE, { text: "/stats 2025" }));
+
+    expect(season2024).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2024", "bob", "alice"),
+      type: "standings",
+    });
+    expect(season2025).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2025", "alice", "carol"),
+      type: "standings",
+    });
   });
 
   it("wakes on бот and бот привет with labeled whole text", async () => {

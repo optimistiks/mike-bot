@@ -1,9 +1,13 @@
-import { eq } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+
+import { and, eq, sql } from "drizzle-orm";
 
 import type { BotSession } from "#src/db/runtime.js";
 import type { MarkType } from "#src/domain/mark.js";
 
-import { marks, members } from "#src/db/schema.js";
+import { marks, members, messages } from "#src/db/schema.js";
+
+import { MOSCOW_TIME_ZONE } from "./year.js";
 
 interface StandingRow {
   memberId: number;
@@ -96,8 +100,28 @@ async function standingRowsFromMarks(db: BotSession, markRows: MarkRow[]): Promi
   return [...byMember.values()];
 }
 
-async function loadStandingRows(db: BotSession, chatId: number): Promise<StandingRow[]> {
-  const markRows = await db.select().from(marks).where(eq(marks.chatId, chatId));
+function moscowYearContains(year: number): SQL {
+  return sql`${messages.postedAt} >= make_timestamp(${year}, 1, 1, 0, 0, 0) AT TIME ZONE ${MOSCOW_TIME_ZONE} AND ${messages.postedAt} < make_timestamp(${year + 1}, 1, 1, 0, 0, 0) AT TIME ZONE ${MOSCOW_TIME_ZONE}`;
+}
+
+async function loadMarkRows(db: BotSession, chatId: number, year: number): Promise<MarkRow[]> {
+  const rows = await db
+    .select({ mark: marks })
+    .from(marks)
+    .innerJoin(
+      messages,
+      and(eq(marks.chatId, messages.chatId), eq(marks.messageId, messages.messageId)),
+    )
+    .where(and(eq(marks.chatId, chatId), moscowYearContains(year)));
+  return rows.map((row) => row.mark);
+}
+
+async function loadStandingRows(
+  db: BotSession,
+  chatId: number,
+  year: number,
+): Promise<StandingRow[]> {
+  const markRows = await loadMarkRows(db, chatId, year);
   if (markRows.length === 0) {
     return [];
   }
