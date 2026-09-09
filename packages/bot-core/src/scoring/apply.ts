@@ -9,8 +9,8 @@ import { isBotUser, telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import { acknowledgementText, scoringToken } from "./token.js";
 
-function isSelfOrBot(actor: User, subject: User): boolean {
-  return subject.id === actor.id || isBotUser(subject);
+function isSelfOrForeignBot(actor: User, subject: User, botUserId: number | undefined): boolean {
+  return subject.id === actor.id || (isBotUser(subject) && subject.id !== botUserId);
 }
 
 async function persistScoring(
@@ -43,7 +43,11 @@ async function persistScoring(
   };
 }
 
-function tryApplyScoring(db: BotSession, message: Message): Promise<ScoringOutcome | null> {
+function tryApplyScoring(
+  db: BotSession,
+  message: Message,
+  botUserId: number | undefined,
+): Promise<ScoringOutcome | null> {
   const actor = message.from;
   const { text } = message;
   if (actor === undefined || text === undefined) {
@@ -55,7 +59,11 @@ function tryApplyScoring(db: BotSession, message: Message): Promise<ScoringOutco
   }
   const marked = message.reply_to_message;
   const subject = marked?.from;
-  if (marked === undefined || subject === undefined || isSelfOrBot(actor, subject)) {
+  if (
+    marked === undefined ||
+    subject === undefined ||
+    isSelfOrForeignBot(actor, subject, botUserId)
+  ) {
     return Promise.resolve({ kind: "ignored" });
   }
   return persistScoring(db, message, actor, marked, subject, type);

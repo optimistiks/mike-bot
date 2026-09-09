@@ -38,7 +38,7 @@ async function handleNonCommand(
   message: Message,
   botUserId: number | undefined,
 ): Promise<ConversationWork> {
-  const scoring = await tryApplyScoring(db, message);
+  const scoring = await tryApplyScoring(db, message, botUserId);
   if (scoring !== null) {
     await persistSilentMemberTurn(db, message, botUserId);
     return { type: "scoring", ...scoring };

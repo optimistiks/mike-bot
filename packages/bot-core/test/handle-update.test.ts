@@ -227,6 +227,42 @@ describe("telegram update handling", () => {
     });
   });
 
+  it("accepts a Scoring reply to this bot", async () => {
+    expect.hasAssertions();
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 50,
+        replyTo: { from: BOT_USER, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+      BOT_USER.id,
+    );
+
+    expect(result).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+  });
+
+  it("ignores a Scoring reply to a different bot", async () => {
+    expect.hasAssertions();
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 51,
+        replyTo: { from: BOT_USER, messageId: 11 },
+        text: "+",
+        updateId: 1,
+      }),
+      BOT_USER.id + 1,
+    );
+
+    expect(result).toStrictEqual({ kind: "ignored", type: "scoring" });
+  });
+
   it("ignores self-scoring, bot Subjects, and a missing reply", async () => {
     expect.hasAssertions();
     const self = await handle(
@@ -619,6 +655,28 @@ describe("telegram update handling", () => {
     const result = await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
 
     expect(result).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("lists this bot on Standings after a Mark", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 20,
+        replyTo: { from: BOT_USER, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+      BOT_USER.id,
+    );
+
+    const result = await handle(statsUpdate(STANDINGS_UPDATE_ID, ALICE));
+
+    expect(result).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2023", "some_bot", "alice"),
+      type: "standings",
+    });
   });
 
   it("records posted Standings as an assistant Turn", async () => {
