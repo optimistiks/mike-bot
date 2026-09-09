@@ -5,6 +5,7 @@ type StandingsOutcome = { kind: "posted"; text: string } | { kind: "empty" };
 type ConversationOutcome =
   | { kind: "reply"; text: string }
   | { kind: "closed" }
+  | { kind: "left" }
   | { kind: "silence" };
 
 type HandlerResult =

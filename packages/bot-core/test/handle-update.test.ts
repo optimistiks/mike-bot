@@ -996,6 +996,146 @@ describe("telegram update handling", () => {
     expect(later).toStrictEqual({ kind: "silence", type: "conversation" });
   });
 
+  it("closes on Довольно ignoring case and surrounding space", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2080,
+        text: "бот",
+        updateId: 2080,
+      }),
+    );
+    const stopped = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2081,
+        text: "  ДОВОЛЬНО  ",
+        updateId: 2081,
+      }),
+    );
+
+    expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
+  });
+
+  it("does not stop on довольно with trailing punctuation", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2082,
+        text: "бот",
+        updateId: 2082,
+      }),
+    );
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2083,
+        text: "довольно!",
+        updateId: 2083,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
+
+  it("wakes on Бот as the first token ignoring case", async () => {
+    expect.hasAssertions();
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2084,
+        text: "БОТ привет",
+        updateId: 2084,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "БОТ привет"),
+    ]);
+  });
+
+  it("leaves the speaker on довольно while the Conversation stays open for other Participants", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2085,
+        text: "бот",
+        updateId: 2085,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 2086,
+        text: "бот",
+        updateId: 2086,
+      }),
+    );
+    const left = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2087,
+        text: "довольно",
+        updateId: 2087,
+      }),
+    );
+    const aliceLater = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2088,
+        text: "ещё слово",
+        updateId: 2088,
+      }),
+    );
+    const bobLater = await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 2089,
+        text: "как дела",
+        updateId: 2089,
+      }),
+    );
+
+    expect(left).toStrictEqual({ kind: "left", type: "conversation" });
+    expect(aliceLater).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(bobLater).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
+
+  it("stays silent when a bystander says довольно", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2090,
+        text: "бот",
+        updateId: 2090,
+      }),
+    );
+    const bystander = await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 2091,
+        text: "довольно",
+        updateId: 2091,
+      }),
+    );
+    const aliceLater = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2092,
+        text: "как дела",
+        updateId: 2092,
+      }),
+    );
+
+    expect(bystander).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(aliceLater).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
+
   it("seeds a Wake from ordinary Turns logged while the Conversation was closed", async () => {
     expect.hasAssertions();
     const beforeWake = await handle(

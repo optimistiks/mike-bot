@@ -32,9 +32,9 @@ async function tryDeleteMessage(
   }
 }
 
-async function tryReactToStop(ctx: Context): Promise<void> {
+async function tryReactToStop(ctx: Context, emoji: "👍" | "👌"): Promise<void> {
   try {
-    await ctx.react("👍", { is_big: false });
+    await ctx.react(emoji, { is_big: false });
   } catch (error) {
     logError("failed to react to Stop message", error);
   }
@@ -82,7 +82,11 @@ async function applyConversationOutcome(
     return;
   }
   if (result.kind === "closed") {
-    await tryReactToStop(ctx);
+    await tryReactToStop(ctx, "👌");
+    return;
+  }
+  if (result.kind === "left") {
+    await tryReactToStop(ctx, "👍");
     return;
   }
   if (result.kind !== "reply") {

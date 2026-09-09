@@ -44,11 +44,11 @@ function botCommand(message: Message): BotCommand | null {
 
 function isWakeMessage(text: string): boolean {
   const [token] = text.trim().split(/\s+/u);
-  return token === WAKE_TOKEN;
+  return token !== undefined && token.toLowerCase() === WAKE_TOKEN;
 }
 
 function isStopMessage(text: string): boolean {
-  return text.trim() === STOP_TEXT;
+  return text.trim().toLowerCase() === STOP_TEXT;
 }
 
 export { botCommand, isStopMessage, isWakeMessage, type BotCommand };

@@ -26,6 +26,7 @@ type ChatConversation = NonNullable<Awaited<ReturnType<typeof findConversation>>
 
 type PersistedConversation =
   | { kind: "closed" }
+  | { kind: "left" }
   | { kind: "silence" }
   | {
       kind: "turn";
@@ -151,8 +152,9 @@ async function persistStop(
   if (remaining === 0) {
     await closeConversation(db, conversation.id, now);
     await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
+    return { kind: "closed" };
   }
-  return { kind: "closed" };
+  return { kind: "left" };
 }
 
 async function persistTalk(
