@@ -1,3 +1,4 @@
+import "server-only";
 import { parse, validate } from "@tma.js/init-data-node";
 
 import type { OpenerProfile } from "./opener";
