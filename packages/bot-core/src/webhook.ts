@@ -43,7 +43,7 @@ function createTelegramWebhook({
 async function publishStatsCommand(bot: Bot): Promise<void> {
   const statsCommand = {
     command: "stats",
-    description: "Таблицы",
+    description: "Вывести статистику",
   };
   await bot.api.setMyCommands([statsCommand]);
   await bot.api.setMyCommands([{ ...statsCommand, is_ephemeral: true }], {
