@@ -1057,6 +1057,23 @@ describe("telegram update handling", () => {
     ]);
   });
 
+  it("wakes on бот, with a comma glued to the first token", async () => {
+    expect.hasAssertions();
+    const result = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 2093,
+        text: "бот, и дальше что нибудь",
+        updateId: 2093,
+      }),
+    );
+
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот, и дальше что нибудь"),
+    ]);
+  });
+
   it("leaves the speaker on довольно while the Conversation stays open for other Participants", async () => {
     expect.hasAssertions();
     await handle(
