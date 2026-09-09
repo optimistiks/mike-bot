@@ -61,6 +61,17 @@ function numberedTexts(prefix: string, count: number): string[] {
   return texts;
 }
 
+function plusOnlySeasonLine(year: string, receiver: string, giver: string): string {
+  return [
+    `Сезон ${year}`,
+    `Уважаемые люди: ${receiver} 1, ${giver} 0`,
+    `Юмористы: ${receiver} 0, ${giver} 0`,
+    `Поставили +: ${giver} 1, ${receiver} 0`,
+    `Поставили -: ${receiver} 0, ${giver} 0`,
+    `Поставили лол: ${receiver} 0, ${giver} 0`,
+  ].join(". ");
+}
+
 function plusOnlySeasonHtml(year: string, receiver: string, giver: string): string {
   const names = [receiver, giver].toSorted((left, right) => left.localeCompare(right));
   const humorRows = names
@@ -274,6 +285,148 @@ describe("telegram update handling", () => {
     expect(result).toStrictEqual({ kind: "ignored", type: "scoring" });
   });
 
+  it("records a Scoring token as a Turn without completing", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 70,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const scored = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 71,
+        replyTo: { from: BOB, messageId: 10, text: "шутка" },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+    const next = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 72,
+        text: "как дела",
+        updateId: 3,
+      }),
+    );
+
+    expect(scored).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(2);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот"),
+      liveReplyLabeled("alice", "bob", "шутка", "+"),
+      liveLabeled("alice", "как дела"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "бот", "че"),
+    ]);
+  });
+
+  it("records ignored Scoring tokens as Turns", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 80,
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 81,
+        replyTo: { from: ALICE, messageId: 10 },
+        text: "-",
+        updateId: 2,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 82,
+        replyTo: { from: BOT_USER, messageId: 11 },
+        text: "ЛОЛ",
+        updateId: 3,
+      }),
+    );
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 83,
+        text: "бот",
+        updateId: 4,
+      }),
+    );
+
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(1);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "+"),
+      liveReplyLabeled("alice", "alice", "target", "-"),
+      liveReplyLabeled("alice", "some_bot", "target", "ЛОЛ"),
+      liveLabeled("alice", "бот"),
+    ]);
+  });
+
+  it("keeps a pending completion after a Scoring token from the same Member", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 90,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const gate = createQuietGate();
+    const pending = handleAfterQuiet(
+      textUpdate({
+        from: ALICE,
+        messageId: 91,
+        text: "как дела",
+        updateId: 2,
+      }),
+      gate.wait,
+    );
+    await gate.untilParked(1);
+    const scored = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 92,
+        replyTo: { from: BOB, messageId: 10, text: "шутка" },
+        text: "+",
+        updateId: 3,
+      }),
+    );
+    gate.releaseAll();
+    const replied = await pending;
+
+    expect(scored).toStrictEqual({
+      kind: "accepted",
+      text: "➕ (alice)",
+      type: "scoring",
+    });
+    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(2);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот"),
+      liveLabeled("alice", "как дела"),
+      liveReplyLabeled("alice", "bob", "шутка", "+"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "бот", "че"),
+    ]);
+  });
+
   it("posts rich Standings HTML for a Chat with Marks", async () => {
     expect.hasAssertions();
     await handle(
@@ -466,6 +619,60 @@ describe("telegram update handling", () => {
     const result = await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
 
     expect(result).toStrictEqual({ kind: "empty", type: "standings" });
+  });
+
+  it("records posted Standings as an assistant Turn", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 20,
+        replyTo: { from: ALICE, messageId: 10, text: "шутка" },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    const posted = await handle(statsUpdate(STANDINGS_UPDATE_ID, ALICE));
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 21,
+        text: "бот",
+        updateId: STANDINGS_UPDATE_ID + 1,
+      }),
+    );
+
+    expect(posted).toStrictEqual({
+      kind: "posted",
+      text: plusOnlySeasonHtml("2023", "alice", "bob"),
+      type: "standings",
+    });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(1);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("bob", "alice", "шутка", "+"),
+      liveLabeled("alice", "бот"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "/stats", plusOnlySeasonLine("2023", "alice", "bob")),
+    ]);
+  });
+
+  it("does not record empty /stats as a Turn", async () => {
+    expect.hasAssertions();
+    await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 22,
+        text: "бот",
+        updateId: 2,
+      }),
+    );
+
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([liveLabeled("alice", "бот")]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([]);
   });
 
   it("posts Standings for an explicit year and ignores extra tokens", async () => {
@@ -871,7 +1078,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("does not log a Scoring reply as a Turn while the Conversation is closed", async () => {
+  it("logs a Scoring reply as a Turn while the Conversation is closed", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -907,6 +1114,7 @@ describe("telegram update handling", () => {
     expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "привет"),
+      liveReplyLabeled("alice", "bob", "target", "+"),
       liveLabeled("alice", "бот"),
     ]);
   });
@@ -947,6 +1155,7 @@ describe("telegram update handling", () => {
     expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот привет"),
+      liveReplyLabeled("alice", "bob", "target", "+"),
       liveLabeled("bob", "бот ку"),
     ]);
   });

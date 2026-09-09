@@ -4,7 +4,7 @@ import type { ConversationWork } from "./conversation/pending.js";
 import type { BotDatabase, BotSession } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
-import { persistConversation } from "./conversation/apply.js";
+import { persistConversation, persistSilentMemberTurn } from "./conversation/apply.js";
 import { conversationWork, finishConversationWork } from "./conversation/pending.js";
 import { claimUpdate, upsertMember } from "./db/store.js";
 import { tryApplyScoring } from "./scoring/apply.js";
@@ -40,6 +40,7 @@ async function handleNonCommand(
 ): Promise<ConversationWork> {
   const scoring = await tryApplyScoring(db, message);
   if (scoring !== null) {
+    await persistSilentMemberTurn(db, message, botUserId);
     return { type: "scoring", ...scoring };
   }
   return conversationWork(await persistConversation(db, message, botUserId));

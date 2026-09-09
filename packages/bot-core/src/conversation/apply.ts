@@ -5,7 +5,7 @@ import type { BotSession } from "#src/db/runtime.js";
 import type { conversationTurns } from "#src/db/schema.js";
 
 import { CLOSED_TURN_WINDOW } from "#src/constants.js";
-import { speakerLabel } from "#src/conversation/label.js";
+import { replyMark, speakerLabel } from "#src/conversation/label.js";
 import { replyFromMessage } from "#src/conversation/reply.js";
 import {
   appendTurn,
@@ -184,6 +184,71 @@ async function persistTalk(
   return persistBystanderTurn(db, conversation, actor, text, now, reply);
 }
 
+async function conversationForContext(
+  db: BotSession,
+  chatId: number,
+  now: Date,
+): Promise<ChatConversation> {
+  const existing = await findConversation(db, chatId);
+  return existing ?? insertConversation(db, chatId, now, now);
+}
+
+async function trimContextIfClosed(db: BotSession, conversation: ChatConversation): Promise<void> {
+  if (conversation.closedAt === null) {
+    return;
+  }
+  await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
+}
+
+async function persistSilentMemberTurn(
+  db: BotSession,
+  message: Message,
+  botUserId: number | undefined,
+): Promise<void> {
+  const actor = message.from;
+  const { text } = message;
+  if (actor === undefined || text === undefined) {
+    return;
+  }
+  const now = telegramDateToPostedAt(message.date);
+  const conversation = await conversationForContext(db, message.chat.id, now);
+  const input = memberTurnInput(
+    conversation.id,
+    actor,
+    text,
+    now,
+    replyFromMessage(message, botUserId),
+  );
+  await appendTurn(db, { ...input, memberId: null });
+  await trimContextIfClosed(db, conversation);
+}
+
+async function persistSilentAssistantTurn(
+  db: BotSession,
+  message: Message,
+  text: string,
+): Promise<void> {
+  const actor = message.from;
+  const commandText = message.text;
+  if (actor === undefined || commandText === undefined) {
+    return;
+  }
+  const now = telegramDateToPostedAt(message.date);
+  const conversation = await conversationForContext(db, message.chat.id, now);
+  const reply = replyMark(speakerLabel(actor), commandText);
+  await appendTurn(db, {
+    conversationId: conversation.id,
+    memberId: null,
+    postedAt: now,
+    replyQuote: reply.quote,
+    replyTargetLabel: reply.targetLabel,
+    role: "assistant",
+    speakerLabel: null,
+    text,
+  });
+  await trimContextIfClosed(db, conversation);
+}
+
 async function persistConversation(
   db: BotSession,
   message: Message,
@@ -203,4 +268,10 @@ async function persistConversation(
   return persistTalk(db, conversation, actor, message.chat.id, text, now, reply);
 }
 
-export { modelTurn, persistConversation, type PersistedConversation };
+export {
+  modelTurn,
+  persistConversation,
+  persistSilentAssistantTurn,
+  persistSilentMemberTurn,
+  type PersistedConversation,
+};

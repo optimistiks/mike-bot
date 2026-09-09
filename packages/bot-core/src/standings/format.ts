@@ -140,4 +140,35 @@ function formatStandings(rows: StandingRow[], year: number): string {
   ].join("<hr/>")}`;
 }
 
-export { formatStandings };
+function formatBoardLine(title: string, lines: RankedLine[]): string {
+  const entries = lines.map((line) => `${line.name} ${String(line.score)}`).join(", ");
+  return `${title}: ${entries}`;
+}
+
+function formatStandingsLine(rows: StandingRow[], year: number): string {
+  return [
+    `Сезон ${String(year)}`,
+    formatBoardLine(
+      "Уважаемые люди",
+      rank(rows, (row) => row.karmaReceived, false),
+    ),
+    formatBoardLine(
+      "Юмористы",
+      rank(rows, (row) => row.humorReceived, false),
+    ),
+    formatBoardLine(
+      "Поставили +",
+      rank(rows, (row) => row.karmaPlusGiven, false),
+    ),
+    formatBoardLine(
+      "Поставили -",
+      rank(rows, (row) => row.karmaMinusGiven, false),
+    ),
+    formatBoardLine(
+      "Поставили лол",
+      rank(rows, (row) => row.humorGiven, false),
+    ),
+  ].join(". ");
+}
+
+export { formatStandings, formatStandingsLine };

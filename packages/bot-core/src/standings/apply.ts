@@ -3,10 +3,11 @@ import type { Message } from "grammy/types";
 import type { BotSession } from "#src/db/runtime.js";
 import type { StandingsOutcome } from "#src/outcomes.js";
 
+import { persistSilentAssistantTurn } from "#src/conversation/apply.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 import { botCommand } from "#src/telegram/text.js";
 
-import { formatStandings } from "./format.js";
+import { formatStandings, formatStandingsLine } from "./format.js";
 import { loadStandingRows } from "./query.js";
 import { standingsYear } from "./year.js";
 
@@ -20,6 +21,7 @@ async function applyStandings(db: BotSession, message: Message): Promise<Standin
   if (rows.length === 0) {
     return { kind: "empty" };
   }
+  await persistSilentAssistantTurn(db, message, formatStandingsLine(rows, year));
   return { kind: "posted", text: formatStandings(rows, year) };
 }
 
