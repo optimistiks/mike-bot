@@ -1,6 +1,8 @@
-import { captureException, setConversationId, setUser, startSpan } from "@sentry/core";
+import { captureException, flush, setConversationId, setUser, startSpan } from "@sentry/core";
 
 import type { ConversationCompleteInput } from "./types.js";
+
+const SENTRY_FLUSH_MS = 2000;
 
 function bindConversation(input: ConversationCompleteInput): void {
   setConversationId(input.conversationId);
@@ -13,8 +15,18 @@ function reportCompletionFailure(error: unknown, signal: AbortSignal): void {
   });
 }
 
+function reportEmptyCompletion(): void {
+  captureException(new Error("conversation completion empty"), {
+    tags: { conversation_failure: "empty" },
+  });
+}
+
 function reportUnhandledFailure(error: unknown): void {
   captureException(error);
+}
+
+function flushConversationTelemetry(): Promise<boolean> {
+  return flush(SENTRY_FLUSH_MS);
 }
 
 function invokeAgent<Result>(model: string, work: () => Result): Result {
@@ -32,4 +44,11 @@ function invokeAgent<Result>(model: string, work: () => Result): Result {
   );
 }
 
-export { bindConversation, invokeAgent, reportCompletionFailure, reportUnhandledFailure };
+export {
+  bindConversation,
+  flushConversationTelemetry,
+  invokeAgent,
+  reportCompletionFailure,
+  reportEmptyCompletion,
+  reportUnhandledFailure,
+};

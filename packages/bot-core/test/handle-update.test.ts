@@ -1,6 +1,7 @@
 import type { Update } from "grammy/types";
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { captureException } from "@sentry/core";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PgliteDatabase } from "#src/db/pglite.js";
 import type { HandlerResult } from "#src/outcomes.js";
@@ -22,6 +23,8 @@ import {
   resetCapturedModelBodies,
   waitUntilModelCallCount,
 } from "./msw.js";
+
+vi.mock(import("@sentry/core"), { spy: true });
 
 const STANDINGS_UPDATE_ID = 8;
 const EMPTY_STATS_UPDATE_ID = 1;
@@ -180,6 +183,7 @@ describe("telegram update handling", () => {
   afterEach(() => {
     resetCapturedModelBodies();
     modelServer.resetHandlers();
+    vi.mocked(captureException).mockClear();
   });
 
   afterAll(async () => {
@@ -1151,6 +1155,7 @@ describe("telegram update handling", () => {
 
     expect(bystander).toStrictEqual({ kind: "silence", type: "conversation" });
     expect(aliceLater).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("seeds a Wake from ordinary Turns logged while the Conversation was closed", async () => {
@@ -1448,6 +1453,10 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "conversation completion empty" }),
+      expect.objectContaining({ tags: { conversation_failure: "empty" } }),
+    );
 
     const next = await handle(
       textUpdate({
@@ -1485,6 +1494,10 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tags: { conversation_failure: "error" } }),
+    );
   });
 
   it("lets Bob complete while Alice's completion is in flight", async () => {

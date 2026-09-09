@@ -5,7 +5,12 @@ import { logInfo } from "#src/log.js";
 import type { ConversationCompleteInput, PromptMessage } from "./types.js";
 
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
-import { bindConversation, invokeAgent, reportCompletionFailure } from "./observability.js";
+import {
+  bindConversation,
+  invokeAgent,
+  reportCompletionFailure,
+  reportEmptyCompletion,
+} from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
 import { withSentryTranscript } from "./sentry-transcript.js";
 
@@ -90,7 +95,11 @@ async function completeWithTimeout(input: ConversationCompleteInput): Promise<st
     controller.abort();
   }, COMPLETE_TIMEOUT_MS);
   try {
-    return await sampleUntilClean(messages, controller.signal);
+    const text = await sampleUntilClean(messages, controller.signal);
+    if (text === "") {
+      reportEmptyCompletion();
+    }
+    return text;
   } catch (error) {
     return failCompletion(messages, controller.signal, error);
   } finally {

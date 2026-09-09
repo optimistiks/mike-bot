@@ -6,7 +6,10 @@ import type { ConversationWork } from "./conversation/pending.js";
 import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
-import { reportUnhandledFailure } from "./conversation/observability.js";
+import {
+  flushConversationTelemetry,
+  reportUnhandledFailure,
+} from "./conversation/observability.js";
 import { finishConversationWork } from "./conversation/pending.js";
 import { persistUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
@@ -144,6 +147,8 @@ async function completeScheduled(
   } catch (error) {
     logError("failed to complete Conversation work", error);
     reportUnhandledFailure(error);
+  } finally {
+    await flushConversationTelemetry();
   }
 }
 
