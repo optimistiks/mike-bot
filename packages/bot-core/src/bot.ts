@@ -67,7 +67,10 @@ async function applyStandingsOutcome(
     return;
   }
   await tryDeleteMessage(ctx, message, "failed to delete Stats command");
-  await ctx.reply(result.text, { parse_mode: "Markdown" });
+  await ctx.replyWithRichMessage({
+    html: result.text,
+    skip_entity_detection: true,
+  });
 }
 
 async function applyConversationOutcome(

@@ -237,7 +237,7 @@ describe("telegram update handling", () => {
     expect(result).toStrictEqual({ kind: "ignored", type: "scoring" });
   });
 
-  it("posts v1 Standings Markdown for a Chat with Marks", async () => {
+  it("posts rich Standings HTML for a Chat with Marks", async () => {
     expect.hasAssertions();
     await freshDb();
 
@@ -310,32 +310,37 @@ describe("telegram update handling", () => {
     expect(result).toStrictEqual({
       kind: "posted",
       text: [
-        "*Уважаемые люди:*",
-        "alice: 2 👑",
-        "bob: 1 ",
-        "carol: -1 🐔",
-        "",
-        "*Юмористы:*",
-        "alice: 1 👑",
-        "carol: 1 👑",
-        "bob: 0 🐔",
-        "",
-        "*Поставили ➕:*",
-        "alice: 1",
-        "bob: 1",
-        "carol: 1",
-        "",
-        "*Поставили ➖:*",
-        "alice: 1",
-        "bob: 0",
-        "carol: 0",
-        "",
-        "*Поставили лол:*",
-        "alice: 1",
-        "bob: 1",
-        "carol: 1",
-        "",
-      ].join("\n"),
+        "<h2>Уважаемые люди</h2>",
+        "<table bordered striped compact>",
+        '<tr><td><b>alice 👑</b></td><td align="center"><b>2</b></td></tr>',
+        '<tr><td>bob</td><td align="center">1</td></tr>',
+        '<tr><td>carol 🐔</td><td align="center">-1</td></tr>',
+        "</table><hr/>",
+        "<h2>Юмористы</h2>",
+        "<table bordered striped compact>",
+        '<tr><td><b>alice 👑</b></td><td align="center"><b>1</b></td></tr>',
+        '<tr><td><b>carol 👑</b></td><td align="center"><b>1</b></td></tr>',
+        '<tr><td>bob 🐔</td><td align="center">0</td></tr>',
+        "</table><hr/>",
+        "<h2>Поставили ➕</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>alice</td><td align="center">1</td></tr>',
+        '<tr><td>bob</td><td align="center">1</td></tr>',
+        '<tr><td>carol</td><td align="center">1</td></tr>',
+        "</table><hr/>",
+        "<h2>Поставили ➖</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>alice</td><td align="center">1</td></tr>',
+        '<tr><td>bob</td><td align="center">0</td></tr>',
+        '<tr><td>carol</td><td align="center">0</td></tr>',
+        "</table><hr/>",
+        "<h2>Поставили лол</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>alice</td><td align="center">1</td></tr>',
+        '<tr><td>bob</td><td align="center">1</td></tr>',
+        '<tr><td>carol</td><td align="center">1</td></tr>',
+        "</table>",
+      ].join(""),
       type: "standings",
     });
   });

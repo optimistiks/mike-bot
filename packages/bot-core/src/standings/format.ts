@@ -7,6 +7,7 @@ const MINUS = "\u2796";
 const HUMOR_DECAY_RATE = 40;
 const PERCENT = 100;
 const UNKNOWN_MEMBER = "???";
+const TABLE_OPEN = "<table bordered striped compact>";
 
 interface RankedLine {
   name: string;
@@ -98,20 +99,45 @@ function applyHumorDecay(rows: StandingRow[], memberCount: number): StandingRow[
   );
 }
 
-function formatLine(line: RankedLine, padEmptyFlair: boolean): string {
-  if (line.flair !== "") {
-    return `${line.name}: ${String(line.score)} ${line.flair}`;
-  }
-  if (padEmptyFlair) {
-    return `${line.name}: ${String(line.score)} `;
-  }
-  return `${line.name}: ${String(line.score)}`;
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
-function section(title: string, lines: RankedLine[], padEmptyFlair: boolean): string {
-  const body = lines.map((line) => formatLine(line, padEmptyFlair)).join("\n");
-  const blank = padEmptyFlair || title !== "*Поставили лол:*" ? "\n\n" : "\n";
-  return `${title}\n${body}${blank}`;
+function isCrown(line: RankedLine): boolean {
+  return line.flair === CROWN;
+}
+
+function wrapCrown(line: RankedLine, inner: string): string {
+  if (!isCrown(line)) {
+    return inner;
+  }
+  return `<b>${inner}</b>`;
+}
+
+function displayName(line: RankedLine): string {
+  const name = escapeHtml(line.name);
+  if (line.flair === "") {
+    return name;
+  }
+  return `${name} ${line.flair}`;
+}
+
+function formatRow(line: RankedLine): string {
+  const name = wrapCrown(line, displayName(line));
+  const score = wrapCrown(line, String(line.score));
+  return `<tr><td>${name}</td><td align="center">${score}</td></tr>`;
+}
+
+function formatTable(lines: RankedLine[]): string {
+  return `${TABLE_OPEN}${lines.map((line) => formatRow(line)).join("")}</table>`;
+}
+
+function section(title: string, lines: RankedLine[]): string {
+  return `<h2>${title}</h2>${formatTable(lines)}`;
 }
 
 function formatStandings(rows: StandingRow[]): string {
@@ -123,12 +149,12 @@ function formatStandings(rows: StandingRow[]): string {
   const humorGiven = rank(rows, (row) => row.humorGiven, false);
 
   return [
-    section("*Уважаемые люди:*", karma, true),
-    section("*Юмористы:*", humor, true),
-    section(`*Поставили ${PLUS}:*`, plusGiven, false),
-    section(`*Поставили ${MINUS}:*`, minusGiven, false),
-    section("*Поставили лол:*", humorGiven, false),
-  ].join("");
+    section("Уважаемые люди", karma),
+    section("Юмористы", humor),
+    section(`Поставили ${PLUS}`, plusGiven),
+    section(`Поставили ${MINUS}`, minusGiven),
+    section("Поставили лол", humorGiven),
+  ].join("<hr/>");
 }
 
 export { formatStandings };
