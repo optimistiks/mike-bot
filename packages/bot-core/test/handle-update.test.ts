@@ -1,11 +1,11 @@
 import type { Update } from "grammy/types";
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PgliteDatabase } from "#src/db/pglite.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { closePgliteDb, createPgliteDb } from "#src/db/pglite.js";
+import { closePgliteDb, createPgliteDb, resetPgliteDb } from "#src/db/pglite.js";
 import { handleUpdate } from "#src/handle-update.js";
 
 import { ALICE, BOB, BOT_USER, CAROL, LENA, statsUpdate, textUpdate } from "./helpers.js";
@@ -64,12 +64,8 @@ function silenceResults(count: number): HandlerResult[] {
 }
 
 describe("telegram update handling", () => {
-  // eslint-disable-next-line init-declarations -- assigned in freshDb
+  // eslint-disable-next-line init-declarations -- assigned in beforeAll
   let database: PgliteDatabase | undefined;
-
-  beforeAll(() => {
-    modelServer.listen({ onUnhandledRequest: "error" });
-  });
 
   function currentDb(): PgliteDatabase {
     if (database === undefined) {
@@ -77,6 +73,15 @@ describe("telegram update handling", () => {
     }
     return database;
   }
+
+  beforeAll(async () => {
+    modelServer.listen({ onUnhandledRequest: "error" });
+    database = await createPgliteDb();
+  });
+
+  beforeEach(async () => {
+    await resetPgliteDb(currentDb());
+  });
 
   function handle(update: Update, botUserId?: number): Promise<HandlerResult> {
     return handleUpdate(update, {
@@ -117,26 +122,20 @@ describe("telegram update handling", () => {
     return [result, ...following];
   }
 
-  async function freshDb(): Promise<void> {
-    database = await createPgliteDb();
-  }
-
-  afterEach(async () => {
+  afterEach(() => {
     resetCapturedModelBodies();
     modelServer.resetHandlers();
+  });
+
+  afterAll(async () => {
+    modelServer.close();
     if (database !== undefined) {
       await closePgliteDb(database);
     }
   });
 
-  afterAll(() => {
-    modelServer.close();
-  });
-
   it("accepts a + Scoring reply, stores the Mark, and answers with ➕ (name)", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const result = await handle(
       textUpdate({
         from: ALICE,
@@ -156,8 +155,6 @@ describe("telegram update handling", () => {
 
   it("accepts лол as a Humor Mark regardless of case", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const result = await handle(
       textUpdate({
         from: ALICE,
@@ -177,8 +174,6 @@ describe("telegram update handling", () => {
 
   it("ignores self-scoring, bot Subjects, and a missing reply", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const self = await handle(
       textUpdate({
         from: ALICE,
@@ -213,8 +208,6 @@ describe("telegram update handling", () => {
 
   it("ignores a second + on the same Message and leaves the token", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -239,8 +232,6 @@ describe("telegram update handling", () => {
 
   it("posts rich Standings HTML for a Chat with Marks", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: BOB,
@@ -347,8 +338,6 @@ describe("telegram update handling", () => {
 
   it("leaves /stats untouched in a Chat with no Marks", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const result = await handle(statsUpdate(EMPTY_STATS_UPDATE_ID, ALICE));
 
     expect(result).toStrictEqual({ kind: "empty", type: "standings" });
@@ -356,8 +345,6 @@ describe("telegram update handling", () => {
 
   it("wakes on бот and бот привет with labeled whole text", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const bare = await handle(
       textUpdate({
         from: ALICE,
@@ -385,8 +372,6 @@ describe("telegram update handling", () => {
 
   it("falls back to first_name when the speaker has no username", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const result = await handle(
       textUpdate({
         from: LENA,
@@ -403,8 +388,6 @@ describe("telegram update handling", () => {
 
   it("keeps later text without бот as a Turn with prior labeled history", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -431,8 +414,6 @@ describe("telegram update handling", () => {
 
   it("ages live turns against the triggering Telegram date", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const firstDate = 1_700_000_000;
     await handle(
       textUpdate({
@@ -465,8 +446,6 @@ describe("telegram update handling", () => {
 
   it("closes on довольно and stays silent afterwards", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -498,8 +477,6 @@ describe("telegram update handling", () => {
 
   it("seeds a Wake from ordinary Turns logged while the Conversation was closed", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const beforeWake = await handle(
       textUpdate({
         from: BOB,
@@ -528,8 +505,6 @@ describe("telegram update handling", () => {
 
   it("reopens the same Conversation on a later Wake with Turns from the closed gap", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -574,8 +549,6 @@ describe("telegram update handling", () => {
 
   it("keeps 100 Turns while closed and drops the oldest on the 101st", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const firstClosedId = 300;
     const overflowId = firstClosedId + CLOSED_TURN_WINDOW;
     const texts = numberedTexts("лог", CLOSED_TURN_WINDOW + 1);
@@ -601,8 +574,6 @@ describe("telegram update handling", () => {
 
   it("lets an open Conversation grow past 100 Turns and snaps to 100 on close", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -646,8 +617,6 @@ describe("telegram update handling", () => {
 
   it("does not log a Scoring reply as a Turn while the Conversation is closed", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -688,8 +657,6 @@ describe("telegram update handling", () => {
 
   it("accepts Scoring during a Conversation and lets a second Member join the same one", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -730,8 +697,6 @@ describe("telegram update handling", () => {
 
   it("ignores a second delivery of the same update_id", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const update = textUpdate({
       from: ALICE,
       messageId: 90,
@@ -748,8 +713,6 @@ describe("telegram update handling", () => {
 
   it("logs bystander text without a reply and includes it in the next completion", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -786,8 +749,6 @@ describe("telegram update handling", () => {
 
   it("stays silent on empty model text and stores no assistant Turn", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -825,8 +786,6 @@ describe("telegram update handling", () => {
 
   it("stays silent when the model request fails", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -850,8 +809,6 @@ describe("telegram update handling", () => {
 
   it("lets Bob complete while Alice's completion is in flight", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -896,8 +853,6 @@ describe("telegram update handling", () => {
 
   it("answers a rapid burst with one completion that includes every turn", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -959,8 +914,6 @@ describe("telegram update handling", () => {
 
   it("skips a later turn while a completion lease is held", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -998,8 +951,6 @@ describe("telegram update handling", () => {
 
   it("drops a pending completion after довольно", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1037,8 +988,6 @@ describe("telegram update handling", () => {
 
   it("retries a banned phrase and never posts the banned span", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1062,8 +1011,6 @@ describe("telegram update handling", () => {
 
   it("strips leading speaker labels from the model reply", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1087,8 +1034,6 @@ describe("telegram update handling", () => {
 
   it("labels a member telegram reply with addressee and quote", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1106,8 +1051,6 @@ describe("telegram update handling", () => {
 
   it("keeps the reply arrow and drops the quote when the parent has no text", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1125,8 +1068,6 @@ describe("telegram update handling", () => {
 
   it("uses Ты when a member replies to this bot", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1145,8 +1086,6 @@ describe("telegram update handling", () => {
 
   it("uses the other bot handle when a member replies to a different bot", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1164,8 +1103,6 @@ describe("telegram update handling", () => {
 
   it("sanitizes reply quotes by stripping brackets and quotes and collapsing space", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     await handle(
       textUpdate({
         from: ALICE,
@@ -1183,8 +1120,6 @@ describe("telegram update handling", () => {
 
   it("caps a long reply quote at 200 characters with ascii ellipsis", async () => {
     expect.hasAssertions();
-    await freshDb();
-
     const longParent = "я".repeat(QUOTE_OVER_CAP);
     await handle(
       textUpdate({

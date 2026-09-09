@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { getTableName } from "drizzle-orm";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import path from "node:path";
@@ -6,6 +7,10 @@ import path from "node:path";
 import type { Schema } from "./schema.js";
 
 import { schema } from "./schema.js";
+
+const truncateAllTablesSql = `TRUNCATE ${Object.values(schema)
+  .map((table) => `"${getTableName(table)}"`)
+  .join(", ")} RESTART IDENTITY CASCADE`;
 
 const migrationsFolder = path.join(import.meta.dirname, "../../drizzle");
 
@@ -27,4 +32,8 @@ async function closePgliteDb({ client }: PgliteDatabase): Promise<void> {
   await client.close();
 }
 
-export { closePgliteDb, createPgliteDb, type AppDatabase, type PgliteDatabase };
+async function resetPgliteDb({ client }: PgliteDatabase): Promise<void> {
+  await client.exec(truncateAllTablesSql);
+}
+
+export { closePgliteDb, createPgliteDb, resetPgliteDb, type AppDatabase, type PgliteDatabase };
