@@ -35,7 +35,7 @@ async function generateSample(messages: PromptMessage[], signal: AbortSignal): P
     maxRetries: 0,
     messages,
     model: CONVERSATION_MODEL,
-    reasoning: "none",
+    reasoning: "medium",
     stopSequences: STOP_SEQUENCES,
     telemetry: COMPLETION_TELEMETRY,
     temperature: TEMPERATURE,
