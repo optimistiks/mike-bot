@@ -15,8 +15,7 @@ import { registerTelegramWebhook } from "../src/webhook.js";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
-const NONEMPTY_LENGTH = 1;
-const nonemptyString = z.string().trim().min(NONEMPTY_LENGTH);
+const nonemptyString = z.string().trim().min(1);
 
 const scriptEnvSchema = z.object({
   BOT_TOKEN: nonemptyString,

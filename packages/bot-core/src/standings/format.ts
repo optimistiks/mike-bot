@@ -1,5 +1,3 @@
-import { EMPTY_COUNT, FIRST_INDEX, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
-
 import type { StandingRow } from "./query.js";
 
 const CROWN = "\u{1F451}";
@@ -18,12 +16,12 @@ interface RankedLine {
 
 function emptyRow(): StandingRow {
   return {
-    humorGiven: EMPTY_COUNT,
-    humorReceived: EMPTY_COUNT,
-    karmaMinusGiven: EMPTY_COUNT,
-    karmaPlusGiven: EMPTY_COUNT,
-    karmaReceived: EMPTY_COUNT,
-    memberId: EMPTY_COUNT,
+    humorGiven: 0,
+    humorReceived: 0,
+    karmaMinusGiven: 0,
+    karmaPlusGiven: 0,
+    karmaReceived: 0,
+    memberId: 0,
     name: UNKNOWN_MEMBER,
   };
 }
@@ -33,7 +31,7 @@ function compareScore(
 ): (left: StandingRow, right: StandingRow) => number {
   return (left, right) => {
     const delta = scoreOf(right) - scoreOf(left);
-    if (delta !== EMPTY_COUNT) {
+    if (delta !== 0) {
       return delta;
     }
     return left.memberId - right.memberId;
@@ -67,8 +65,8 @@ function rank(
   withFlair: boolean,
 ): RankedLine[] {
   const ordered = [...rows].toSorted(compareScore(scoreOf));
-  const highest = scoreOf(ordered[FIRST_INDEX] ?? emptyRow());
-  const lowest = scoreOf(ordered.at(LAST_FROM_END) ?? emptyRow());
+  const highest = scoreOf(ordered[0] ?? emptyRow());
+  const lowest = scoreOf(ordered.at(-1) ?? emptyRow());
 
   return ordered.map((row) => {
     const score = scoreOf(row);
@@ -77,7 +75,7 @@ function rank(
 }
 
 function humorAfterDecay(row: StandingRow, index: number, memberCount: number): number {
-  const loss = ((memberCount - index - SINGLE_COUNT) * (HUMOR_DECAY_RATE / memberCount)) / PERCENT;
+  const loss = ((memberCount - index - 1) * (HUMOR_DECAY_RATE / memberCount)) / PERCENT;
   return row.humorReceived - Math.round(row.humorReceived * loss);
 }
 

@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
-import { CLOSED_TURN_WINDOW, EMPTY_COUNT, FIRST_INDEX, SINGLE_COUNT } from "#src/constants.js";
+import { CLOSED_TURN_WINDOW } from "#src/constants.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import type { BotSession } from "./runtime.js";
@@ -22,7 +22,6 @@ import {
 
 type ConversationRow = typeof conversations.$inferSelect;
 type ConversationTurnRow = typeof conversationTurns.$inferSelect;
-type ConversationParticipantRow = typeof conversationParticipants.$inferSelect;
 type MemberRow = typeof members.$inferSelect;
 
 async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
@@ -31,7 +30,7 @@ async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
     .values({ updateId })
     .onConflictDoNothing()
     .returning();
-  return inserted.length === SINGLE_COUNT;
+  return inserted.length === 1;
 }
 
 function optionalText(value: string | undefined): string | null {
@@ -99,16 +98,7 @@ async function tryInsertMark(
   },
 ): Promise<boolean> {
   const inserted = await db.insert(marks).values(row).onConflictDoNothing().returning();
-  return inserted.length === SINGLE_COUNT;
-}
-
-async function chatHasMarks(db: BotSession, chatId: number): Promise<boolean> {
-  const rows = await db
-    .select({ actorId: marks.actorId })
-    .from(marks)
-    .where(eq(marks.chatId, chatId))
-    .limit(SINGLE_COUNT);
-  return rows.length > EMPTY_COUNT;
+  return inserted.length === 1;
 }
 
 async function findConversation(db: BotSession, chatId: number): Promise<ConversationRow | null> {
@@ -116,10 +106,10 @@ async function findConversation(db: BotSession, chatId: number): Promise<Convers
     .select()
     .from(conversations)
     .where(eq(conversations.chatId, chatId))
-    .limit(SINGLE_COUNT)
+    .limit(1)
     .for("update");
 
-  return rows.at(FIRST_INDEX) ?? null;
+  return rows.at(0) ?? null;
 }
 
 async function findConversationById(
@@ -130,19 +120,8 @@ async function findConversationById(
     .select()
     .from(conversations)
     .where(eq(conversations.id, conversationId))
-    .limit(SINGLE_COUNT);
-  return rows.at(FIRST_INDEX) ?? null;
-}
-
-async function findOpenConversation(
-  db: BotSession,
-  chatId: number,
-): Promise<ConversationRow | null> {
-  const conversation = await findConversation(db, chatId);
-  if (conversation === null || conversation.closedAt !== null) {
-    return null;
-  }
-  return conversation;
+    .limit(1);
+  return rows.at(0) ?? null;
 }
 
 async function tryInsertConversation(
@@ -200,18 +179,8 @@ async function isParticipant(
     .select({ memberId: conversationParticipants.memberId })
     .from(conversationParticipants)
     .where(participantWhere(conversationId, memberId))
-    .limit(SINGLE_COUNT);
-  return rows.length > EMPTY_COUNT;
-}
-
-function listParticipants(
-  db: BotSession,
-  conversationId: string,
-): Promise<ConversationParticipantRow[]> {
-  return db
-    .select()
-    .from(conversationParticipants)
-    .where(eq(conversationParticipants.conversationId, conversationId));
+    .limit(1);
+  return rows.length > 0;
 }
 
 async function joinParticipant(
@@ -232,7 +201,10 @@ async function leaveParticipant(
   memberId: number,
 ): Promise<number> {
   await db.delete(conversationParticipants).where(participantWhere(conversationId, memberId));
-  const remaining = await listParticipants(db, conversationId);
+  const remaining = await db
+    .select({ memberId: conversationParticipants.memberId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, conversationId));
   return remaining.length;
 }
 
@@ -258,8 +230,8 @@ async function nextTurnSeq(db: BotSession, conversationId: string): Promise<numb
     .from(conversationTurns)
     .where(eq(conversationTurns.conversationId, conversationId))
     .orderBy(desc(conversationTurns.seq))
-    .limit(SINGLE_COUNT);
-  return (rows.at(FIRST_INDEX)?.seq ?? EMPTY_COUNT) + SINGLE_COUNT;
+    .limit(1);
+  return (rows.at(0)?.seq ?? 0) + 1;
 }
 
 interface AppendTurnInput {
@@ -293,7 +265,7 @@ async function tryInsertTurn(
     })
     .onConflictDoNothing()
     .returning();
-  return inserted.length === SINGLE_COUNT;
+  return inserted.length === 1;
 }
 
 async function appendTurn(db: BotSession, input: AppendTurnInput): Promise<void> {
@@ -325,7 +297,7 @@ async function trimOldestTurns(
   if (turns.length <= keep) {
     return;
   }
-  const cutoff = turns.at(turns.length - keep);
+  const cutoff = turns.at(-keep);
   if (cutoff === undefined) {
     return;
   }
@@ -341,7 +313,7 @@ async function trimIfClosed(db: BotSession, conversationId: string): Promise<voi
 }
 
 function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
-  if (ids.length === EMPTY_COUNT) {
+  if (ids.length === 0) {
     return Promise.resolve([]);
   }
   return db.select().from(members).where(inArray(members.telegramId, ids));
@@ -349,18 +321,15 @@ function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
 
 export {
   appendTurn,
-  chatHasMarks,
   claimUpdate,
   closeConversation,
   ensureMessage,
   findConversation,
-  findOpenConversation,
   insertConversation,
   isParticipant,
   joinParticipant,
   leaveParticipant,
   listMembersByIds,
-  listParticipants,
   listTurns,
   reopenConversation,
   trimIfClosed,

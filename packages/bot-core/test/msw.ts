@@ -3,8 +3,6 @@ import { setupServer } from "msw/node";
 import { once } from "node:events";
 import { z } from "zod";
 
-import { EMPTY_COUNT, LAST_FROM_END, SINGLE_COUNT } from "#src/constants.js";
-
 const textPartSchema = z.object({
   text: z.string(),
   type: z.literal("text"),
@@ -77,8 +75,8 @@ const modelServer = setupServer(
 );
 
 function resetCapturedModelBodies(): void {
-  capturedModelBodies.length = EMPTY_COUNT;
-  queuedTexts.length = EMPTY_COUNT;
+  capturedModelBodies.length = 0;
+  queuedTexts.length = 0;
   holdEvents.dispatchEvent(new Event("release"));
   holdGate = null;
 }
@@ -160,7 +158,7 @@ function assistantTurnTextsFromBody(body: unknown): string[] {
 }
 
 function assistantTurnTextsFromLastModelBody(): string[] {
-  const last = capturedModelBodies.at(LAST_FROM_END);
+  const last = capturedModelBodies.at(-1);
   if (last === undefined) {
     return [];
   }
@@ -171,28 +169,16 @@ function liveLabeledFromBody(body: unknown): string[] {
   return userTextsFromBody(body).filter((text) => LIVE_LABEL.test(text));
 }
 
-function liveLabeledTurnTextsFromModelBodies(): string[] {
-  return capturedModelBodies.flatMap((body) => liveLabeledFromBody(body));
-}
-
 function liveLabeledTurnTextsFromLastModelBody(): string[] {
-  const last = capturedModelBodies.at(LAST_FROM_END);
+  const last = capturedModelBodies.at(-1);
   if (last === undefined) {
     return [];
   }
   return liveLabeledFromBody(last);
 }
 
-function liveLabeledTurnTextsFromPreviousModelBody(): string[] {
-  const previous = capturedModelBodies.at(LAST_FROM_END - SINGLE_COUNT);
-  if (previous === undefined) {
-    return [];
-  }
-  return liveLabeledFromBody(previous);
-}
-
 function lastCapturedModelBodyJson(): string {
-  return JSON.stringify(capturedModelBodies.at(LAST_FROM_END) ?? null);
+  return JSON.stringify(capturedModelBodies.at(-1) ?? null);
 }
 
 export {
@@ -203,8 +189,6 @@ export {
   holdNextModelResponse,
   lastCapturedModelBodyJson,
   liveLabeledTurnTextsFromLastModelBody,
-  liveLabeledTurnTextsFromModelBodies,
-  liveLabeledTurnTextsFromPreviousModelBody,
   modelServer,
   resetCapturedModelBodies,
   waitUntilModelCallCount,

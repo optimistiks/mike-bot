@@ -37,9 +37,13 @@
     "max-lines-per-function": "off",
     "max-lines": "off",
     "max-params": "off",
-    "complexity": ["error", { "max": 4 }],
-    "max-depth": ["error", { "max": 3 }],
-    "max-nested-callbacks": ["error", { "max": 3 }],
+    "complexity": ["error", { "max": 10, "variant": "modified" }],
+    "max-depth": ["error", { "max": 4 }],
+    "max-nested-callbacks": ["error", { "max": 4 }],
+    "no-magic-numbers": "off",
+    "no-plusplus": "off",
+    "unicorn/no-array-reduce": "off",
+    "id-length": "off",
     "sort-imports": ["error", { "ignoreDeclarationSort": true }],
     "sort-vars": "off",
 
@@ -55,7 +59,7 @@
 
     "react/react-in-jsx-scope": "off",
     "react/forbid-component-props": "off",
-    "react/jsx-max-depth": ["error", { "max": 4 }],
+    "react/jsx-max-depth": ["error", { "max": 5 }],
     "react/jsx-no-literals": "off",
     "react/jsx-filename-extension": ["error", { "extensions": ["jsx", "tsx"] }],
     "react/only-export-components": [

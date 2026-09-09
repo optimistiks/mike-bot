@@ -1,5 +1,3 @@
-import { EMPTY_COUNT } from "#src/constants.js";
-
 import type { ConversationCompleteInput, PromptMessage, SpeakerIdentity } from "./types.js";
 
 import { liveMessages } from "./history.js";
@@ -129,7 +127,7 @@ function rosterLine(speakers: readonly SpeakerIdentity[]): string {
 }
 
 function addresseeReminder(label: string, speakers: readonly SpeakerIdentity[]): string {
-  if (speakers.length === EMPTY_COUNT) {
+  if (speakers.length === 0) {
     return `${FORMAT_RECAP}\nотвечаешь только пользователю ${label}`;
   }
   return `${FORMAT_RECAP}\n${rosterLine(speakers)}\nотвечаешь только пользователю ${label}`;

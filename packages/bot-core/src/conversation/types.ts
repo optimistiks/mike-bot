@@ -36,10 +36,6 @@ interface ConversationCompleteInput {
   turns: ConversationTurn[];
 }
 
-interface ConversationModel {
-  complete: (input: ConversationCompleteInput) => Promise<string>;
-}
-
 interface PromptMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -47,7 +43,6 @@ interface PromptMessage {
 
 export type {
   ConversationCompleteInput,
-  ConversationModel,
   ConversationTurn,
   PromptMessage,
   ReplyMark,

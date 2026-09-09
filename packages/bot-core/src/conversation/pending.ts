@@ -1,21 +1,20 @@
 import type { BotDatabase } from "#src/db/runtime.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { EMPTY_COUNT, LAST_FROM_END, MS_PER_SECOND } from "#src/constants.js";
 import { appendTurn, listMembersByIds, trimIfClosed } from "#src/db/store.js";
+import { logInfo } from "#src/log.js";
 
 import type { PersistedConversation } from "./apply.js";
 import type {
   ConversationCompleteInput,
-  ConversationModel,
   ConversationTurn,
   ReplyMark,
   SpeakerIdentity,
 } from "./types.js";
 
-import { endCompletion, tryBeginCompletion } from "./inflight.js";
 import { replyMark, speakerHandle } from "./label.js";
-import { logCompletionAttempt, reportUnhandledFailure } from "./log.js";
+import { complete } from "./model.js";
+import { reportUnhandledFailure } from "./observability.js";
 import { conversationMessages } from "./prompt.js";
 
 interface PendingTurn {
@@ -30,6 +29,8 @@ interface PendingTurn {
 type ConversationWork = HandlerResult | PendingTurn;
 
 const CONVERSATION_SILENCE: HandlerResult = { kind: "silence", type: "conversation" };
+const MS_PER_SECOND = 1000;
+const inflight = new Set<string>();
 
 function conversationWork(persisted: PersistedConversation): ConversationWork {
   if (persisted.kind === "turn") {
@@ -45,8 +46,21 @@ function conversationWork(persisted: PersistedConversation): ConversationWork {
   return { kind: persisted.kind, type: "conversation" };
 }
 
-function isPendingTurn(work: ConversationWork): work is PendingTurn {
-  return work.type === "pending-turn";
+function participantKey(conversationId: string, memberId: number): string {
+  return `${conversationId}:${String(memberId)}`;
+}
+
+function tryBeginCompletion(conversationId: string, memberId: number): boolean {
+  const key = participantKey(conversationId, memberId);
+  if (inflight.has(key)) {
+    return false;
+  }
+  inflight.add(key);
+  return true;
+}
+
+function endCompletion(conversationId: string, memberId: number): void {
+  inflight.delete(participantKey(conversationId, memberId));
 }
 
 function completionPostedAt(): Date {
@@ -54,7 +68,7 @@ function completionPostedAt(): Date {
 }
 
 function wakeReply(pending: PendingTurn): ReplyMark {
-  const last = pending.history.at(LAST_FROM_END);
+  const last = pending.history.at(-1);
   if (last === undefined || last.role !== "member") {
     return replyMark(pending.addresseeLabel, "");
   }
@@ -82,47 +96,27 @@ async function persistAssistantTurn(
   });
 }
 
-async function persistAssistantAndReply(
-  db: BotDatabase,
-  conversationId: string,
-  text: string,
-  reply: ReplyMark,
-): Promise<HandlerResult> {
-  await persistAssistantTurn(db, conversationId, text, reply);
-  return { kind: "reply", text, type: "conversation" };
-}
-
-function replyFromText(
+async function replyFromText(
   db: BotDatabase,
   pending: PendingTurn,
   text: string,
 ): Promise<HandlerResult> {
   if (text === "") {
-    return Promise.resolve(CONVERSATION_SILENCE);
+    return CONVERSATION_SILENCE;
   }
-  return persistAssistantAndReply(db, pending.conversationId, text, wakeReply(pending));
-}
-
-function memberTurnId(turn: ConversationTurn): number | null {
-  if (turn.role !== "member") {
-    return null;
-  }
-  return turn.memberId;
-}
-
-function rememberSpeakerId(ids: number[], seen: Set<number>, memberId: number | null): void {
-  if (memberId === null || seen.has(memberId)) {
-    return;
-  }
-  seen.add(memberId);
-  ids.push(memberId);
+  await persistAssistantTurn(db, pending.conversationId, text, wakeReply(pending));
+  return { kind: "reply", text, type: "conversation" };
 }
 
 function firstSpeakerIds(turns: ConversationTurn[]): number[] {
   const ids: number[] = [];
   const seen = new Set<number>();
   for (const turn of turns) {
-    rememberSpeakerId(ids, seen, memberTurnId(turn));
+    if (turn.role !== "member" || turn.memberId === null || seen.has(turn.memberId)) {
+      continue;
+    }
+    seen.add(turn.memberId);
+    ids.push(turn.memberId);
   }
   return ids;
 }
@@ -150,7 +144,7 @@ async function speakersForTurns(
   turns: ConversationTurn[],
 ): Promise<SpeakerIdentity[]> {
   const ids = firstSpeakerIds(turns);
-  if (ids.length === EMPTY_COUNT) {
+  if (ids.length === 0) {
     return [];
   }
   const rows = await listMembersByIds(db, ids);
@@ -178,63 +172,40 @@ async function completeInput(
   };
 }
 
-function silenceAfterFailure(error: unknown): HandlerResult {
-  reportUnhandledFailure(error);
-  return CONVERSATION_SILENCE;
-}
-
-async function runCompletion(
-  db: BotDatabase,
-  model: ConversationModel,
-  pending: PendingTurn,
-): Promise<HandlerResult> {
+async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
   try {
-    const reply = await model.complete(await completeInput(db, pending));
+    const reply = await complete(await completeInput(db, pending));
     return await replyFromText(db, pending, reply);
   } catch (error) {
-    return silenceAfterFailure(error);
+    reportUnhandledFailure(error);
+    return CONVERSATION_SILENCE;
   }
 }
 
-async function finishCompletion(
-  db: BotDatabase,
-  model: ConversationModel,
-  pending: PendingTurn,
-): Promise<HandlerResult> {
+async function skipInFlight(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
+  logInfo(
+    JSON.stringify({
+      completion: null,
+      prompt: conversationMessages(await completeInput(db, pending)),
+    }),
+  );
+  return CONVERSATION_SILENCE;
+}
+
+async function completePendingTurn(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
+  if (!tryBeginCompletion(pending.conversationId, pending.memberId)) {
+    return skipInFlight(db, pending);
+  }
   try {
-    return await runCompletion(db, model, pending);
+    return await runCompletion(db, pending);
   } finally {
     endCompletion(pending.conversationId, pending.memberId);
   }
 }
 
-async function skipInFlight(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
-  logCompletionAttempt({
-    completion: null,
-    filters: ["in-flight"],
-    prompt: conversationMessages(await completeInput(db, pending)),
-  });
-  return CONVERSATION_SILENCE;
-}
-
-function completePendingTurn(
-  db: BotDatabase,
-  model: ConversationModel,
-  pending: PendingTurn,
-): Promise<HandlerResult> {
-  if (!tryBeginCompletion(pending.conversationId, pending.memberId)) {
-    return skipInFlight(db, pending);
-  }
-  return finishCompletion(db, model, pending);
-}
-
-function finishConversationWork(
-  db: BotDatabase,
-  model: ConversationModel,
-  work: ConversationWork,
-): Promise<HandlerResult> {
-  if (isPendingTurn(work)) {
-    return completePendingTurn(db, model, work);
+function finishConversationWork(db: BotDatabase, work: ConversationWork): Promise<HandlerResult> {
+  if (work.type === "pending-turn") {
+    return completePendingTurn(db, work);
   }
   return Promise.resolve(work);
 }

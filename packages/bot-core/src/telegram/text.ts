@@ -9,33 +9,16 @@ function hasBotCommand(message: Message): boolean {
   return entities.some((entity) => entity.type === "bot_command");
 }
 
-function namedOrNull(name: string | undefined): string | null {
-  if (name === undefined) {
-    return null;
-  }
-  return name.toLowerCase();
-}
-
-function commandNameFromGroups(groups: { name?: string } | undefined): string | null {
-  if (groups === undefined) {
-    return null;
-  }
-  return namedOrNull(groups.name);
-}
-
-function namedCommand(text: string): string | null {
-  const match = COMMAND_PATTERN.exec(text);
-  if (match === null) {
-    return null;
-  }
-  return commandNameFromGroups(match.groups);
-}
-
 function botCommandName(message: Message): string | null {
   if (!hasBotCommand(message) || message.text === undefined) {
     return null;
   }
-  return namedCommand(message.text);
+  const match = COMMAND_PATTERN.exec(message.text);
+  const name = match?.groups?.name;
+  if (name === undefined) {
+    return null;
+  }
+  return name.toLowerCase();
 }
 
 function isWakeMessage(text: string): boolean {

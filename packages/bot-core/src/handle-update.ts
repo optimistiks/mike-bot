@@ -1,7 +1,6 @@
 import type { Message, Update } from "grammy/types";
 
 import type { ConversationWork } from "./conversation/pending.js";
-import type { ConversationModel } from "./conversation/types.js";
 import type { BotDatabase, BotSession } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
@@ -86,10 +85,10 @@ function claimAndDispatch(
 
 async function handleUpdate(
   update: Update,
-  ports: { botUserId?: number; db: BotDatabase; model: ConversationModel },
+  { botUserId, db }: { botUserId?: number; db: BotDatabase },
 ): Promise<HandlerResult> {
-  const work = await claimAndDispatch(ports.db, update, ports.botUserId);
-  return finishConversationWork(ports.db, ports.model, work);
+  const work = await claimAndDispatch(db, update, botUserId);
+  return finishConversationWork(db, work);
 }
 
 export { handleUpdate };

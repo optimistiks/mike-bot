@@ -1,13 +1,9 @@
 import type { User } from "grammy/types";
 
-import { EMPTY_COUNT, FIRST_INDEX, MS_PER_SECOND, SINGLE_COUNT } from "#src/constants.js";
+const MS_PER_SECOND = 1000;
 
 function telegramDateToPostedAt(unixSeconds: number): Date {
   return new Date(unixSeconds * MS_PER_SECOND);
-}
-
-function telegramSecondTruncation(epochMs: number): Date {
-  return new Date(Math.floor(epochMs / MS_PER_SECOND) * MS_PER_SECOND);
 }
 
 function isBotUser(user: User | undefined): boolean {
@@ -16,7 +12,7 @@ function isBotUser(user: User | undefined): boolean {
 
 function parsedBotUserId(prefix: string): number | undefined {
   const id = Number(prefix);
-  if (Number.isInteger(id) && id > EMPTY_COUNT) {
+  if (Number.isInteger(id) && id > 0) {
     return id;
   }
   return undefined;
@@ -24,10 +20,10 @@ function parsedBotUserId(prefix: string): number | undefined {
 
 function telegramBotUserId(token: string): number | undefined {
   const colonAt = token.indexOf(":");
-  if (colonAt < SINGLE_COUNT) {
+  if (colonAt < 1) {
     return undefined;
   }
-  return parsedBotUserId(token.slice(FIRST_INDEX, colonAt));
+  return parsedBotUserId(token.slice(0, colonAt));
 }
 
-export { isBotUser, telegramBotUserId, telegramDateToPostedAt, telegramSecondTruncation };
+export { isBotUser, telegramBotUserId, telegramDateToPostedAt };

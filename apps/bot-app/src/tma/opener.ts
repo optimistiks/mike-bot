@@ -1,4 +1,3 @@
-import { FIRST_CHAR, FIRST_INDEX } from "./constants";
 import { isRecord, nonemptyString } from "./record";
 
 interface NamedOpener {
@@ -21,7 +20,7 @@ function openerPhotoUrl(photoUrl: string | undefined): string | null {
 }
 
 function openerInitial(name: string): string {
-  return name.replace(/^@/u, "").slice(FIRST_INDEX, FIRST_CHAR).toUpperCase();
+  return name.replace(/^@/u, "").slice(0, 1).toUpperCase();
 }
 
 interface OpenerProfile {

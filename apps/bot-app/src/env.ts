@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-const NONEMPTY_LENGTH = 1;
-const nonemptyString = z.string().trim().min(NONEMPTY_LENGTH);
+const nonemptyString = z.string().trim().min(1);
 
 const envSchema = z.object({
   BOT_TOKEN: nonemptyString,

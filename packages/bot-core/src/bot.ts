@@ -5,7 +5,6 @@ import { Bot } from "grammy";
 import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
-import { gatewayConversationModel } from "./conversation/model.js";
 import { reportUnhandledFailure } from "./conversation/observability.js";
 import { handleUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
@@ -17,35 +16,6 @@ interface BotDependencies {
 }
 
 type TelegramMessage = NonNullable<Context["message"] | Context["channelPost"]>;
-type OutcomeApplier = (
-  ctx: Context,
-  message: TelegramMessage,
-  result: HandlerResult,
-) => Promise<void>;
-
-function isAcceptedScoring(
-  result: HandlerResult,
-): result is Extract<HandlerResult, { type: "scoring"; kind: "accepted" }> {
-  return result.type === "scoring" && result.kind === "accepted";
-}
-
-function isPostedStandings(
-  result: HandlerResult,
-): result is Extract<HandlerResult, { type: "standings"; kind: "posted" }> {
-  return result.type === "standings" && result.kind === "posted";
-}
-
-function isConversationReply(
-  result: HandlerResult,
-): result is Extract<HandlerResult, { type: "conversation"; kind: "reply" }> {
-  return result.type === "conversation" && result.kind === "reply";
-}
-
-function isConversationClosed(
-  result: HandlerResult,
-): result is Extract<HandlerResult, { type: "conversation"; kind: "closed" }> {
-  return result.type === "conversation" && result.kind === "closed";
-}
 
 async function tryDeleteMessage(
   ctx: Context,
@@ -72,7 +42,7 @@ async function applyScoringOutcome(
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
-  if (!isAcceptedScoring(result)) {
+  if (result.type !== "scoring" || result.kind !== "accepted") {
     return;
   }
   const marked = message.reply_to_message;
@@ -90,7 +60,7 @@ async function applyStandingsOutcome(
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
-  if (!isPostedStandings(result)) {
+  if (result.type !== "standings" || result.kind !== "posted") {
     return;
   }
   await tryDeleteMessage(ctx, message, "failed to delete Stats command");
@@ -102,11 +72,14 @@ async function applyConversationOutcome(
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
-  if (isConversationClosed(result)) {
+  if (result.type !== "conversation") {
+    return;
+  }
+  if (result.kind === "closed") {
     await tryReactToStop(ctx);
     return;
   }
-  if (!isConversationReply(result)) {
+  if (result.kind !== "reply") {
     return;
   }
   await ctx.reply(result.text, {
@@ -114,23 +87,23 @@ async function applyConversationOutcome(
   });
 }
 
-async function skipOutcome(): Promise<void> {
-  await Promise.resolve();
-}
-
-const outcomeAppliers: Record<HandlerResult["type"], OutcomeApplier> = {
-  conversation: applyConversationOutcome,
-  noop: skipOutcome,
-  scoring: applyScoringOutcome,
-  standings: applyStandingsOutcome,
-};
-
 async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> {
   const message = ctx.message ?? ctx.channelPost;
   if (message === undefined) {
     return;
   }
-  await outcomeAppliers[result.type](ctx, message, result);
+  switch (result.type) {
+    case "scoring":
+      await applyScoringOutcome(ctx, message, result);
+      return;
+    case "standings":
+      await applyStandingsOutcome(ctx, message, result);
+      return;
+    case "conversation":
+      await applyConversationOutcome(ctx, message, result);
+      return;
+    default:
+  }
 }
 
 async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<void> {
@@ -147,11 +120,7 @@ function createBot({ db, token }: BotDependencies): Bot {
   const botUserId = telegramBotUserId(token);
 
   bot.use(async (ctx) => {
-    const result = await handleUpdate(ctx.update, {
-      botUserId,
-      db,
-      model: gatewayConversationModel,
-    });
+    const result = await handleUpdate(ctx.update, { botUserId, db });
     await tryApplyOutcome(ctx, result);
   });
 

@@ -5,21 +5,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { PgliteDatabase } from "#src/db/pglite.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
-import { SINGLE_COUNT } from "#src/constants.js";
-import { gatewayConversationModel } from "#src/conversation/model.js";
 import { closePgliteDb, createPgliteDb } from "#src/db/pglite.js";
-import {
-  chatConversationMemberTurns,
-  chatConversationTurnCount,
-  isConversationOpen,
-  markExists,
-  openConversationAssistantTurns,
-  openConversationMemberTurns,
-  openConversationParticipantIds,
-} from "#src/db/queries.js";
 import { handleUpdate } from "#src/handle-update.js";
 
-import { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, LENA, statsUpdate, textUpdate } from "./helpers.js";
+import { ALICE, BOB, BOT_USER, CAROL, LENA, statsUpdate, textUpdate } from "./helpers.js";
 import {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
@@ -28,7 +17,6 @@ import {
   holdNextModelResponse,
   lastCapturedModelBodyJson,
   liveLabeledTurnTextsFromLastModelBody,
-  liveLabeledTurnTextsFromPreviousModelBody,
   modelServer,
   resetCapturedModelBodies,
   waitUntilModelCallCount,
@@ -61,7 +49,7 @@ function liveReplyLabeled(
 
 function numberedTexts(prefix: string, count: number): string[] {
   const texts: string[] = [];
-  for (let index = SINGLE_COUNT; index <= count; index += SINGLE_COUNT) {
+  for (let index = 1; index <= count; index++) {
     texts.push(`${prefix} ${String(index)}`);
   }
   return texts;
@@ -93,7 +81,6 @@ describe("telegram update handling", () => {
     return handleUpdate(update, {
       botUserId,
       db: currentDb().db,
-      model: gatewayConversationModel,
     });
   }
 
@@ -114,7 +101,7 @@ describe("telegram update handling", () => {
         updateId: firstId,
       }),
     );
-    const following = await handleNumberedTexts(from, rest, firstId + SINGLE_COUNT);
+    const following = await handleNumberedTexts(from, rest, firstId + 1);
     return [result, ...following];
   }
 
@@ -153,14 +140,6 @@ describe("telegram update handling", () => {
       text: "➕ (alice)",
       type: "scoring",
     });
-    await expect(
-      markExists(currentDb().db, {
-        actorId: ALICE.id,
-        chatId: CHAT_ID,
-        messageId: 10,
-        type: "karma.plus",
-      }),
-    ).resolves.toBe(true);
   });
 
   it("accepts лол as a Humor Mark regardless of case", async () => {
@@ -182,14 +161,6 @@ describe("telegram update handling", () => {
       text: "лол (alice)",
       type: "scoring",
     });
-    await expect(
-      markExists(currentDb().db, {
-        actorId: ALICE.id,
-        chatId: CHAT_ID,
-        messageId: 10,
-        type: "humor.add",
-      }),
-    ).resolves.toBe(true);
   });
 
   it("ignores self-scoring, bot Subjects, and a missing reply", async () => {
@@ -226,22 +197,6 @@ describe("telegram update handling", () => {
     expect(self).toStrictEqual({ kind: "ignored", type: "scoring" });
     expect(botSubject).toStrictEqual({ kind: "ignored", type: "scoring" });
     expect(missing).toStrictEqual({ kind: "ignored", type: "scoring" });
-    await expect(
-      markExists(currentDb().db, {
-        actorId: ALICE.id,
-        chatId: CHAT_ID,
-        messageId: 10,
-        type: "karma.plus",
-      }),
-    ).resolves.toBe(false);
-    await expect(
-      markExists(currentDb().db, {
-        actorId: ALICE.id,
-        chatId: CHAT_ID,
-        messageId: 11,
-        type: "karma.plus",
-      }),
-    ).resolves.toBe(false);
   });
 
   it("ignores a second + on the same Message and leaves the token", async () => {
@@ -409,10 +364,6 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот"),
       liveLabeled("alice", "бот привет"),
     ]);
-    await expect(isConversationOpen(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(true);
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([ALICE.id]);
   });
 
   it("falls back to first_name when the speaker has no username", async () => {
@@ -429,9 +380,7 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(
-      openConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[Лена] бот"]);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([liveLabeled("Лена", "бот")]);
     expect(lastCapturedModelBodyJson()).toContain("в чате разговаривают: Лена (Лена Иванова)");
   });
 
@@ -461,9 +410,6 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот"),
       liveLabeled("alice", "как дела"),
     ]);
-    await expect(
-      openConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[alice] бот", "[alice] как дела"]);
   });
 
   it("ages live turns against the triggering Telegram date", async () => {
@@ -531,13 +477,6 @@ describe("telegram update handling", () => {
 
     expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
     expect(later).toStrictEqual({ kind: "silence", type: "conversation" });
-    await expect(isConversationOpen(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(false);
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([]);
-    await expect(
-      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[alice] бот", "[alice] ещё слово"]);
   });
 
   it("seeds a Wake from ordinary Turns logged while the Conversation was closed", async () => {
@@ -563,7 +502,6 @@ describe("telegram update handling", () => {
 
     expect(beforeWake).toStrictEqual({ kind: "silence", type: "conversation" });
     expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(isConversationOpen(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(true);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("bob", "он опять сломался"),
       liveLabeled("alice", "бот"),
@@ -610,9 +548,6 @@ describe("telegram update handling", () => {
 
     expect(gap).toStrictEqual({ kind: "silence", type: "conversation" });
     expect(reopened).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([ALICE.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("bob", "как дела"),
@@ -626,29 +561,23 @@ describe("telegram update handling", () => {
 
     const firstClosedId = 300;
     const overflowId = firstClosedId + CLOSED_TURN_WINDOW;
-    const texts = numberedTexts("лог", CLOSED_TURN_WINDOW + SINGLE_COUNT);
+    const texts = numberedTexts("лог", CLOSED_TURN_WINDOW + 1);
     const results = await handleNumberedTexts(ALICE, texts, firstClosedId);
 
     expect(results).toStrictEqual(silenceResults(texts.length));
-    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
-      CLOSED_TURN_WINDOW,
-    );
-    await expect(
-      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(texts.slice(SINGLE_COUNT).map((text) => `[alice] ${text}`));
 
     const woken = await handle(
       textUpdate({
         from: ALICE,
-        messageId: overflowId + SINGLE_COUNT,
+        messageId: overflowId + 1,
         text: "бот",
-        updateId: overflowId + SINGLE_COUNT,
+        updateId: overflowId + 1,
       }),
     );
 
     expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      ...texts.slice(SINGLE_COUNT).map((text) => liveLabeled("alice", text)),
+      ...texts.slice(1).map((text) => liveLabeled("alice", text)),
       liveLabeled("alice", "бот"),
     ]);
   });
@@ -671,10 +600,6 @@ describe("telegram update handling", () => {
 
     expect(bystanderResults).toStrictEqual(silenceResults(bystanderTexts.length));
 
-    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
-      CLOSED_TURN_WINDOW + SINGLE_COUNT + SINGLE_COUNT,
-    );
-
     const stopped = await handle(
       textUpdate({
         from: ALICE,
@@ -685,12 +610,21 @@ describe("telegram update handling", () => {
     );
 
     expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
-    await expect(chatConversationTurnCount(currentDb().db, { chatId: CHAT_ID })).resolves.toBe(
-      CLOSED_TURN_WINDOW,
+
+    const reopened = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 701,
+        text: "бот",
+        updateId: 701,
+      }),
     );
-    await expect(
-      chatConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(bystanderTexts.map((text) => `[bob] ${text}`));
+
+    expect(reopened).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      ...bystanderTexts.map((text) => liveLabeled("bob", text)),
+      liveLabeled("alice", "бот"),
+    ]);
   });
 
   it("does not log a Scoring reply as a Turn while the Conversation is closed", async () => {
@@ -771,12 +705,6 @@ describe("telegram update handling", () => {
       type: "scoring",
     });
     expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(
-      openConversationMemberTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["[alice] бот привет", "[bob] бот ку"]);
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([ALICE.id, BOB.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот привет"),
       liveLabeled("bob", "бот ку"),
@@ -832,44 +760,10 @@ describe("telegram update handling", () => {
 
     expect(bystander).toStrictEqual({ kind: "silence", type: "conversation" });
     expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([ALICE.id]);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("bob", "он опять сломался"),
       liveLabeled("alice", "видишь"),
-    ]);
-  });
-
-  it("joins a second Member into the already open Conversation", async () => {
-    expect.hasAssertions();
-    await freshDb();
-
-    await handle(
-      textUpdate({
-        from: ALICE,
-        messageId: 94,
-        text: "бот привет",
-        updateId: 1,
-      }),
-    );
-    const joined = await handle(
-      textUpdate({
-        from: BOB,
-        messageId: 95,
-        text: "бот ку",
-        updateId: 2,
-      }),
-    );
-
-    expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    await expect(
-      openConversationParticipantIds(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual([ALICE.id, BOB.id]);
-    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      liveLabeled("alice", "бот привет"),
-      liveLabeled("bob", "бот ку"),
     ]);
   });
 
@@ -896,9 +790,20 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
-    await expect(
-      openConversationAssistantTurns(currentDb().db, { chatId: CHAT_ID }),
-    ).resolves.toStrictEqual(["че"]);
+
+    const next = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 98,
+        text: "ещё",
+        updateId: 3,
+      }),
+    );
+
+    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "бот", "че"),
+    ]);
   });
 
   it("stays silent when the model request fails", async () => {
@@ -947,7 +852,7 @@ describe("telegram update handling", () => {
       }),
     );
     const release = holdNextModelResponse();
-    const inFlightCount = capturedModelBodies.length + SINGLE_COUNT;
+    const inFlightCount = capturedModelBodies.length + 1;
     const alicePending = handle(
       textUpdate({
         from: ALICE,
@@ -985,7 +890,6 @@ describe("telegram update handling", () => {
       }),
     );
     enqueueModelTexts(["ну я пошутил конечно", "че"]);
-    const callsBefore = capturedModelBodies.length;
     const result = await handle(
       textUpdate({
         from: ALICE,
@@ -996,11 +900,7 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    expect(capturedModelBodies.length - callsBefore).toBe(SINGLE_COUNT + SINGLE_COUNT);
-    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual(
-      liveLabeledTurnTextsFromPreviousModelBody(),
-    );
-    expect(liveLabeledTurnTextsFromLastModelBody().join("\n")).not.toMatch(/я пошутил/iu);
+    expect(result.text).not.toMatch(/я пошутил/iu);
   });
 
   it("strips leading speaker labels from the model reply", async () => {

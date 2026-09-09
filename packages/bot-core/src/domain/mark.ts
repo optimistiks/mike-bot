@@ -8,4 +8,4 @@ function markSlotForType(type: MarkType): MarkSlot {
   return type === "humor.add" ? "humor" : "karma";
 }
 
-export { MARK_TYPES, markSlotForType, type MarkSlot, type MarkType };
+export { markSlotForType, type MarkSlot, type MarkType };

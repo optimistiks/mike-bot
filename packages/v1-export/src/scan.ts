@@ -1,18 +1,12 @@
-import type { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
-
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
-import type { V1LolRow } from "./row.js";
-
-import { EMPTY_COUNT } from "./constants.js";
-import { parseV1Items } from "./row.js";
+import { parseV1Items, type V1LolRow } from "./row.js";
 
 interface ScanV1Options {
   tableName: string;
   region: string;
   chatId?: number;
-  clientConfig?: DynamoDBClientConfig;
 }
 
 interface ScanV1Result {
@@ -28,9 +22,7 @@ interface ScanPage {
 }
 
 function documentClient(options: ScanV1Options): DynamoDBDocumentClient {
-  return DynamoDBDocumentClient.from(
-    new DynamoDBClient({ region: options.region, ...options.clientConfig }),
-  );
+  return DynamoDBDocumentClient.from(new DynamoDBClient({ region: options.region }));
 }
 
 function chatFilter(chatId: number | undefined): {
@@ -71,7 +63,7 @@ async function scanPage(
 async function scanV1LolTable(options: ScanV1Options): Promise<ScanV1Result> {
   const client = documentClient(options);
   const rows: V1LolRow[] = [];
-  let skipped = EMPTY_COUNT;
+  let skipped = 0;
   let exclusiveStartKey: ExclusiveStartKey | undefined = undefined;
 
   do {

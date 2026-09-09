@@ -1,11 +1,10 @@
 import { generateText } from "ai";
 
-import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
+import { logInfo } from "#src/log.js";
 
-import type { ConversationCompleteInput, ConversationModel, PromptMessage } from "./types.js";
+import type { ConversationCompleteInput, PromptMessage } from "./types.js";
 
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
-import { logCompletionAttempt } from "./log.js";
 import { bindConversation, invokeAgent, reportCompletionFailure } from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
 import { withSentryTranscript } from "./sentry-transcript.js";
@@ -23,23 +22,8 @@ const COMPLETION_TELEMETRY = {
   recordOutputs: true,
 } as const;
 
-interface SampleState {
-  retries: number;
-  sample: string;
-}
-
-function retryFilters(retries: number): string[] {
-  if (retries > EMPTY_COUNT) {
-    return ["retry"];
-  }
-  return [];
-}
-
-function abortFilters(signal: AbortSignal): string[] {
-  if (signal.aborted) {
-    return ["timeout"];
-  }
-  return [];
+function logCompletionAttempt(entry: { completion: string | null; prompt: unknown }): void {
+  logInfo(JSON.stringify(entry));
 }
 
 async function generateSample(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
@@ -59,115 +43,55 @@ async function generateSample(messages: PromptMessage[], signal: AbortSignal): P
   return text;
 }
 
-function finishSample(messages: PromptMessage[], sample: string, priorFilters: string[]): string {
-  const processed = postProcess(sample);
-  logCompletionAttempt({
-    completion: sample,
-    filters: [...priorFilters, ...processed.filters],
-    prompt: messages,
-  });
-  return processed.text;
+function finishSample(messages: PromptMessage[], sample: string): string {
+  const text = postProcess(sample);
+  logCompletionAttempt({ completion: sample, prompt: messages });
+  return text;
 }
 
-function finishCut(messages: PromptMessage[], sample: string, retries: number): string {
+function finishCut(messages: PromptMessage[], sample: string): string {
   const cut = cutBanned(sample);
-  const prior = [...retryFilters(retries), "banned-phrase", "truncate-banned"];
   if (isBlank(cut)) {
-    logCompletionAttempt({
-      completion: sample,
-      filters: [...prior, "empty"],
-      prompt: messages,
-    });
+    logCompletionAttempt({ completion: sample, prompt: messages });
     return "";
   }
-  return finishSample(messages, cut, prior);
-}
-
-function shouldStopRetrying(sample: string, retries: number): boolean {
-  if (isBlank(sample)) {
-    return true;
-  }
-  if (!hasBannedPhrase(sample)) {
-    return true;
-  }
-  return retries >= MAX_BANNED_RETRIES;
-}
-
-function logBannedAttempt(messages: PromptMessage[], state: SampleState): void {
-  logCompletionAttempt({
-    completion: state.sample,
-    filters: [...retryFilters(state.retries), "banned-phrase"],
-    prompt: messages,
-  });
-}
-
-async function skipBanned(
-  messages: PromptMessage[],
-  signal: AbortSignal,
-  state: SampleState,
-): Promise<SampleState> {
-  if (shouldStopRetrying(state.sample, state.retries)) {
-    return state;
-  }
-  logBannedAttempt(messages, state);
-  return skipBanned(messages, signal, {
-    retries: state.retries + SINGLE_COUNT,
-    sample: await generateSample(messages, signal),
-  });
-}
-
-function finalizeNonEmpty(messages: PromptMessage[], state: SampleState): string {
-  if (!hasBannedPhrase(state.sample)) {
-    return finishSample(messages, state.sample, retryFilters(state.retries));
-  }
-  return finishCut(messages, state.sample, state.retries);
-}
-
-function finalizeSample(messages: PromptMessage[], state: SampleState): string {
-  if (isBlank(state.sample)) {
-    logCompletionAttempt({ completion: state.sample, filters: ["empty"], prompt: messages });
-    return "";
-  }
-  return finalizeNonEmpty(messages, state);
+  return finishSample(messages, cut);
 }
 
 async function sampleUntilClean(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
-  const state = await skipBanned(messages, signal, {
-    retries: EMPTY_COUNT,
-    sample: await generateSample(messages, signal),
-  });
-  return finalizeSample(messages, state);
+  let sample = await generateSample(messages, signal);
+  let retries = 0;
+  while (hasBannedPhrase(sample) && !isBlank(sample) && retries < MAX_BANNED_RETRIES) {
+    logCompletionAttempt({ completion: sample, prompt: messages });
+    retries += 1;
+    sample = await generateSample(messages, signal);
+  }
+  if (isBlank(sample)) {
+    logCompletionAttempt({ completion: sample, prompt: messages });
+    return "";
+  }
+  if (hasBannedPhrase(sample)) {
+    return finishCut(messages, sample);
+  }
+  return finishSample(messages, sample);
 }
 
 function failCompletion(messages: PromptMessage[], signal: AbortSignal, error: unknown): string {
   reportCompletionFailure(error, signal);
-  logCompletionAttempt({
-    completion: null,
-    filters: abortFilters(signal),
-    prompt: messages,
-  });
+  logCompletionAttempt({ completion: null, prompt: messages });
   return "";
 }
 
-async function completeWithSignal(
-  input: ConversationCompleteInput,
-  signal: AbortSignal,
-): Promise<string> {
-  const messages = conversationMessages(input);
-  try {
-    return await sampleUntilClean(messages, signal);
-  } catch (error) {
-    return failCompletion(messages, signal, error);
-  }
-}
-
 async function completeWithTimeout(input: ConversationCompleteInput): Promise<string> {
+  const messages = conversationMessages(input);
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
   }, COMPLETE_TIMEOUT_MS);
   try {
-    return await completeWithSignal(input, controller.signal);
+    return await sampleUntilClean(messages, controller.signal);
+  } catch (error) {
+    return failCompletion(messages, controller.signal, error);
   } finally {
     clearTimeout(timer);
   }
@@ -180,8 +104,4 @@ function complete(input: ConversationCompleteInput): Promise<string> {
   );
 }
 
-const gatewayConversationModel: ConversationModel = {
-  complete,
-};
-
-export { COMPLETE_TIMEOUT_MS, CONVERSATION_MODEL, gatewayConversationModel };
+export { complete };

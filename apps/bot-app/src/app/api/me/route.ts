@@ -1,7 +1,8 @@
-import { authenticateTmaRequestOpener } from "@/tma/request-auth";
+import { env } from "@/env";
+import { authenticateTmaOpener } from "@/tma/init-data";
 
 function GET(request: Request): Response {
-  const opener = authenticateTmaRequestOpener(request.headers.get("authorization"));
+  const opener = authenticateTmaOpener(request.headers.get("authorization"), env.BOT_TOKEN);
   if (opener === null) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

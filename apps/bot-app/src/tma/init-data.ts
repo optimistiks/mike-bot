@@ -1,9 +1,8 @@
 import { parse, validate } from "@tma.js/init-data-node";
 
-import type { OpenerProfile } from "./opener";
+import { openerName, openerPhotoUrl, type OpenerProfile } from "./opener";
 
-import { INIT_DATA_LIFETIME_SECONDS } from "./constants";
-import { openerName, openerPhotoUrl } from "./opener";
+const INIT_DATA_LIFETIME_SECONDS = 86_400;
 
 const TMA_PREFIX = "tma ";
 

@@ -6,7 +6,6 @@ import { v1LolRowSchema } from "@mike-bot/v1-export";
 
 const { marks, members, messages } = schema;
 
-const EMPTY_COUNT = 0;
 const MS_PER_SECOND = 1000;
 
 interface ImportedMessage {
@@ -156,7 +155,7 @@ async function persistMessages(
       db.insert(messages).values(message).onConflictDoNothing().returning(),
     ),
   );
-  return results.reduce((sum, inserted) => sum + inserted.length, EMPTY_COUNT);
+  return results.reduce((sum, inserted) => sum + inserted.length, 0);
 }
 
 async function persistMarks(db: BotSession, winners: Map<string, V1LolRow>): Promise<number> {
@@ -176,7 +175,7 @@ async function persistMarks(db: BotSession, winners: Map<string, V1LolRow>): Pro
         .returning(),
     ),
   );
-  return results.reduce((sum, inserted) => sum + inserted.length, EMPTY_COUNT);
+  return results.reduce((sum, inserted) => sum + inserted.length, 0);
 }
 
 async function loadImportedRows(

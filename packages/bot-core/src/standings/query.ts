@@ -2,8 +2,6 @@ import { eq } from "drizzle-orm";
 
 import type { BotSession } from "#src/db/runtime.js";
 import type { MarkType } from "#src/domain/mark.js";
-
-import { EMPTY_COUNT, SINGLE_COUNT } from "#src/constants.js";
 import { marks, members } from "#src/db/schema.js";
 
 interface StandingRow {
@@ -20,26 +18,26 @@ type MarkRow = typeof marks.$inferSelect;
 
 const APPLY_MARK: Record<MarkType, (subject: StandingRow, actor: StandingRow) => void> = {
   "humor.add": (subject, actor) => {
-    subject.humorReceived += SINGLE_COUNT;
-    actor.humorGiven += SINGLE_COUNT;
+    subject.humorReceived += 1;
+    actor.humorGiven += 1;
   },
   "karma.minus": (subject, actor) => {
-    subject.karmaReceived -= SINGLE_COUNT;
-    actor.karmaMinusGiven += SINGLE_COUNT;
+    subject.karmaReceived -= 1;
+    actor.karmaMinusGiven += 1;
   },
   "karma.plus": (subject, actor) => {
-    subject.karmaReceived += SINGLE_COUNT;
-    actor.karmaPlusGiven += SINGLE_COUNT;
+    subject.karmaReceived += 1;
+    actor.karmaPlusGiven += 1;
   },
 };
 
 function emptyStandingRow(id: number): StandingRow {
   return {
-    humorGiven: EMPTY_COUNT,
-    humorReceived: EMPTY_COUNT,
-    karmaMinusGiven: EMPTY_COUNT,
-    karmaPlusGiven: EMPTY_COUNT,
-    karmaReceived: EMPTY_COUNT,
+    humorGiven: 0,
+    humorReceived: 0,
+    karmaMinusGiven: 0,
+    karmaPlusGiven: 0,
+    karmaReceived: 0,
     memberId: id,
     name: "???",
   };
@@ -99,7 +97,7 @@ async function standingRowsFromMarks(db: BotSession, markRows: MarkRow[]): Promi
 
 async function loadStandingRows(db: BotSession, chatId: number): Promise<StandingRow[]> {
   const markRows = await db.select().from(marks).where(eq(marks.chatId, chatId));
-  if (markRows.length === EMPTY_COUNT) {
+  if (markRows.length === 0) {
     return [];
   }
   return standingRowsFromMarks(db, markRows);

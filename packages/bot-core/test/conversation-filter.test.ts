@@ -5,97 +5,61 @@ import { postProcess } from "#src/conversation/filter.js";
 describe("conversation reply filters", () => {
   it("strips a leading name label and keeps the reply", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice] че")).toStrictEqual({
-      filters: ["leading-label"],
-      text: "че",
-    });
+    expect(postProcess("[alice] че")).toBe("че");
   });
 
   it("strips self-reply labels with time and quote", () => {
     expect.hasAssertions();
-    expect(postProcess('[Ты → alice][0 сек. назад][на "бот"] че')).toStrictEqual({
-      filters: ["leading-label"],
-      text: "че",
-    });
+    expect(postProcess('[Ты → alice][0 сек. назад][на "бот"] че')).toBe("че");
   });
 
   it("strips consecutive labels split by newlines", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice]\n[0 сек. назад] че")).toStrictEqual({
-      filters: ["leading-label"],
-      text: "че",
-    });
+    expect(postProcess("[alice]\n[0 сек. назад] че")).toBe("че");
   });
 
   it("does not lowercase names in the reply body", () => {
     expect.hasAssertions();
-    expect(postProcess("Max сказал")).toStrictEqual({
-      filters: [],
-      text: "Max сказал",
-    });
+    expect(postProcess("Max сказал")).toBe("Max сказал");
   });
 
   it("does not cap the reply at two sentences", () => {
     expect.hasAssertions();
-    expect(postProcess("one! two? three!")).toStrictEqual({
-      filters: [],
-      text: "one! two? three!",
-    });
+    expect(postProcess("one! two? three!")).toBe("one! two? three!");
   });
 
   it("strips emoji", () => {
     expect.hasAssertions();
-    expect(postProcess("че 👋")).toStrictEqual({
-      filters: ["emoji"],
-      text: "че",
-    });
+    expect(postProcess("че 👋")).toBe("че");
   });
 
   it("strips a trailing period", () => {
     expect.hasAssertions();
-    expect(postProcess("че.")).toStrictEqual({
-      filters: [],
-      text: "че",
-    });
+    expect(postProcess("че.")).toBe("че");
   });
 
   it("truncates a following labeled line", () => {
     expect.hasAssertions();
-    expect(postProcess("че\n[bob] ку")).toStrictEqual({
-      filters: ["label-truncate"],
-      text: "че",
-    });
+    expect(postProcess("че\n[bob] ку")).toBe("че");
   });
 
   it("strips a leading label then truncates the next labeled line", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice] че\n[bob] ку")).toStrictEqual({
-      filters: ["leading-label", "label-truncate"],
-      text: "че",
-    });
+    expect(postProcess("[alice] че\n[bob] ку")).toBe("че");
   });
 
   it("treats a labels-only reply as empty", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice][0 сек. назад]")).toStrictEqual({
-      filters: ["leading-label", "empty"],
-      text: "",
-    });
+    expect(postProcess("[alice][0 сек. назад]")).toBe("");
   });
 
   it("leaves empty brackets in place", () => {
     expect.hasAssertions();
-    expect(postProcess("[] че")).toStrictEqual({
-      filters: [],
-      text: "[] че",
-    });
+    expect(postProcess("[] че")).toBe("[] че");
   });
 
   it("leaves an unclosed bracket prefix in place", () => {
     expect.hasAssertions();
-    expect(postProcess("[alice че")).toStrictEqual({
-      filters: [],
-      text: "[alice че",
-    });
+    expect(postProcess("[alice че")).toBe("[alice че");
   });
 });

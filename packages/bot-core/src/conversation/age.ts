@@ -1,5 +1,4 @@
-import { EMPTY_COUNT, MS_PER_SECOND } from "#src/constants.js";
-
+const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
@@ -15,8 +14,8 @@ interface AgeParts {
 
 function pastSecondsBetween(postedAt: Date, now: Date): number {
   const deltaSeconds = Math.floor((now.getTime() - postedAt.getTime()) / MS_PER_SECOND);
-  if (deltaSeconds < EMPTY_COUNT) {
-    return EMPTY_COUNT;
+  if (deltaSeconds < 0) {
+    return 0;
   }
   return deltaSeconds;
 }
