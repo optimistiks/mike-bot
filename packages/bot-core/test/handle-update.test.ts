@@ -8,7 +8,7 @@ import type { HandlerResult } from "#src/outcomes.js";
 import { closePgliteDb, createPgliteDb, resetPgliteDb } from "#src/db/pglite.js";
 import { handleUpdate } from "#src/handle-update.js";
 
-import { ALICE, BOB, BOT_USER, CAROL, LENA, statsUpdate, textUpdate } from "./helpers.js";
+import { ALICE, BOB, BOT_USER, CAROL, DAVE, LENA, statsUpdate, textUpdate } from "./helpers.js";
 import {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
@@ -94,6 +94,10 @@ function plusOnlySeasonHtml(year: string, receiver: string, giver: string): stri
     zeroGivenRows,
     "</table>",
   ].join("");
+}
+
+function collapsedRowsHtml(count: number, rows: string): string {
+  return `<details><summary>ещё ${String(count)}</summary><table bordered striped compact>${rows}</table></details>`;
 }
 
 function silenceResults(count: number): HandlerResult[] {
@@ -372,6 +376,86 @@ describe("telegram update handling", () => {
         '<tr><td>bob</td><td align="center">1</td></tr>',
         '<tr><td>carol</td><td align="center">1</td></tr>',
         "</table>",
+      ].join(""),
+      type: "standings",
+    });
+  });
+
+  it("hides Standings rows after the top 3 in a collapsible table", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 71,
+        replyTo: { from: ALICE, messageId: 10 },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: CAROL,
+        messageId: 72,
+        replyTo: { from: ALICE, messageId: 11 },
+        text: "+",
+        updateId: 2,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: DAVE,
+        messageId: 73,
+        replyTo: { from: ALICE, messageId: 14 },
+        text: "+",
+        updateId: 3,
+      }),
+    );
+
+    const result = await handle(statsUpdate(STANDINGS_UPDATE_ID, ALICE));
+
+    expect(result).toStrictEqual({
+      kind: "posted",
+      text: [
+        "<h1>Сезон 2023</h1>",
+        "<h2>Уважаемые люди</h2>",
+        "<table bordered striped compact>",
+        '<tr><td><b>alice 👑</b></td><td align="center"><b>3</b></td></tr>',
+        '<tr><td>bob 🐔</td><td align="center">0</td></tr>',
+        '<tr><td>carol 🐔</td><td align="center">0</td></tr>',
+        "</table>",
+        collapsedRowsHtml(1, '<tr><td>dave 🐔</td><td align="center">0</td></tr>'),
+        "<hr/>",
+        "<h2>Юмористы</h2>",
+        "<table bordered striped compact>",
+        '<tr><td><b>alice 👑</b></td><td align="center"><b>0</b></td></tr>',
+        '<tr><td><b>bob 👑</b></td><td align="center"><b>0</b></td></tr>',
+        '<tr><td><b>carol 👑</b></td><td align="center"><b>0</b></td></tr>',
+        "</table>",
+        collapsedRowsHtml(1, '<tr><td><b>dave 👑</b></td><td align="center"><b>0</b></td></tr>'),
+        "<hr/>",
+        "<h2>Поставили ➕</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>bob</td><td align="center">1</td></tr>',
+        '<tr><td>carol</td><td align="center">1</td></tr>',
+        '<tr><td>dave</td><td align="center">1</td></tr>',
+        "</table>",
+        collapsedRowsHtml(1, '<tr><td>alice</td><td align="center">0</td></tr>'),
+        "<hr/>",
+        "<h2>Поставили ➖</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>alice</td><td align="center">0</td></tr>',
+        '<tr><td>bob</td><td align="center">0</td></tr>',
+        '<tr><td>carol</td><td align="center">0</td></tr>',
+        "</table>",
+        collapsedRowsHtml(1, '<tr><td>dave</td><td align="center">0</td></tr>'),
+        "<hr/>",
+        "<h2>Поставили лол</h2>",
+        "<table bordered striped compact>",
+        '<tr><td>alice</td><td align="center">0</td></tr>',
+        '<tr><td>bob</td><td align="center">0</td></tr>',
+        '<tr><td>carol</td><td align="center">0</td></tr>',
+        "</table>",
+        collapsedRowsHtml(1, '<tr><td>dave</td><td align="center">0</td></tr>'),
       ].join(""),
       type: "standings",
     });

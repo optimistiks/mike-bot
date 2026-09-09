@@ -6,6 +6,7 @@ const PLUS = "\u2795";
 const MINUS = "\u2796";
 const UNKNOWN_MEMBER = "???";
 const TABLE_OPEN = "<table bordered striped compact>";
+const VISIBLE_ROWS = 3;
 
 interface RankedLine {
   name: string;
@@ -110,8 +111,17 @@ function formatTable(lines: RankedLine[]): string {
   return `${TABLE_OPEN}${lines.map((line) => formatRow(line)).join("")}</table>`;
 }
 
+function restBlock(rest: RankedLine[]): string {
+  if (rest.length === 0) {
+    return "";
+  }
+  return `<details><summary>ещё ${String(rest.length)}</summary>${formatTable(rest)}</details>`;
+}
+
 function section(title: string, lines: RankedLine[]): string {
-  return `<h2>${title}</h2>${formatTable(lines)}`;
+  const visible = lines.slice(0, VISIBLE_ROWS);
+  const rest = lines.slice(VISIBLE_ROWS);
+  return `<h2>${title}</h2>${formatTable(visible)}${restBlock(rest)}`;
 }
 
 function formatStandings(rows: StandingRow[], year: number): string {
