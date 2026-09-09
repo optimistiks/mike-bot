@@ -10,21 +10,24 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "load": "tsx src/load-cli.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@mike-bot/bot-core": "workspace:*",
     "@mike-bot/v1-export": "workspace:*",
-    "drizzle-orm": "^0.44.7",
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@types/node": "^26.4.1",
     "@types/pg": "^8.23.1",
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.44.7",
     "oxlint": "^1.81.0",
     "oxlint-tsgolint": "^7.0.2001",
     "tsx": "^4.23.13",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "4.1.11"
   }
 }

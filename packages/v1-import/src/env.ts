@@ -28,4 +28,16 @@ function importJsonPath(): string | undefined {
   return nonempty(readEnv("IMPORT_JSON"));
 }
 
-export { importJsonPath, unpooledDatabaseUrl };
+function importBatchSize(): number | undefined {
+  const raw = nonempty(readEnv("IMPORT_BATCH_SIZE"));
+  if (raw === undefined) {
+    return undefined;
+  }
+  const batchSize = Number(raw);
+  if (!Number.isInteger(batchSize) || batchSize < 1) {
+    throw new Error("IMPORT_BATCH_SIZE must be a positive integer");
+  }
+  return batchSize;
+}
+
+export { importBatchSize, importJsonPath, unpooledDatabaseUrl };

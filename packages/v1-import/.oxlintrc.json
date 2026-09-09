@@ -55,5 +55,13 @@
     "vitest/require-hook": "off",
     "vitest/max-nested-describe": ["error", { "max": 2 }]
   },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts", "vitest.config.ts"],
+      "rules": {
+        "import/no-relative-parent-imports": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["dist", "node_modules", "drizzle"]
 }
