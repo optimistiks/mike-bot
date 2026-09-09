@@ -64,6 +64,7 @@ const conversations = pgTable(
 const conversationParticipants = pgTable(
   "conversation_participants",
   {
+    completingAt: timestamp("completing_at", { withTimezone: true }),
     conversationId: uuid("conversation_id")
       .notNull()
       .references(() => conversations.id),

@@ -12,6 +12,7 @@ import { ALICE, BOB, BOT_USER, CAROL, LENA, statsUpdate, textUpdate } from "./he
 import {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
+  createQuietGate,
   enqueueModelTexts,
   failNextModelRequest,
   holdNextModelResponse,
@@ -81,6 +82,17 @@ describe("telegram update handling", () => {
     return handleUpdate(update, {
       botUserId,
       db: currentDb().db,
+      waitForQuiet: () => Promise.resolve(),
+    });
+  }
+
+  function handleAfterQuiet(
+    update: Update,
+    waitForQuiet: () => Promise<void>,
+  ): Promise<HandlerResult> {
+    return handleUpdate(update, {
+      db: currentDb().db,
+      waitForQuiet,
     });
   }
 
@@ -875,6 +887,147 @@ describe("telegram update handling", () => {
 
     expect(bob).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(alice).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+  });
+
+  it("answers a rapid burst with one completion that includes every turn", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 130,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const gate = createQuietGate();
+    const first = handleAfterQuiet(
+      textUpdate({
+        from: ALICE,
+        messageId: 131,
+        text: "раз",
+        updateId: 2,
+      }),
+      gate.wait,
+    );
+    const second = handleAfterQuiet(
+      textUpdate({
+        from: ALICE,
+        messageId: 132,
+        text: "два",
+        updateId: 3,
+      }),
+      gate.wait,
+    );
+    await gate.untilParked(2);
+    gate.releaseAll();
+    const burst = await Promise.all([first, second]);
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 133,
+        text: "три",
+        updateId: 4,
+      }),
+    );
+
+    expect(burst).toHaveLength(2);
+    expect(burst).toStrictEqual(
+      expect.arrayContaining([
+        { kind: "reply", text: "че", type: "conversation" },
+        { kind: "silence", type: "conversation" },
+      ]),
+    );
+    expect(capturedModelBodies).toHaveLength(3);
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот"),
+      liveLabeled("alice", "раз"),
+      liveLabeled("alice", "два"),
+      liveLabeled("alice", "три"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "бот", "че"),
+      liveReplyLabeled("Ты", "alice", "два", "че"),
+    ]);
+  });
+
+  it("skips a later turn while a completion lease is held", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 134,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const release = holdNextModelResponse();
+    const inFlightCount = capturedModelBodies.length + 1;
+    const first = handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 135,
+        text: "как дела",
+        updateId: 2,
+      }),
+    );
+    await waitUntilModelCallCount(inFlightCount);
+    const skipped = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 136,
+        text: "еще",
+        updateId: 3,
+      }),
+    );
+    release();
+    const replied = await first;
+
+    expect(skipped).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(2);
+  });
+
+  it("drops a pending completion after довольно", async () => {
+    expect.hasAssertions();
+    await freshDb();
+
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 137,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+    const gate = createQuietGate();
+    const pending = handleAfterQuiet(
+      textUpdate({
+        from: ALICE,
+        messageId: 138,
+        text: "как дела",
+        updateId: 2,
+      }),
+      gate.wait,
+    );
+    await gate.untilParked(1);
+    const stopped = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 139,
+        text: "довольно",
+        updateId: 3,
+      }),
+    );
+    gate.releaseAll();
+    const skipped = await pending;
+
+    expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
+    expect(skipped).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(capturedModelBodies).toHaveLength(1);
   });
 
   it("retries a banned phrase and never posts the banned span", async () => {

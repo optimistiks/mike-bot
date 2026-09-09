@@ -8,6 +8,12 @@
       "name": "conversation_participants",
       "schema": "",
       "columns": {
+        "completing_at": {
+          "name": "completing_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "conversation_id": {
           "name": "conversation_id",
           "type": "uuid",

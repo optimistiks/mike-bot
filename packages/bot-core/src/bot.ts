@@ -2,16 +2,19 @@ import type { Context } from "grammy";
 
 import { Bot } from "grammy";
 
+import type { ConversationWork } from "./conversation/pending.js";
 import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
 import { reportUnhandledFailure } from "./conversation/observability.js";
-import { handleUpdate } from "./handle-update.js";
+import { finishConversationWork } from "./conversation/pending.js";
+import { persistUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
 import { telegramBotUserId } from "./telegram/identity.js";
 
 interface BotDependencies {
   db: BotDatabase;
+  schedule: (task: () => Promise<void>) => void;
   token: string;
 }
 
@@ -123,13 +126,31 @@ async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<voi
   }
 }
 
-function createBot({ db, token }: BotDependencies): Bot {
+async function completeScheduled(
+  ctx: Context,
+  db: BotDatabase,
+  work: ConversationWork,
+): Promise<void> {
+  try {
+    const result = await finishConversationWork(db, work);
+    await tryApplyOutcome(ctx, result);
+  } catch (error) {
+    logError("failed to complete Conversation work", error);
+    reportUnhandledFailure(error);
+  }
+}
+
+function createBot({ db, schedule, token }: BotDependencies): Bot {
   const bot = new Bot(token);
   const botUserId = telegramBotUserId(token);
 
   bot.use(async (ctx) => {
-    const result = await handleUpdate(ctx.update, { botUserId, db });
-    await tryApplyOutcome(ctx, result);
+    const work = await persistUpdate(ctx.update, { botUserId, db });
+    if (work.type === "pending-turn") {
+      schedule(() => completeScheduled(ctx, db, work));
+      return;
+    }
+    await tryApplyOutcome(ctx, work);
   });
 
   // eslint-disable-next-line promise/prefer-await-to-callbacks -- grammy bot.catch is a callback API

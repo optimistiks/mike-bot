@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
@@ -268,12 +268,74 @@ async function tryInsertTurn(
   return inserted.length === 1;
 }
 
-async function appendTurn(db: BotSession, input: AppendTurnInput): Promise<void> {
+async function appendTurn(db: BotSession, input: AppendTurnInput): Promise<number> {
   const seq = await nextTurnSeq(db, input.conversationId);
   if (await tryInsertTurn(db, input, seq)) {
-    return;
+    return seq;
   }
-  await appendTurn(db, input);
+  return appendTurn(db, input);
+}
+
+async function latestMemberTurnSeq(
+  db: BotSession,
+  conversationId: string,
+  memberId: number,
+): Promise<number | null> {
+  const rows = await db
+    .select({ seq: conversationTurns.seq })
+    .from(conversationTurns)
+    .where(
+      and(
+        eq(conversationTurns.conversationId, conversationId),
+        eq(conversationTurns.memberId, memberId),
+        eq(conversationTurns.role, "member"),
+      ),
+    )
+    .orderBy(desc(conversationTurns.seq))
+    .limit(1);
+  return rows.at(0)?.seq ?? null;
+}
+
+async function tryBeginCompletionLease(
+  db: BotSession,
+  conversationId: string,
+  memberId: number,
+  now: Date,
+  ttlMs: number,
+): Promise<Date | null> {
+  const { completingAt } = conversationParticipants;
+  const idleLease = isNull(completingAt);
+  const expiredLease = lt(completingAt, new Date(now.getTime() - ttlMs));
+  const updated = await db
+    .update(conversationParticipants)
+    .set({ completingAt: now })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.memberId, memberId),
+        or(idleLease, expiredLease),
+      ),
+    )
+    .returning();
+  return updated.at(0)?.completingAt ?? null;
+}
+
+async function endCompletionLease(
+  db: BotSession,
+  conversationId: string,
+  memberId: number,
+  leaseAt: Date,
+): Promise<void> {
+  await db
+    .update(conversationParticipants)
+    .set({ completingAt: null })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.memberId, memberId),
+        eq(conversationParticipants.completingAt, leaseAt),
+      ),
+    );
 }
 
 async function deleteTurnsBefore(
@@ -323,17 +385,21 @@ export {
   appendTurn,
   claimUpdate,
   closeConversation,
+  endCompletionLease,
   ensureMessage,
   findConversation,
+  findConversationById,
   insertConversation,
   isParticipant,
   joinParticipant,
+  latestMemberTurnSeq,
   leaveParticipant,
   listMembersByIds,
   listTurns,
   reopenConversation,
   trimIfClosed,
   trimOldestTurns,
+  tryBeginCompletionLease,
   tryInsertMark,
   upsertMember,
 };

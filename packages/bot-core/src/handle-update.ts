@@ -83,12 +83,23 @@ function claimAndDispatch(
   });
 }
 
-async function handleUpdate(
+function persistUpdate(
   update: Update,
   { botUserId, db }: { botUserId?: number; db: BotDatabase },
-): Promise<HandlerResult> {
-  const work = await claimAndDispatch(db, update, botUserId);
-  return finishConversationWork(db, work);
+): Promise<ConversationWork> {
+  return claimAndDispatch(db, update, botUserId);
 }
 
-export { handleUpdate };
+async function handleUpdate(
+  update: Update,
+  {
+    botUserId,
+    db,
+    waitForQuiet,
+  }: { botUserId?: number; db: BotDatabase; waitForQuiet?: () => Promise<void> },
+): Promise<HandlerResult> {
+  const work = await persistUpdate(update, { botUserId, db });
+  return finishConversationWork(db, work, { waitForQuiet });
+}
+
+export { handleUpdate, persistUpdate };

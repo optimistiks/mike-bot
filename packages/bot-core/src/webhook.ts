@@ -8,6 +8,7 @@ const TELEGRAM_WEBHOOK_ALLOWED_UPDATES = ["message", "channel_post"] as const;
 
 interface TelegramWebhookDependencies {
   db: BotDatabase;
+  schedule: (task: () => Promise<void>) => void;
   secretToken: string;
   timeoutMilliseconds: number;
   token: string;
@@ -28,11 +29,12 @@ type TelegramWebhookHandler = (request: Request) => Promise<Response>;
 
 function createTelegramWebhook({
   db,
+  schedule,
   secretToken,
   timeoutMilliseconds,
   token,
 }: TelegramWebhookDependencies): TelegramWebhookHandler {
-  return webhookCallback(createBot({ db, token }), "std/http", {
+  return webhookCallback(createBot({ db, schedule, token }), "std/http", {
     secretToken,
     timeoutMilliseconds,
   });

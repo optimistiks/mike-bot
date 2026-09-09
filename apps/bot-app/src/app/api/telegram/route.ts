@@ -1,4 +1,5 @@
 import { createTelegramWebhook } from "@mike-bot/bot-core";
+import { after } from "next/server";
 
 import { db } from "@/db";
 import { env } from "@/env";
@@ -10,6 +11,9 @@ export const maxDuration = 60;
 
 export const POST = createTelegramWebhook({
   db,
+  schedule: (task) => {
+    after(task);
+  },
   secretToken: env.BOT_WEBHOOK_SECRET,
   timeoutMilliseconds: (maxDuration + WEBHOOK_TIMEOUT_PADDING_SECONDS) * MS_PER_SECOND,
   token: env.BOT_TOKEN,

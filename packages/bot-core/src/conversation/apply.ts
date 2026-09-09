@@ -2,6 +2,7 @@ import type { Message, User } from "grammy/types";
 
 import type { ConversationTurn, ReplyMark } from "#src/conversation/types.js";
 import type { BotSession } from "#src/db/runtime.js";
+import type { conversationTurns } from "#src/db/schema.js";
 
 import { CLOSED_TURN_WINDOW } from "#src/constants.js";
 import { speakerLabel } from "#src/conversation/label.js";
@@ -14,14 +15,13 @@ import {
   isParticipant,
   joinParticipant,
   leaveParticipant,
-  listTurns,
   reopenConversation,
   trimOldestTurns,
 } from "#src/db/store.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 import { isStopMessage, isWakeMessage } from "#src/telegram/text.js";
 
-type ConversationTurnRow = Awaited<ReturnType<typeof listTurns>>[number];
+type ConversationTurnRow = typeof conversationTurns.$inferSelect;
 type ChatConversation = NonNullable<Awaited<ReturnType<typeof findConversation>>>;
 
 type PersistedConversation =
@@ -31,9 +31,9 @@ type PersistedConversation =
       kind: "turn";
       addresseeLabel: string;
       conversationId: string;
-      history: ConversationTurn[];
       memberId: number;
       now: Date;
+      turnSeq: number;
     };
 
 const SILENCE: PersistedConversation = { kind: "silence" };
@@ -112,15 +112,14 @@ async function persistMemberTurn(
   reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   const input = memberTurnInput(conversation.id, actor, text, now, reply);
-  await appendTurn(db, input);
-  const history = await listTurns(db, conversation.id);
+  const turnSeq = await appendTurn(db, input);
   return {
     addresseeLabel: input.speakerLabel,
     conversationId: conversation.id,
-    history: history.map((row) => modelTurn(row)),
     kind: "turn",
     memberId: actor.id,
     now,
+    turnSeq,
   };
 }
 
@@ -204,4 +203,4 @@ async function persistConversation(
   return persistTalk(db, conversation, actor, message.chat.id, text, now, reply);
 }
 
-export { persistConversation, type PersistedConversation };
+export { modelTurn, persistConversation, type PersistedConversation };
