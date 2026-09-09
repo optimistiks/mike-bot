@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { BotSession } from "#src/db/runtime.js";
 import type { MarkType } from "#src/domain/mark.js";
+
 import { marks, members } from "#src/db/schema.js";
 
 interface StandingRow {

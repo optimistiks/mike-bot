@@ -93,16 +93,24 @@ async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> 
     return;
   }
   switch (result.type) {
-    case "scoring":
+    case "scoring": {
       await applyScoringOutcome(ctx, message, result);
-      return;
-    case "standings":
+      break;
+    }
+    case "standings": {
       await applyStandingsOutcome(ctx, message, result);
-      return;
-    case "conversation":
+      break;
+    }
+    case "conversation": {
       await applyConversationOutcome(ctx, message, result);
-      return;
-    default:
+      break;
+    }
+    case "noop": {
+      break;
+    }
+    default: {
+      break;
+    }
   }
 }
 

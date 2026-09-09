@@ -166,8 +166,7 @@ async function persistTalk(
   reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
   const wake = isWakeMessage(text);
-  const conversation =
-    existing ?? (await insertConversation(db, chatId, now, wake ? null : now));
+  const conversation = existing ?? (await insertConversation(db, chatId, now, wake ? null : now));
   if (wake) {
     if (conversation.closedAt !== null) {
       await reopenConversation(db, conversation.id);

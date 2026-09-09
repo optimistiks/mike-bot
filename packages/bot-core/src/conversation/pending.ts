@@ -112,11 +112,10 @@ function firstSpeakerIds(turns: ConversationTurn[]): number[] {
   const ids: number[] = [];
   const seen = new Set<number>();
   for (const turn of turns) {
-    if (turn.role !== "member" || turn.memberId === null || seen.has(turn.memberId)) {
-      continue;
+    if (turn.role === "member" && turn.memberId !== null && !seen.has(turn.memberId)) {
+      seen.add(turn.memberId);
+      ids.push(turn.memberId);
     }
-    seen.add(turn.memberId);
-    ids.push(turn.memberId);
   }
   return ids;
 }
@@ -174,7 +173,8 @@ async function completeInput(
 
 async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
   try {
-    const reply = await complete(await completeInput(db, pending));
+    const input = await completeInput(db, pending);
+    const reply = await complete(input);
     return await replyFromText(db, pending, reply);
   } catch (error) {
     reportUnhandledFailure(error);
@@ -183,10 +183,11 @@ async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<Han
 }
 
 async function skipInFlight(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
+  const input = await completeInput(db, pending);
   logInfo(
     JSON.stringify({
       completion: null,
-      prompt: conversationMessages(await completeInput(db, pending)),
+      prompt: conversationMessages(input),
     }),
   );
   return CONVERSATION_SILENCE;

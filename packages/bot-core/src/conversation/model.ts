@@ -64,6 +64,7 @@ async function sampleUntilClean(messages: PromptMessage[], signal: AbortSignal):
   while (hasBannedPhrase(sample) && !isBlank(sample) && retries < MAX_BANNED_RETRIES) {
     logCompletionAttempt({ completion: sample, prompt: messages });
     retries += 1;
+    // eslint-disable-next-line no-await-in-loop -- banned retries must see the previous sample
     sample = await generateSample(messages, signal);
   }
   if (isBlank(sample)) {

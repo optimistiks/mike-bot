@@ -27,7 +27,7 @@ const bodySchema = z.object({
   prompt: z.array(z.unknown()),
 });
 
-const LIVE_LABEL = /^\[(?:alice|bob|carol)(?: → [^\]]+)?\]\[/u;
+const LIVE_LABEL = /^\[[^\]]+\]\[/u;
 const POLL_MS = 10;
 
 const capturedModelBodies: unknown[] = [];

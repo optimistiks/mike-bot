@@ -15,7 +15,12 @@ function speakerFor(turn: ConversationTurn): string {
 }
 
 function liveMessage(turn: ConversationTurn, now: Date): PromptMessage {
-  const content = promptLine(speakerFor(turn), timeBracket(turn.postedAt, now), turn.text, turn.reply);
+  const content = promptLine(
+    speakerFor(turn),
+    timeBracket(turn.postedAt, now),
+    turn.text,
+    turn.reply,
+  );
   if (turn.role === "assistant") {
     return { content, role: "assistant" };
   }

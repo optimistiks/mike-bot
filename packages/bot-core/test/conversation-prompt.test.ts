@@ -111,20 +111,20 @@ describe("conversation prompt", () => {
       memberTurn("будущее", new Date(NOW.getTime() + 5 * MS_PER_SECOND)),
     ];
 
-    expect(conversationMessages(completeInput("username1", [USERNAME1], turns)).slice(0, -1)).toStrictEqual(
-      [
-        { content: "[username1][2 ч назад] че", role: "user" },
-        {
-          content: '[Ты → username1][5 сек. назад][на "че"] хуй в оче',
-          role: "assistant",
-        },
-        { content: "[username1][45 сек. назад] ещё", role: "user" },
-        { content: "[username1][2 мин. назад] минуты", role: "user" },
-        { content: "[username1][5 дн. назад] день", role: "user" },
-        { content: "[username1][0 сек. назад] сейчас", role: "user" },
-        { content: "[username1][0 сек. назад] будущее", role: "user" },
-      ],
-    );
+    expect(
+      conversationMessages(completeInput("username1", [USERNAME1], turns)).slice(0, -1),
+    ).toStrictEqual([
+      { content: "[username1][2 ч назад] че", role: "user" },
+      {
+        content: '[Ты → username1][5 сек. назад][на "че"] хуй в оче',
+        role: "assistant",
+      },
+      { content: "[username1][45 сек. назад] ещё", role: "user" },
+      { content: "[username1][2 мин. назад] минуты", role: "user" },
+      { content: "[username1][5 дн. назад] день", role: "user" },
+      { content: "[username1][0 сек. назад] сейчас", role: "user" },
+      { content: "[username1][0 сек. назад] будущее", role: "user" },
+    ]);
   });
 
   it("lists speakers in the suffix before the addressee", () => {

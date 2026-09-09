@@ -10,7 +10,7 @@ function isBlank(text: string): boolean {
 function findBannedIndex(text: string): number {
   const lower = text.toLowerCase();
   const indexes = BANNED_PHRASES.map((phrase) => lower.indexOf(phrase)).filter(
-    (index) => index >= 0,
+    (index) => index !== -1,
   );
   if (indexes.length === 0) {
     return -1;
@@ -19,12 +19,12 @@ function findBannedIndex(text: string): number {
 }
 
 function hasBannedPhrase(text: string): boolean {
-  return findBannedIndex(text) >= 0;
+  return findBannedIndex(text) !== -1;
 }
 
 function cutBanned(text: string): string {
   const index = findBannedIndex(text);
-  if (index < 0) {
+  if (index === -1) {
     return text;
   }
   return text.slice(0, index);
@@ -52,7 +52,7 @@ function stripTrailingPeriod(text: string): string {
 
 function truncateLabeledTail(text: string): string {
   const index = text.indexOf(LABEL_NEXT_LINE);
-  if (index < 0) {
+  if (index === -1) {
     return text;
   }
   return text.slice(0, index);

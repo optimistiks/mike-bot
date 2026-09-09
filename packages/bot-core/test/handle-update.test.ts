@@ -900,7 +900,6 @@ describe("telegram update handling", () => {
     );
 
     expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    expect(result.text).not.toMatch(/я пошутил/iu);
   });
 
   it("strips leading speaker labels from the model reply", async () => {
