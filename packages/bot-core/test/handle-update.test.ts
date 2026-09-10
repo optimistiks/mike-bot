@@ -116,9 +116,17 @@ function collapsedRowsHtml(count: number, rows: string): string {
 function silenceResults(count: number): HandlerResult[] {
   return Array.from({ length: count }, () => ({
     kind: "silence" as const,
-    type: "conversation" as const,
+    type: "chat" as const,
   }));
 }
+
+function lastSentryConversationId(): unknown {
+  return vi.mocked(setConversationId).mock.calls.at(-1)?.[0];
+}
+
+const SENTRY_CLOCK_UNIX = 1_700_000_000;
+const TEN_MINUTES_SECONDS = 600;
+const AFTER_GAP_SECONDS = TEN_MINUTES_SECONDS + 1;
 
 describe("telegram update handling", () => {
   // eslint-disable-next-line init-declarations -- assigned in beforeAll
@@ -346,7 +354,7 @@ describe("telegram update handling", () => {
       text: "➕ (alice)",
       type: "scoring",
     });
-    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(2);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
@@ -395,7 +403,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(1);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "+"),
@@ -443,7 +451,7 @@ describe("telegram update handling", () => {
       text: "➕ (alice)",
       type: "scoring",
     });
-    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(2);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
@@ -696,7 +704,7 @@ describe("telegram update handling", () => {
       text: plusOnlySeasonHtml("2023", "alice", "bob"),
       type: "standings",
     });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(1);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveReplyLabeled("bob", "alice", "шутка", "+"),
@@ -719,7 +727,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([liveLabeled("alice", "бот")]);
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([]);
   });
@@ -874,15 +882,15 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(bare).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    expect(withRest).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(bare).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+    expect(withRest).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("alice", "бот привет"),
     ]);
   });
 
-  it("offers weather on every conversation completion", async () => {
+  it("offers weather on every chat completion", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -911,7 +919,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([liveLabeled("Лена", "бот")]);
     expect(lastCapturedModelBodyJson()).toContain("в чате разговаривают: Лена (Лена Иванова)");
   });
@@ -943,8 +951,8 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(logged).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(logged).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("alice", "как дела"),
@@ -974,7 +982,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот", "2 ч назад"),
       liveLabeled("alice", "бот как дела"),
@@ -1019,9 +1027,9 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(stopped).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(later).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(stopped).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(later).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("alice", "довольно"),
@@ -1041,7 +1049,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "БОТ привет"),
     ]);
@@ -1058,7 +1066,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот, и дальше что нибудь"),
     ]);
@@ -1077,7 +1085,7 @@ describe("telegram update handling", () => {
       BOT_USER.id,
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveReplyLabeled("alice", "Ты", "че", "как дела"),
     ]);
@@ -1104,7 +1112,7 @@ describe("telegram update handling", () => {
       BOT_USER.id,
     );
 
-    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "silence", type: "chat" });
   });
 
   it("stays silent on a reply to a different bot without бот", async () => {
@@ -1120,7 +1128,7 @@ describe("telegram update handling", () => {
       BOT_USER.id + 1,
     );
 
-    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "silence", type: "chat" });
   });
 
   it("seeds a Wake from ordinary Turns already in the log", async () => {
@@ -1142,8 +1150,8 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(beforeWake).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(beforeWake).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("bob", "он опять сломался"),
       liveLabeled("alice", "бот"),
@@ -1151,7 +1159,7 @@ describe("telegram update handling", () => {
     expect(lastCapturedModelBodyJson()).toContain("в чате разговаривают: bob (Bob), alice (Alice)");
   });
 
-  it("keeps one Conversation across later Wakes and logs the gap", async () => {
+  it("keeps one Sentry Conversation across later wakes and logs the gap", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -1188,8 +1196,8 @@ describe("telegram update handling", () => {
     );
     const secondConversationId = vi.mocked(setConversationId).mock.calls.at(-1)?.[0];
 
-    expect(gap).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(gap).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(secondConversationId).toBe(firstConversationId);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
@@ -1197,6 +1205,184 @@ describe("telegram update handling", () => {
       liveLabeled("bob", "как дела"),
       liveLabeled("alice", "бот"),
     ]);
+  });
+
+  it("opens a new Sentry Conversation after more than 10 minutes since the last LLM reply", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(SENTRY_CLOCK_UNIX * 1000);
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX,
+          from: ALICE,
+          messageId: 9101,
+          text: "бот",
+          updateId: 9101,
+        }),
+      );
+      const firstId = lastSentryConversationId();
+      vi.setSystemTime((SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS) * 1000);
+      const woken = await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS,
+          from: ALICE,
+          messageId: 9102,
+          text: "бот",
+          updateId: 9102,
+        }),
+      );
+
+      expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+      expect(lastSentryConversationId()).not.toBe(firstId);
+      expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+        liveLabeled("alice", "бот", "10 мин. назад"),
+        liveLabeled("alice", "бот"),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the Sentry Conversation when the next wake is exactly 10 minutes later", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(SENTRY_CLOCK_UNIX * 1000);
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX,
+          from: ALICE,
+          messageId: 9111,
+          text: "бот",
+          updateId: 9111,
+        }),
+      );
+      const firstId = lastSentryConversationId();
+      vi.setSystemTime((SENTRY_CLOCK_UNIX + TEN_MINUTES_SECONDS) * 1000);
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + TEN_MINUTES_SECONDS,
+          from: ALICE,
+          messageId: 9112,
+          text: "бот",
+          updateId: 9112,
+        }),
+      );
+
+      expect(lastSentryConversationId()).toBe(firstId);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not keep a Sentry Conversation alive with /stats or Scoring", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(SENTRY_CLOCK_UNIX * 1000);
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX,
+          from: ALICE,
+          messageId: 9121,
+          replyTo: { from: BOB, messageId: 10 },
+          text: "+",
+          updateId: 9121,
+        }),
+      );
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX,
+          from: ALICE,
+          messageId: 9122,
+          text: "бот",
+          updateId: 9122,
+        }),
+      );
+      const firstId = lastSentryConversationId();
+      vi.setSystemTime((SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS) * 1000);
+      const stats = await handle(
+        statsUpdate(9123, ALICE, { date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS }),
+      );
+      const scored = await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS,
+          from: ALICE,
+          messageId: 9124,
+          replyTo: { from: BOB, messageId: 11 },
+          text: "+",
+          updateId: 9124,
+        }),
+      );
+      const woken = await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS + 1,
+          from: ALICE,
+          messageId: 9125,
+          text: "бот",
+          updateId: 9125,
+        }),
+      );
+
+      expect(stats).toMatchObject({ kind: "posted", type: "standings" });
+      expect(scored).toStrictEqual({
+        kind: "accepted",
+        text: "➕ (alice)",
+        type: "scoring",
+      });
+      expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+      expect(lastSentryConversationId()).not.toBe(firstId);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reuses a Sentry Conversation opened by a failed completion after a gap", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(SENTRY_CLOCK_UNIX * 1000);
+      await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX,
+          from: ALICE,
+          messageId: 9131,
+          text: "бот",
+          updateId: 9131,
+        }),
+      );
+      const firstId = lastSentryConversationId();
+      vi.setSystemTime((SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS) * 1000);
+      failNextModelRequest();
+      const failed = await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS,
+          from: ALICE,
+          messageId: 9132,
+          text: "бот",
+          updateId: 9132,
+        }),
+      );
+      const failedId = lastSentryConversationId();
+      modelServer.resetHandlers();
+      const retried = await handle(
+        textUpdate({
+          date: SENTRY_CLOCK_UNIX + AFTER_GAP_SECONDS + 1,
+          from: ALICE,
+          messageId: 9133,
+          text: "бот",
+          updateId: 9133,
+        }),
+      );
+
+      expect(failed).toStrictEqual({ kind: "silence", type: "chat" });
+      expect(retried).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+      expect(failedId).not.toBe(firstId);
+      expect(lastSentryConversationId()).toBe(failedId);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps 100 Turns and drops the oldest on the 101st", async () => {
@@ -1217,7 +1403,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       ...texts.slice(2).map((text) => liveLabeled("alice", text)),
       liveLabeled("alice", "бот"),
@@ -1249,14 +1435,14 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       ...bystanderTexts.slice(1).map((text) => liveLabeled("bob", text)),
       liveLabeled("alice", "бот"),
     ]);
   });
 
-  it("opens one Conversation when five Members say бот at once", async () => {
+  it("opens one Sentry Conversation when five Members say бот at once", async () => {
     expect.hasAssertions();
     const speakers = [ALICE, BOB, CAROL, DAVE, LENA];
     const results = await Promise.all(
@@ -1274,8 +1460,13 @@ describe("telegram update handling", () => {
     );
 
     expect(results).toStrictEqual(
-      speakers.map(() => ({ kind: "reply", text: "че", type: "conversation" })),
+      speakers.map(() => ({ kind: "reply", text: "че", type: "chat" })),
     );
+    const sentryIds = vi
+      .mocked(setConversationId)
+      .mock.calls.slice(-speakers.length)
+      .map((call) => call[0]);
+    expect(new Set(sentryIds).size).toBe(1);
   });
 
   it("logs a Scoring reply as a Turn before a Wake", async () => {
@@ -1311,7 +1502,7 @@ describe("telegram update handling", () => {
       text: "➕ (alice)",
       type: "scoring",
     });
-    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "привет"),
       liveReplyLabeled("alice", "bob", "target", "+"),
@@ -1352,7 +1543,7 @@ describe("telegram update handling", () => {
       text: "➕ (alice)",
       type: "scoring",
     });
-    expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(joined).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот привет"),
       liveReplyLabeled("alice", "bob", "target", "+"),
@@ -1371,7 +1562,7 @@ describe("telegram update handling", () => {
     const first = await handle(update);
     const retry = await handle(update);
 
-    expect(first).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(first).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(retry).toStrictEqual({ type: "noop" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([liveLabeled("alice", "бот")]);
   });
@@ -1403,8 +1594,8 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(bystander).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(bystander).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("bob", "он опять сломался"),
@@ -1432,10 +1623,10 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "silence", type: "chat" });
     expect(captureException).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "conversation completion empty" }),
-      expect.objectContaining({ tags: { conversation_failure: "empty" } }),
+      expect.objectContaining({ message: "chat completion empty" }),
+      expect.objectContaining({ tags: { chat_failure: "empty" } }),
     );
 
     const next = await handle(
@@ -1447,7 +1638,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(next).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
       liveReplyLabeled("Ты", "alice", "бот", "че"),
     ]);
@@ -1473,10 +1664,10 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "silence", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "silence", type: "chat" });
     expect(captureException).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ tags: { conversation_failure: "error" } }),
+      expect.objectContaining({ tags: { chat_failure: "error" } }),
     );
   });
 
@@ -1520,8 +1711,8 @@ describe("telegram update handling", () => {
     release();
     const alice = await alicePending;
 
-    expect(bob).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
-    expect(alice).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(bob).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+    expect(alice).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
   });
 
   it("skips a later Wake while a completion lease is held", async () => {
@@ -1556,8 +1747,8 @@ describe("telegram update handling", () => {
     release();
     const replied = await first;
 
-    expect(skipped).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(skipped).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(2);
   });
 
@@ -1593,8 +1784,8 @@ describe("telegram update handling", () => {
     release();
     const replied = await pending;
 
-    expect(logged).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(logged).toStrictEqual({ kind: "silence", type: "chat" });
+    expect(replied).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(capturedModelBodies).toHaveLength(2);
   });
 
@@ -1618,7 +1809,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
   });
 
   it("strips leading speaker labels from the model reply", async () => {
@@ -1641,7 +1832,7 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(result).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
   });
 
   it("labels a member telegram reply with addressee and quote", async () => {

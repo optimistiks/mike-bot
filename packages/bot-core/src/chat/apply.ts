@@ -1,43 +1,43 @@
 import type { Message, User } from "grammy/types";
 
-import type { ConversationTurn, ReplyMark } from "#src/conversation/types.js";
+import type { ChatTurn, ReplyMark } from "#src/chat/types.js";
 import type { BotSession } from "#src/db/runtime.js";
-import type { conversationTurns } from "#src/db/schema.js";
+import type { chatTurns } from "#src/db/schema.js";
 
-import { replyMark, speakerLabel } from "#src/conversation/label.js";
-import { isReplyToBot, replyFromMessage } from "#src/conversation/reply.js";
-import { appendTurn, findOrMintConversation, trimOldestTurns } from "#src/db/store.js";
+import { replyMark, speakerLabel } from "#src/chat/label.js";
+import { isReplyToBot, replyFromMessage } from "#src/chat/reply.js";
+import { appendTurn, findOrMintChat, trimOldestTurns } from "#src/db/store.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 import { isWakeMessage } from "#src/telegram/text.js";
 
-type ConversationTurnRow = typeof conversationTurns.$inferSelect;
+type ChatTurnRow = typeof chatTurns.$inferSelect;
 
 interface PersistedTurn {
   addresseeLabel: string;
-  conversationId: string;
+  chatId: number;
   kind: "turn";
   memberId: number;
   now: Date;
   text: string;
 }
 
-type PersistedConversation = { kind: "silence" } | PersistedTurn;
+type PersistedChat = { kind: "silence" } | PersistedTurn;
 
-const SILENCE: PersistedConversation = { kind: "silence" };
+const SILENCE: PersistedChat = { kind: "silence" };
 const UNKNOWN_REPLY: ReplyMark = { quote: null, targetLabel: "???" };
 
-function optionalReply(row: ConversationTurnRow): ReplyMark | null {
+function optionalReply(row: ChatTurnRow): ReplyMark | null {
   if (row.replyTargetLabel === null) {
     return null;
   }
   return { quote: row.replyQuote, targetLabel: row.replyTargetLabel };
 }
 
-function requiredReply(row: ConversationTurnRow): ReplyMark {
+function requiredReply(row: ChatTurnRow): ReplyMark {
   return optionalReply(row) ?? UNKNOWN_REPLY;
 }
 
-function modelTurn(row: ConversationTurnRow): ConversationTurn {
+function modelTurn(row: ChatTurnRow): ChatTurn {
   if (row.role === "assistant") {
     return { postedAt: row.postedAt, reply: requiredReply(row), role: "assistant", text: row.text };
   }
@@ -62,13 +62,13 @@ function replyColumns(reply: ReplyMark | null): {
 }
 
 function memberTurnInput(
-  conversationId: string,
+  chatId: number,
   actor: User,
   text: string,
   now: Date,
   reply: ReplyMark | null,
 ): {
-  conversationId: string;
+  chatId: number;
   memberId: number;
   postedAt: Date;
   replyQuote: string | null;
@@ -79,7 +79,7 @@ function memberTurnInput(
 } {
   const columns = replyColumns(reply);
   return {
-    conversationId,
+    chatId,
     memberId: actor.id,
     postedAt: now,
     replyQuote: columns.replyQuote,
@@ -101,23 +101,23 @@ async function persistTalk(
   text: string,
   now: Date,
   botUserId: number | undefined,
-): Promise<PersistedConversation> {
-  const conversation = await findOrMintConversation(db, message.chat.id);
+): Promise<PersistedChat> {
+  const chat = await findOrMintChat(db, message.chat.id);
   const input = memberTurnInput(
-    conversation.id,
+    chat.chatId,
     actor,
     text,
     now,
     replyFromMessage(message, botUserId),
   );
   await appendTurn(db, input);
-  await trimOldestTurns(db, conversation.id);
+  await trimOldestTurns(db, chat.chatId);
   if (!shouldComplete(text, message, botUserId)) {
     return SILENCE;
   }
   return {
     addresseeLabel: input.speakerLabel,
-    conversationId: conversation.id,
+    chatId: chat.chatId,
     kind: "turn",
     memberId: actor.id,
     now,
@@ -136,16 +136,16 @@ async function persistSilentMemberTurn(
     return;
   }
   const now = telegramDateToPostedAt(message.date);
-  const conversation = await findOrMintConversation(db, message.chat.id);
+  const chat = await findOrMintChat(db, message.chat.id);
   const input = memberTurnInput(
-    conversation.id,
+    chat.chatId,
     actor,
     text,
     now,
     replyFromMessage(message, botUserId),
   );
   await appendTurn(db, { ...input, memberId: null });
-  await trimOldestTurns(db, conversation.id);
+  await trimOldestTurns(db, chat.chatId);
 }
 
 async function persistSilentAssistantTurn(
@@ -159,10 +159,10 @@ async function persistSilentAssistantTurn(
     return;
   }
   const now = telegramDateToPostedAt(message.date);
-  const conversation = await findOrMintConversation(db, message.chat.id);
+  const chat = await findOrMintChat(db, message.chat.id);
   const reply = replyMark(speakerLabel(actor), commandText);
   await appendTurn(db, {
-    conversationId: conversation.id,
+    chatId: chat.chatId,
     memberId: null,
     postedAt: now,
     replyQuote: reply.quote,
@@ -171,14 +171,14 @@ async function persistSilentAssistantTurn(
     speakerLabel: null,
     text,
   });
-  await trimOldestTurns(db, conversation.id);
+  await trimOldestTurns(db, chat.chatId);
 }
 
-function persistConversation(
+function persistChat(
   db: BotSession,
   message: Message,
   botUserId: number | undefined,
-): Promise<PersistedConversation> {
+): Promise<PersistedChat> {
   const actor = message.from;
   const { text } = message;
   if (actor === undefined || text === undefined) {
@@ -190,8 +190,8 @@ function persistConversation(
 
 export {
   modelTurn,
-  persistConversation,
+  persistChat,
   persistSilentAssistantTurn,
   persistSilentMemberTurn,
-  type PersistedConversation,
+  type PersistedChat,
 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { stampRelativeAgeLabels } from "#src/conversation/age.js";
-import { stampSentrySpanTranscript } from "#src/conversation/sentry-transcript.js";
+import { stampRelativeAgeLabels } from "#src/chat/age.js";
+import { stampSentrySpanTranscript } from "#src/chat/sentry-transcript.js";
 
 const NOW = new Date("2024-06-15T12:00:00.000Z");
 const START = NOW.getTime() / 1000;

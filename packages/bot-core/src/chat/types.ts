@@ -19,7 +19,7 @@ interface AssistantTurn {
   text: string;
 }
 
-type ConversationTurn = MemberTurn | AssistantTurn;
+type ChatTurn = MemberTurn | AssistantTurn;
 
 interface SpeakerIdentity {
   handle: string;
@@ -27,13 +27,13 @@ interface SpeakerIdentity {
   lastName: string | null;
 }
 
-interface ConversationCompleteInput {
+interface ChatCompleteInput {
   addresseeLabel: string;
-  conversationId: string;
   memberId: number;
   now: Date;
+  sentryConversationId: string;
   speakers: SpeakerIdentity[];
-  turns: ConversationTurn[];
+  turns: ChatTurn[];
 }
 
 interface PromptMessage {
@@ -41,10 +41,4 @@ interface PromptMessage {
   content: string;
 }
 
-export type {
-  ConversationCompleteInput,
-  ConversationTurn,
-  PromptMessage,
-  ReplyMark,
-  SpeakerIdentity,
-};
+export type { ChatCompleteInput, ChatTurn, PromptMessage, ReplyMark, SpeakerIdentity };

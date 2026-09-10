@@ -1,8 +1,8 @@
-import type { ConversationCompleteInput, PromptMessage, SpeakerIdentity } from "./types.js";
+import type { ChatCompleteInput, PromptMessage, SpeakerIdentity } from "./types.js";
 
 import { liveMessages } from "./history.js";
 
-const CONVERSATION_SYSTEM_PROMPT = `
+const CHAT_SYSTEM_PROMPT = `
 ты в групповом чате где все друзья которые давно друг друга знают
 пиши как в неформальной переписке онлайн: обрывок фразы, одно слово, или несколько предложений если есть что сказать. всё это нормально
 
@@ -139,11 +139,11 @@ function addresseeReminder(label: string, speakers: readonly SpeakerIdentity[]):
   return `${FORMAT_RECAP}\n${rosterLine(speakers)}\nотвечаешь только пользователю ${label}`;
 }
 
-function conversationMessages(input: ConversationCompleteInput): PromptMessage[] {
+function chatMessages(input: ChatCompleteInput): PromptMessage[] {
   return [
     ...liveMessages(input.turns, input.now),
     { content: addresseeReminder(input.addresseeLabel, input.speakers), role: "system" },
   ];
 }
 
-export { CONVERSATION_SYSTEM_PROMPT, conversationMessages };
+export { CHAT_SYSTEM_PROMPT, chatMessages };

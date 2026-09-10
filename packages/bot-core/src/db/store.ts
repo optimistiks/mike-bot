@@ -5,23 +5,23 @@ import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
-import { TURN_WINDOW } from "#src/constants.js";
+import { SENTRY_CONVERSATION_GAP_MS, TURN_WINDOW } from "#src/constants.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 
 import type { BotSession } from "./runtime.js";
 
 import {
-  conversationCompletionLeases,
-  conversationTurns,
-  conversations,
+  chatCompletionLeases,
+  chatTurns,
+  chats,
   marks,
   members,
   messages,
   processedUpdates,
 } from "./schema.js";
 
-type ConversationRow = typeof conversations.$inferSelect;
-type ConversationTurnRow = typeof conversationTurns.$inferSelect;
+type ChatRow = typeof chats.$inferSelect;
+type ChatTurnRow = typeof chatTurns.$inferSelect;
 type MemberRow = typeof members.$inferSelect;
 
 async function claimUpdate(db: BotSession, updateId: number): Promise<boolean> {
@@ -105,43 +105,14 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
 }
 
-async function findConversationByChatId(
-  db: BotSession,
-  chatId: number,
-): Promise<ConversationRow | null> {
-  const rows = await db
-    .select()
-    .from(conversations)
-    .where(eq(conversations.chatId, chatId))
-    .limit(1)
-    .for("update");
+async function findChatByChatId(db: BotSession, chatId: number): Promise<ChatRow | null> {
+  const rows = await db.select().from(chats).where(eq(chats.chatId, chatId)).limit(1).for("update");
   return rows.at(0) ?? null;
 }
 
-async function findConversationById(
-  db: BotSession,
-  conversationId: string,
-): Promise<ConversationRow | null> {
-  const rows = await db
-    .select()
-    .from(conversations)
-    .where(eq(conversations.id, conversationId))
-    .limit(1);
-  return rows.at(0) ?? null;
-}
-
-async function tryInsertConversation(
-  db: BotSession,
-  chatId: number,
-): Promise<ConversationRow | null> {
+async function tryInsertChat(db: BotSession, chatId: number): Promise<ChatRow | null> {
   try {
-    const inserted = await db
-      .insert(conversations)
-      .values({ chatId })
-      .onConflictDoNothing({
-        target: conversations.chatId,
-      })
-      .returning();
+    const inserted = await db.insert(chats).values({ chatId }).onConflictDoNothing().returning();
     return inserted.at(0) ?? null;
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -151,42 +122,38 @@ async function tryInsertConversation(
   }
 }
 
-async function findOrMintConversation(db: BotSession, chatId: number): Promise<ConversationRow> {
-  const existing = await findConversationByChatId(db, chatId);
+async function findOrMintChat(db: BotSession, chatId: number): Promise<ChatRow> {
+  const existing = await findChatByChatId(db, chatId);
   if (existing !== null) {
     return existing;
   }
-  const minted = await tryInsertConversation(db, chatId);
+  const minted = await tryInsertChat(db, chatId);
   if (minted !== null) {
     return minted;
   }
-  const raced = await findConversationByChatId(db, chatId);
+  const raced = await findChatByChatId(db, chatId);
   if (raced !== null) {
     return raced;
   }
-  return findOrMintConversation(db, chatId);
+  return findOrMintChat(db, chatId);
 }
 
-function listTurns(db: BotSession, conversationId: string): Promise<ConversationTurnRow[]> {
-  return db
-    .select()
-    .from(conversationTurns)
-    .where(eq(conversationTurns.conversationId, conversationId))
-    .orderBy(conversationTurns.seq);
+function listTurns(db: BotSession, chatId: number): Promise<ChatTurnRow[]> {
+  return db.select().from(chatTurns).where(eq(chatTurns.chatId, chatId)).orderBy(chatTurns.seq);
 }
 
-async function nextTurnSeq(db: BotSession, conversationId: string): Promise<number> {
+async function nextTurnSeq(db: BotSession, chatId: number): Promise<number> {
   const rows = await db
-    .select({ seq: conversationTurns.seq })
-    .from(conversationTurns)
-    .where(eq(conversationTurns.conversationId, conversationId))
-    .orderBy(desc(conversationTurns.seq))
+    .select({ seq: chatTurns.seq })
+    .from(chatTurns)
+    .where(eq(chatTurns.chatId, chatId))
+    .orderBy(desc(chatTurns.seq))
     .limit(1);
   return (rows.at(0)?.seq ?? 0) + 1;
 }
 
 interface AppendTurnInput {
-  conversationId: string;
+  chatId: number;
   memberId: number | null;
   postedAt: Date;
   replyQuote: string | null;
@@ -202,9 +169,9 @@ async function tryInsertTurn(
   seq: number,
 ): Promise<boolean> {
   const inserted = await db
-    .insert(conversationTurns)
+    .insert(chatTurns)
     .values({
-      conversationId: input.conversationId,
+      chatId: input.chatId,
       memberId: input.memberId,
       postedAt: input.postedAt,
       replyQuote: input.replyQuote,
@@ -220,34 +187,31 @@ async function tryInsertTurn(
 }
 
 async function appendTurn(db: BotSession, input: AppendTurnInput): Promise<number> {
-  const seq = await nextTurnSeq(db, input.conversationId);
+  const seq = await nextTurnSeq(db, input.chatId);
   if (await tryInsertTurn(db, input, seq)) {
     return seq;
   }
   return appendTurn(db, input);
 }
 
-function leaseWhere(conversationId: string, memberId: number): SQL | undefined {
-  return and(
-    eq(conversationCompletionLeases.conversationId, conversationId),
-    eq(conversationCompletionLeases.memberId, memberId),
-  );
+function leaseWhere(chatId: number, memberId: number): SQL | undefined {
+  return and(eq(chatCompletionLeases.chatId, chatId), eq(chatCompletionLeases.memberId, memberId));
 }
 
 async function tryBeginCompletionLease(
   db: BotSession,
-  conversationId: string,
+  chatId: number,
   memberId: number,
   now: Date,
   ttlMs: number,
 ): Promise<Date | null> {
-  const { completingAt } = conversationCompletionLeases;
+  const { completingAt } = chatCompletionLeases;
   const idleLease = isNull(completingAt);
   const expiredLease = lt(completingAt, new Date(now.getTime() - ttlMs));
   const updated = await db
-    .update(conversationCompletionLeases)
+    .update(chatCompletionLeases)
     .set({ completingAt: now })
-    .where(and(leaseWhere(conversationId, memberId), or(idleLease, expiredLease)))
+    .where(and(leaseWhere(chatId, memberId), or(idleLease, expiredLease)))
     .returning();
   const taken = updated.at(0)?.completingAt;
   if (taken !== undefined) {
@@ -255,8 +219,8 @@ async function tryBeginCompletionLease(
   }
   try {
     const inserted = await db
-      .insert(conversationCompletionLeases)
-      .values({ completingAt: now, conversationId, memberId })
+      .insert(chatCompletionLeases)
+      .values({ chatId, completingAt: now, memberId })
       .onConflictDoNothing()
       .returning();
     return inserted.at(0)?.completingAt ?? null;
@@ -270,35 +234,22 @@ async function tryBeginCompletionLease(
 
 async function endCompletionLease(
   db: BotSession,
-  conversationId: string,
+  chatId: number,
   memberId: number,
   leaseAt: Date,
 ): Promise<void> {
   await db
-    .update(conversationCompletionLeases)
+    .update(chatCompletionLeases)
     .set({ completingAt: null })
-    .where(
-      and(
-        leaseWhere(conversationId, memberId),
-        eq(conversationCompletionLeases.completingAt, leaseAt),
-      ),
-    );
+    .where(and(leaseWhere(chatId, memberId), eq(chatCompletionLeases.completingAt, leaseAt)));
 }
 
-async function deleteTurnsBefore(
-  db: BotSession,
-  conversationId: string,
-  seq: number,
-): Promise<void> {
-  await db
-    .delete(conversationTurns)
-    .where(
-      and(eq(conversationTurns.conversationId, conversationId), lt(conversationTurns.seq, seq)),
-    );
+async function deleteTurnsBefore(db: BotSession, chatId: number, seq: number): Promise<void> {
+  await db.delete(chatTurns).where(and(eq(chatTurns.chatId, chatId), lt(chatTurns.seq, seq)));
 }
 
-async function trimOldestTurns(db: BotSession, conversationId: string): Promise<void> {
-  const turns = await listTurns(db, conversationId);
+async function trimOldestTurns(db: BotSession, chatId: number): Promise<void> {
+  const turns = await listTurns(db, chatId);
   if (turns.length <= TURN_WINDOW) {
     return;
   }
@@ -306,7 +257,7 @@ async function trimOldestTurns(db: BotSession, conversationId: string): Promise<
   if (cutoff === undefined) {
     return;
   }
-  await deleteTurnsBefore(db, conversationId, cutoff.seq);
+  await deleteTurnsBefore(db, chatId, cutoff.seq);
 }
 
 function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
@@ -316,15 +267,73 @@ function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
   return db.select().from(members).where(inArray(members.telegramId, ids));
 }
 
+function isPastSentryGap(lastLlmRepliedAt: Date | null, triggerPostedAt: Date): boolean {
+  if (lastLlmRepliedAt === null) {
+    return true;
+  }
+  return triggerPostedAt.getTime() - lastLlmRepliedAt.getTime() > SENTRY_CONVERSATION_GAP_MS;
+}
+
+function canReuseSentryConversation(chat: ChatRow, triggerPostedAt: Date): boolean {
+  if (chat.sentryConversationId === null) {
+    return false;
+  }
+  if (!isPastSentryGap(chat.lastLlmRepliedAt, triggerPostedAt)) {
+    return true;
+  }
+  if (chat.lastLlmRepliedAt === null) {
+    return true;
+  }
+  return (
+    chat.sentryConversationBoundAt !== null &&
+    chat.sentryConversationBoundAt.getTime() > chat.lastLlmRepliedAt.getTime()
+  );
+}
+
+async function mintSentryConversation(
+  db: BotSession,
+  chatId: number,
+  triggerPostedAt: Date,
+): Promise<string> {
+  const sentryConversationId = crypto.randomUUID();
+  await db
+    .update(chats)
+    .set({ sentryConversationBoundAt: triggerPostedAt, sentryConversationId })
+    .where(eq(chats.chatId, chatId));
+  return sentryConversationId;
+}
+
+async function bindSentryConversation(
+  db: BotSession,
+  chatId: number,
+  triggerPostedAt: Date,
+): Promise<string> {
+  const chat = await findOrMintChat(db, chatId);
+  const existing = chat.sentryConversationId;
+  if (existing !== null && canReuseSentryConversation(chat, triggerPostedAt)) {
+    return existing;
+  }
+  return mintSentryConversation(db, chatId, triggerPostedAt);
+}
+
+async function stampLastLlmRepliedAt(
+  db: BotSession,
+  chatId: number,
+  postedAt: Date,
+): Promise<void> {
+  await db.update(chats).set({ lastLlmRepliedAt: postedAt }).where(eq(chats.chatId, chatId));
+}
+
 export {
   appendTurn,
+  bindSentryConversation,
   claimUpdate,
   endCompletionLease,
   ensureMessage,
-  findConversationById,
-  findOrMintConversation,
+  findOrMintChat,
   listMembersByIds,
   listTurns,
+  stampLastLlmRepliedAt,
   trimOldestTurns,
   tryBeginCompletionLease,
   tryInsertMark,

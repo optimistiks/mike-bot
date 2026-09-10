@@ -2,7 +2,7 @@ import { generateText, isStepCount } from "ai";
 
 import { logInfo } from "#src/log.js";
 
-import type { ConversationCompleteInput, PromptMessage } from "./types.js";
+import type { ChatCompleteInput, PromptMessage } from "./types.js";
 
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
 import {
@@ -11,10 +11,10 @@ import {
   reportCompletionFailure,
   reportEmptyCompletion,
 } from "./observability.js";
-import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
+import { CHAT_SYSTEM_PROMPT, chatMessages } from "./prompt.js";
 import { weatherTool } from "./weather.js";
 
-const CONVERSATION_MODEL = "zai/glm-5.3-flash";
+const CHAT_MODEL = "zai/glm-5.3-flash";
 const COMPLETE_TIMEOUT_MS = 30_000;
 const MAX_BANNED_RETRIES = 2;
 const MAX_OUTPUT_TOKENS = 500;
@@ -22,7 +22,7 @@ const MAX_TOOL_STEPS = 3;
 const STOP_SEQUENCES = ["\n\n", "\n["];
 const TEMPERATURE = 1;
 const COMPLETION_TELEMETRY = {
-  functionId: "conversation-complete",
+  functionId: "chat-complete",
   isEnabled: true,
   recordInputs: true,
   recordOutputs: true,
@@ -40,11 +40,11 @@ async function generateSample(
   const { text } = await generateText({
     abortSignal: signal,
     allowSystemInMessages: true,
-    instructions: CONVERSATION_SYSTEM_PROMPT,
+    instructions: CHAT_SYSTEM_PROMPT,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     maxRetries: 0,
     messages,
-    model: CONVERSATION_MODEL,
+    model: CHAT_MODEL,
     reasoning: "low",
     stopSequences: STOP_SEQUENCES,
     stopWhen: isStepCount(MAX_TOOL_STEPS),
@@ -99,8 +99,8 @@ function failCompletion(messages: PromptMessage[], signal: AbortSignal, error: u
   return "";
 }
 
-async function completeWithTimeout(input: ConversationCompleteInput): Promise<string> {
-  const messages = conversationMessages(input);
+async function completeWithTimeout(input: ChatCompleteInput): Promise<string> {
+  const messages = chatMessages(input);
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
@@ -118,9 +118,9 @@ async function completeWithTimeout(input: ConversationCompleteInput): Promise<st
   }
 }
 
-function complete(input: ConversationCompleteInput): Promise<string> {
+function complete(input: ChatCompleteInput): Promise<string> {
   bindConversation(input);
-  return invokeAgent(CONVERSATION_MODEL, () => completeWithTimeout(input));
+  return invokeAgent(CHAT_MODEL, () => completeWithTimeout(input));
 }
 
 export { complete };
