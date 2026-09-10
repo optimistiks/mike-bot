@@ -48,4 +48,38 @@ function relativePastLabel(postedAt: Date, now: Date): string {
   return RELATIVE_PAST.format(-parts.value, parts.unit);
 }
 
-export { relativePastLabel };
+const ISO_FRACTIONAL_SECONDS = /\.\d{3}Z$/u;
+const RELATIVE_AGE_BRACKET = /\[(?<value>\d+) (?<unit>сек\.|мин\.|ч|дн\.) назад\]/gu;
+
+function absolutePostedAtLabel(postedAt: Date): string {
+  return postedAt.toISOString().replace(ISO_FRACTIONAL_SECONDS, "Z");
+}
+
+function ageUnitMs(unit: string): number | undefined {
+  if (unit === "сек.") {
+    return MS_PER_SECOND;
+  }
+  if (unit === "мин.") {
+    return MS_PER_SECOND * SECONDS_PER_MINUTE;
+  }
+  if (unit === "ч") {
+    return MS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+  }
+  if (unit === "дн.") {
+    return MS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY;
+  }
+  return undefined;
+}
+
+function stampRelativeAgeLabels(text: string, now: Date): string {
+  RELATIVE_AGE_BRACKET.lastIndex = 0;
+  return text.replaceAll(RELATIVE_AGE_BRACKET, (match: string, value: string, unit: string) => {
+    const unitMs = ageUnitMs(unit);
+    if (unitMs === undefined) {
+      return match;
+    }
+    return `[${absolutePostedAtLabel(new Date(now.getTime() - Number(value) * unitMs))}]`;
+  });
+}
+
+export { relativePastLabel, stampRelativeAgeLabels };
