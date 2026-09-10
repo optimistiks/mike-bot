@@ -904,7 +904,7 @@ describe("telegram update handling", () => {
     expect(lastCapturedModelBodyJson()).toContain('"weather"');
     expect(lastCapturedModelBodyJson()).toContain('"maxOutputTokens":500');
     expect(lastCapturedModelBodyJson()).toContain(
-      "если есть инструмент который отвечает на запрос — вызови его, не отнекивайся",
+      "если есть инструмент (tool) который может быть полезен для ответа — вызови его, не отнекивайся. данные из инструментов перескажи своими словами, не зачитывай",
     );
   });
 
