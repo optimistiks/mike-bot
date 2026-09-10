@@ -9,7 +9,7 @@ import {
   latestMemberTurnSeq,
   listMembersByIds,
   listTurns,
-  trimIfClosed,
+  trimIfUnopened,
   tryBeginCompletionLease,
 } from "#src/db/store.js";
 import { logInfo } from "#src/log.js";
@@ -102,7 +102,7 @@ async function persistAssistantTurn(
       speakerLabel: null,
       text,
     });
-    await trimIfClosed(session, conversationId);
+    await trimIfUnopened(session, conversationId);
   });
 }
 

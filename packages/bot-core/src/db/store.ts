@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import type { Message, User } from "grammy/types";
 
-import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 import type { MarkType } from "#src/domain/mark.js";
 
@@ -101,14 +101,54 @@ async function tryInsertMark(
   return inserted.length === 1;
 }
 
-async function findConversation(db: BotSession, chatId: number): Promise<ConversationRow | null> {
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+}
+
+async function findOpenConversation(
+  db: BotSession,
+  chatId: number,
+): Promise<ConversationRow | null> {
   const rows = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.chatId, chatId))
+    .where(and(eq(conversations.chatId, chatId), isNull(conversations.closedAt)))
     .limit(1)
     .for("update");
+  return rows.at(0) ?? null;
+}
 
+async function findUnopenedConversation(
+  db: BotSession,
+  chatId: number,
+): Promise<ConversationRow | null> {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.chatId, chatId), isNull(conversations.openedAt)))
+    .limit(1)
+    .for("update");
+  return rows.at(0) ?? null;
+}
+
+async function findPreviousFinishedConversation(
+  db: BotSession,
+  chatId: number,
+  conversationId: string,
+): Promise<ConversationRow | null> {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.chatId, chatId),
+        ne(conversations.id, conversationId),
+        isNotNull(conversations.openedAt),
+        isNotNull(conversations.closedAt),
+      ),
+    )
+    .orderBy(desc(conversations.closedAt))
+    .limit(1);
   return rows.at(0) ?? null;
 }
 
@@ -124,43 +164,47 @@ async function findConversationById(
   return rows.at(0) ?? null;
 }
 
-async function tryInsertConversation(
+async function tryInsertUnopenedConversation(
   db: BotSession,
   chatId: number,
-  openedAt: Date,
-  closedAt: Date | null,
+  closedAt: Date,
 ): Promise<ConversationRow | null> {
-  const inserted = await db
-    .insert(conversations)
-    .values({ chatId, closedAt, openedAt })
-    .onConflictDoNothing({ target: conversations.chatId })
-    .returning();
-  const [conversation] = inserted;
-  return conversation ?? null;
+  try {
+    const inserted = await db
+      .insert(conversations)
+      .values({ chatId, closedAt, openedAt: null })
+      .onConflictDoNothing({
+        target: conversations.chatId,
+        where: sql`${conversations.openedAt} is null`,
+      })
+      .returning();
+    return inserted.at(0) ?? null;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
-async function insertConversation(
+async function tryOpenConversation(
   db: BotSession,
-  chatId: number,
+  conversationId: string,
   openedAt: Date,
-  closedAt: Date | null,
-): Promise<ConversationRow> {
-  const inserted = await tryInsertConversation(db, chatId, openedAt, closedAt);
-  if (inserted !== null) {
-    return inserted;
+): Promise<ConversationRow | null> {
+  try {
+    const rows = await db
+      .update(conversations)
+      .set({ closedAt: null, openedAt })
+      .where(and(eq(conversations.id, conversationId), isNull(conversations.openedAt)))
+      .returning();
+    return rows.at(0) ?? null;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return null;
+    }
+    throw error;
   }
-  const existing = await findConversation(db, chatId);
-  if (existing !== null) {
-    return existing;
-  }
-  return insertConversation(db, chatId, openedAt, closedAt);
-}
-
-async function reopenConversation(db: BotSession, conversationId: string): Promise<void> {
-  await db
-    .update(conversations)
-    .set({ closedAt: null })
-    .where(eq(conversations.id, conversationId));
 }
 
 function participantWhere(conversationId: string, memberId: number): SQL | undefined {
@@ -366,12 +410,90 @@ async function trimOldestTurns(
   await deleteTurnsBefore(db, conversationId, cutoff.seq);
 }
 
-async function trimIfClosed(db: BotSession, conversationId: string): Promise<void> {
+async function trimIfUnopened(db: BotSession, conversationId: string): Promise<void> {
   const conversation = await findConversationById(db, conversationId);
-  if (conversation === null || conversation.closedAt === null) {
+  if (conversation === null || conversation.openedAt !== null) {
     return;
   }
   await trimOldestTurns(db, conversationId, CLOSED_TURN_WINDOW);
+}
+
+async function listNewestTurns(
+  db: BotSession,
+  conversationId: string,
+  count: number,
+): Promise<ConversationTurnRow[]> {
+  const rows = await db
+    .select()
+    .from(conversationTurns)
+    .where(eq(conversationTurns.conversationId, conversationId))
+    .orderBy(desc(conversationTurns.seq))
+    .limit(count);
+  return rows.toReversed();
+}
+
+function copiedTurnValues(
+  row: ConversationTurnRow,
+  conversationId: string,
+  seq: number,
+): {
+  conversationId: string;
+  memberId: number | null;
+  postedAt: Date;
+  replyQuote: string | null;
+  replyTargetLabel: string | null;
+  role: string;
+  seq: number;
+  speakerLabel: string | null;
+  text: string;
+} {
+  return {
+    conversationId,
+    memberId: row.memberId,
+    postedAt: row.postedAt,
+    replyQuote: row.replyQuote,
+    replyTargetLabel: row.replyTargetLabel,
+    role: row.role,
+    seq,
+    speakerLabel: row.speakerLabel,
+    text: row.text,
+  };
+}
+
+async function replaceTurns(
+  db: BotSession,
+  conversationId: string,
+  prefix: ConversationTurnRow[],
+  existing: ConversationTurnRow[],
+): Promise<void> {
+  await db.delete(conversationTurns).where(eq(conversationTurns.conversationId, conversationId));
+  const rows = [...prefix, ...existing].map((row, index) =>
+    copiedTurnValues(row, conversationId, index + 1),
+  );
+  if (rows.length === 0) {
+    return;
+  }
+  await db.insert(conversationTurns).values(rows);
+}
+
+async function fillTurnsFromPrevious(
+  db: BotSession,
+  conversation: ConversationRow,
+  keep: number,
+): Promise<void> {
+  const existing = await listTurns(db, conversation.id);
+  if (existing.length >= keep) {
+    return;
+  }
+  const previous = await findPreviousFinishedConversation(db, conversation.chatId, conversation.id);
+  if (previous === null) {
+    return;
+  }
+  const prefix = await listNewestTurns(db, previous.id, keep - existing.length);
+  if (prefix.length === 0) {
+    return;
+  }
+  await replaceTurns(db, conversation.id, prefix, existing);
 }
 
 function listMembersByIds(db: BotSession, ids: number[]): Promise<MemberRow[]> {
@@ -387,19 +509,21 @@ export {
   closeConversation,
   endCompletionLease,
   ensureMessage,
-  findConversation,
+  fillTurnsFromPrevious,
   findConversationById,
-  insertConversation,
+  findOpenConversation,
+  findUnopenedConversation,
   isParticipant,
   joinParticipant,
   latestMemberTurnSeq,
   leaveParticipant,
   listMembersByIds,
   listTurns,
-  reopenConversation,
-  trimIfClosed,
+  trimIfUnopened,
   trimOldestTurns,
   tryBeginCompletionLease,
   tryInsertMark,
+  tryInsertUnopenedConversation,
+  tryOpenConversation,
   upsertMember,
 };
