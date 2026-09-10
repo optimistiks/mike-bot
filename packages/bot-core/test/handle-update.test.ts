@@ -1,6 +1,6 @@
 import type { Update } from "grammy/types";
 
-import { captureException } from "@sentry/core";
+import { captureException, setConversationId } from "@sentry/core";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PgliteDatabase } from "#src/db/pglite.js";
@@ -1204,7 +1204,7 @@ describe("telegram update handling", () => {
     expect(lastCapturedModelBodyJson()).toContain("в чате разговаривают: bob (Bob), alice (Alice)");
   });
 
-  it("reopens the same Conversation on a later Wake with Turns from the closed gap", async () => {
+  it("opens a new Conversation on a later Wake and copies Turns from the closed gap", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -1214,6 +1214,7 @@ describe("telegram update handling", () => {
         updateId: 202,
       }),
     );
+    const firstConversationId = vi.mocked(setConversationId).mock.calls.at(-1)?.[0];
     await handle(
       textUpdate({
         from: ALICE,
@@ -1230,7 +1231,7 @@ describe("telegram update handling", () => {
         updateId: 204,
       }),
     );
-    const reopened = await handle(
+    const woken = await handle(
       textUpdate({
         from: ALICE,
         messageId: 205,
@@ -1238,9 +1239,11 @@ describe("telegram update handling", () => {
         updateId: 205,
       }),
     );
+    const secondConversationId = vi.mocked(setConversationId).mock.calls.at(-1)?.[0];
 
     expect(gap).toStrictEqual({ kind: "silence", type: "conversation" });
-    expect(reopened).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(secondConversationId).not.toBe(firstConversationId);
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveLabeled("alice", "бот"),
       liveLabeled("bob", "как дела"),
@@ -1273,7 +1276,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("lets an open Conversation grow past 100 Turns and snaps to 100 on close", async () => {
+  it("lets an open Conversation grow past 100 Turns and copies the newest 99 into the next Wake", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -1300,7 +1303,7 @@ describe("telegram update handling", () => {
 
     expect(stopped).toStrictEqual({ kind: "closed", type: "conversation" });
 
-    const reopened = await handle(
+    const woken = await handle(
       textUpdate({
         from: ALICE,
         messageId: 701,
@@ -1309,11 +1312,107 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(reopened).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      ...bystanderTexts.map((text) => liveLabeled("bob", text)),
+      ...bystanderTexts.slice(1).map((text) => liveLabeled("bob", text)),
       liveLabeled("alice", "бот"),
     ]);
+  });
+
+  it("does not copy a previous Wake when the unopened Conversation already has 100 Turns", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 710,
+        text: "бот привет",
+        updateId: 710,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 711,
+        text: "довольно",
+        updateId: 711,
+      }),
+    );
+    const idleStart = 712;
+    const idleTexts = numberedTexts("лог", CLOSED_TURN_WINDOW);
+    await handleNumberedTexts(BOB, idleTexts, idleStart);
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: idleStart + CLOSED_TURN_WINDOW,
+        text: "бот пока",
+        updateId: idleStart + CLOSED_TURN_WINDOW,
+      }),
+    );
+
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      ...idleTexts.map((text) => liveLabeled("bob", text)),
+      liveLabeled("alice", "бот пока"),
+    ]);
+  });
+
+  it("opens one Conversation when five Members say бот at once, and all five join", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 8000,
+        text: "бот",
+        updateId: 8000,
+      }),
+    );
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 8001,
+        text: "довольно",
+        updateId: 8001,
+      }),
+    );
+
+    const speakers = [ALICE, BOB, CAROL, DAVE, LENA];
+    const results = await Promise.all(
+      speakers.map((from, index) => {
+        const id = 8010 + index;
+        return handle(
+          textUpdate({
+            from,
+            messageId: id,
+            text: "бот",
+            updateId: id,
+          }),
+        );
+      }),
+    );
+
+    expect(results).toStrictEqual(
+      speakers.map(() => ({ kind: "reply", text: "че", type: "conversation" })),
+    );
+
+    const aliceLeft = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 8020,
+        text: "довольно",
+        updateId: 8020,
+      }),
+    );
+    const bobLater = await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 8021,
+        text: "ещё здесь",
+        updateId: 8021,
+      }),
+    );
+
+    expect(aliceLeft).toStrictEqual({ kind: "left", type: "conversation" });
+    expect(bobLater).toStrictEqual({ kind: "reply", text: "че", type: "conversation" });
   });
 
   it("logs a Scoring reply as a Turn while the Conversation is closed", async () => {

@@ -1,0 +1,3 @@
+# One Conversation session per open
+
+A Chat used to keep a single Conversation row that closed and reopened, so Sentry grouped every session as one conversation. A Conversation is now a session: minted closed, opened once, never reopened. Postgres unique indexes keep at most one open Conversation, at most one unopened Conversation, and at most one of those two states at a time per Chat, so concurrent Wakes cannot mint a second row beside an open one and must join it. Turns stay on the Conversation; the next session copies at most 100 newest Turns from the previous one when it opens short of that window. Closed Conversations keep all their Turns.
