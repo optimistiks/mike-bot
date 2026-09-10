@@ -181,40 +181,9 @@ function lastCapturedModelBodyJson(): string {
   return JSON.stringify(capturedModelBodies.at(-1) ?? null);
 }
 
-function createQuietGate(): {
-  releaseAll: () => void;
-  untilParked: (count: number) => Promise<void>;
-  wait: () => Promise<void>;
-} {
-  const releases = new EventTarget();
-  let parked = 0;
-
-  async function untilParked(count: number): Promise<void> {
-    if (parked >= count) {
-      return;
-    }
-    await delay(POLL_MS);
-    return untilParked(count);
-  }
-
-  async function wait(): Promise<void> {
-    parked += 1;
-    await once(releases, "release");
-  }
-
-  return {
-    releaseAll(): void {
-      releases.dispatchEvent(new Event("release"));
-    },
-    untilParked,
-    wait,
-  };
-}
-
 export {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
-  createQuietGate,
   enqueueModelTexts,
   failNextModelRequest,
   holdNextModelResponse,

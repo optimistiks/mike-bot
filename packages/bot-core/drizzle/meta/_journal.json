@@ -22,6 +22,13 @@
       "when": 1789049186326,
       "tag": "0002_neat_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789112345678,
+      "tag": "0003_rolling_log",
+      "breakpoints": true
     }
   ]
 }
