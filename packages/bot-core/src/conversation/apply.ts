@@ -190,27 +190,7 @@ async function findOrMintWriteTarget(
   return findOrMintWriteTarget(db, chatId, now);
 }
 
-async function ensureOpen(
-  db: BotSession,
-  conversation: ChatConversation,
-  now: Date,
-): Promise<ChatConversation> {
-  if (conversation.closedAt === null) {
-    return conversation;
-  }
-  const opened = await tryOpenConversation(db, conversation.id, now);
-  if (opened !== null) {
-    await fillTurnsFromPrevious(db, opened, CLOSED_TURN_WINDOW);
-    return opened;
-  }
-  const existingOpen = await findOpenConversation(db, conversation.chatId);
-  if (existingOpen !== null) {
-    return existingOpen;
-  }
-  return conversation;
-}
-
-async function persistWake(
+async function joinWake(
   db: BotSession,
   conversation: ChatConversation,
   actor: User,
@@ -219,10 +199,55 @@ async function persistWake(
   reply: ReplyMark | null,
 ): Promise<PersistedTurn> {
   const persisted = await persistMemberTurn(db, conversation, actor, text, now, reply);
-  const opened = await ensureOpen(db, conversation, now);
-  await joinParticipant(db, opened.id, actor.id, now);
-  const turnSeq = (await latestMemberTurnSeq(db, opened.id, actor.id)) ?? persisted.turnSeq;
-  return { ...persisted, conversationId: opened.id, turnSeq };
+  await joinParticipant(db, conversation.id, actor.id, now);
+  return persisted;
+}
+
+async function refreshWakeSeq(
+  db: BotSession,
+  persisted: PersistedTurn,
+  conversationId: string,
+  memberId: number,
+): Promise<PersistedTurn> {
+  const turnSeq = (await latestMemberTurnSeq(db, conversationId, memberId)) ?? persisted.turnSeq;
+  return { ...persisted, conversationId, turnSeq };
+}
+
+async function openUnopenedWake(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedTurn> {
+  const persisted = await persistMemberTurn(db, conversation, actor, text, now, reply);
+  const opened = await tryOpenConversation(db, conversation.id, now);
+  if (opened !== null) {
+    await fillTurnsFromPrevious(db, opened, CLOSED_TURN_WINDOW);
+    await joinParticipant(db, opened.id, actor.id, now);
+    return refreshWakeSeq(db, persisted, opened.id, actor.id);
+  }
+  const existingOpen = await findOpenConversation(db, conversation.chatId);
+  if (existingOpen !== null && existingOpen.id !== conversation.id) {
+    return joinWake(db, existingOpen, actor, text, now, reply);
+  }
+  await joinParticipant(db, conversation.id, actor.id, now);
+  return refreshWakeSeq(db, persisted, conversation.id, actor.id);
+}
+
+function persistWake(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedTurn> {
+  if (conversation.closedAt === null) {
+    return joinWake(db, conversation, actor, text, now, reply);
+  }
+  return openUnopenedWake(db, conversation, actor, text, now, reply);
 }
 
 async function persistIdleTurn(
