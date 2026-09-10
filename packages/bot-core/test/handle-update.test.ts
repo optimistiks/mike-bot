@@ -895,6 +895,24 @@ describe("telegram update handling", () => {
     ]);
   });
 
+  it("offers weather on every conversation completion", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 70,
+        text: "бот",
+        updateId: 1,
+      }),
+    );
+
+    expect(lastCapturedModelBodyJson()).toContain('"weather"');
+    expect(lastCapturedModelBodyJson()).toContain('"maxOutputTokens":500');
+    expect(lastCapturedModelBodyJson()).toContain(
+      "если есть инструмент который отвечает на запрос — вызови его, не отнекивайся",
+    );
+  });
+
   it("falls back to first_name when the speaker has no username", async () => {
     expect.hasAssertions();
     const result = await handle(

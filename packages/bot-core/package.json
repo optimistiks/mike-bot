@@ -30,7 +30,8 @@
     "@sentry/core": "^10.73.0",
     "ai": "^7.0.89",
     "drizzle-orm": "^0.44.7",
-    "grammy": "^1.46.0"
+    "grammy": "^1.46.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",
@@ -42,7 +43,6 @@
     "oxlint-tsgolint": "^7.0.2001",
     "tsx": "^4.23.13",
     "typescript": "catalog:",
-    "vitest": "4.1.11",
-    "zod": "^4.4.3"
+    "vitest": "4.1.11"
   }
 }

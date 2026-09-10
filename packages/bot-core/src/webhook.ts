@@ -46,9 +46,6 @@ async function publishStatsCommand(bot: Bot): Promise<void> {
     description: "Вывести статистику",
   };
   await bot.api.setMyCommands([statsCommand]);
-  await bot.api.setMyCommands([{ ...statsCommand, is_ephemeral: true }], {
-    scope: { type: "all_group_chats" },
-  });
 }
 
 function assertWebhookUrlMatches(expected: string, actual: string | undefined): void {
