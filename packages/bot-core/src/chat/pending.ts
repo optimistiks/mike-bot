@@ -14,6 +14,7 @@ import {
 import { logInfo } from "#src/log.js";
 
 import type { PersistedChat } from "./apply.js";
+import type { ChatCompletion } from "./model.js";
 import type { ChatCompleteInput, ChatTurn, ReplyMark, SpeakerIdentity } from "./types.js";
 
 import { modelTurn } from "./apply.js";
@@ -85,13 +86,19 @@ async function persistAssistantTurn(
 async function replyFromText(
   db: BotDatabase,
   pending: PendingTurn,
-  text: string,
+  completion: ChatCompletion,
 ): Promise<HandlerResult> {
-  if (text === "") {
+  if (completion.text === "") {
     return CHAT_SILENCE;
   }
-  await persistAssistantTurn(db, pending.chatId, text, wakeReply(pending));
-  return { kind: "reply", text, type: "chat" };
+  await persistAssistantTurn(db, pending.chatId, completion.text, wakeReply(pending));
+  return {
+    ...(completion.entities === undefined ? {} : { entities: completion.entities }),
+    kind: "reply",
+    ...(completion.linkPreviewDisabled === true ? { linkPreviewDisabled: true } : {}),
+    text: completion.text,
+    type: "chat",
+  };
 }
 
 function firstSpeakerIds(turns: ChatTurn[]): number[] {
@@ -163,8 +170,8 @@ async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<Han
       bindSentryConversation(session, pending.chatId, pending.now),
     );
     const input = await completeInput(db, pending, sentryConversationId);
-    const reply = await complete(input);
-    return await replyFromText(db, pending, reply);
+    const completion = await complete(input);
+    return await replyFromText(db, pending, completion);
   } catch (error) {
     reportUnhandledFailure(error);
     return CHAT_SILENCE;
