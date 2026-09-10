@@ -268,19 +268,22 @@ async function lookupWeather(input: LookupWeatherInput): Promise<WeatherLookup> 
 }
 
 const weatherInputSchema = z.object({
-  date: z.string().optional().describe("YYYY-MM-DD. Tomorrow is today plus one calendar day"),
-  location: z.string().describe("Official city name; expand slang (мск → Москва)"),
+  date: z
+    .string()
+    .optional()
+    .describe("YYYY-MM-DD. Завтра это сегодня плюс один календарный день."),
+  location: z.string().describe("Официальное название города; преобразуй сленг (мск это Москва)"),
 });
 
 function weatherTool(now: Date): Tool {
   const today = calendarDateInMoscow(now);
   return tool({
     description: [
-      "Weather for one day.",
-      `Today is ${today} (Europe/Moscow).`,
-      "Pass an official city name, not slang: мск is Москва, спб is Санкт-Петербург.",
-      "date is YYYY-MM-DD; tomorrow is today plus one day.",
-      "If date is omitted, today is used.",
+      "Погода на указанный день.",
+      `Сегодняшняя дата ${today}, часовой пояс Europe/Moscow.`,
+      "Передавай официальное название города, а не сленг: мск это Москва, спб это Санкт-Петербург.",
+      "Дата в формате YYYY-MM-DD; завтра это сегодня плюс один календарный день.",
+      "Если дата не указана, используй сегодняшнюю.",
     ].join(" "),
     execute: ({ date, location }, { abortSignal }) =>
       lookupWeather({ date, location, now, signal: abortSignal }),
