@@ -37,6 +37,12 @@
       "skillPath": "skills/engineering/ask-matt/SKILL.md",
       "computedHash": "0cd14026efa0330083cbc7adf590976c162b60e02f696a8dcce96f0b4dab8a72"
     },
+    "build-with-exa": {
+      "source": "exa-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/build-with-exa/SKILL.md",
+      "computedHash": "e960e6c71e78be6e5ebb5bf19f8aaeca08972babb09d3f0314336e37b7c912f6"
+    },
     "code-review": {
       "source": "mattpocock/skills",
       "sourceType": "github",
