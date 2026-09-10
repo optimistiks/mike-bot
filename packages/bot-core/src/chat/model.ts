@@ -17,9 +17,9 @@ import { weatherTool } from "./weather.js";
 const CHAT_MODEL = "zai/glm-5.3-flash";
 const COMPLETE_TIMEOUT_MS = 30_000;
 const MAX_BANNED_RETRIES = 2;
-const MAX_OUTPUT_TOKENS = 500;
+const MAX_OUTPUT_TOKENS = 1000;
 const MAX_TOOL_STEPS = 3;
-const STOP_SEQUENCES = ["\n\n", "\n["];
+const STOP_SEQUENCES = ["\n["];
 const TEMPERATURE = 1;
 const COMPLETION_TELEMETRY = {
   functionId: "chat-complete",
@@ -45,7 +45,7 @@ async function generateSample(
     maxRetries: 0,
     messages,
     model: CHAT_MODEL,
-    reasoning: "medium",
+    reasoning: "xhigh",
     stopSequences: STOP_SEQUENCES,
     stopWhen: isStepCount(MAX_TOOL_STEPS),
     telemetry: COMPLETION_TELEMETRY,
