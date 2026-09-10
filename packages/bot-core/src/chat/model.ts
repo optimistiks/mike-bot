@@ -45,7 +45,7 @@ async function generateSample(
     maxRetries: 0,
     messages,
     model: CHAT_MODEL,
-    reasoning: "low",
+    reasoning: "medium",
     stopSequences: STOP_SEQUENCES,
     stopWhen: isStepCount(MAX_TOOL_STEPS),
     telemetry: COMPLETION_TELEMETRY,
