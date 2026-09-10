@@ -74,6 +74,8 @@ async function applyChatOutcome(
     return;
   }
   await ctx.reply(result.text, {
+    ...(result.entities === undefined ? {} : { entities: result.entities }),
+    ...(result.linkPreviewDisabled === true ? { link_preview_options: { is_disabled: true } } : {}),
     reply_parameters: { message_id: message.message_id },
   });
 }

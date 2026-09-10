@@ -24,8 +24,12 @@ function unpooledDatabaseUrl(): string {
   return nonempty(readEnv("DATABASE_URL_UNPOOLED")) ?? nonempty(readEnv("DATABASE_URL")) ?? "";
 }
 
+function exaApiKey(): string | undefined {
+  return nonempty(readEnv("EXA_API_KEY"));
+}
+
 function setEnvIfUnset(name: string, value: string): void {
   processEnv[name] ??= value;
 }
 
-export { setEnvIfUnset, unpooledDatabaseUrl };
+export { exaApiKey, setEnvIfUnset, unpooledDatabaseUrl };

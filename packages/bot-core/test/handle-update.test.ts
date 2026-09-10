@@ -890,7 +890,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("offers weather on every chat completion", async () => {
+  it("offers weather and search on every chat completion", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -902,9 +902,12 @@ describe("telegram update handling", () => {
     );
 
     expect(lastCapturedModelBodyJson()).toContain('"weather"');
-    expect(lastCapturedModelBodyJson()).toContain('"maxOutputTokens":500');
+    expect(lastCapturedModelBodyJson()).toContain('"search"');
     expect(lastCapturedModelBodyJson()).toContain(
       "если есть инструмент (tool) который может быть полезен для ответа — вызови его, не отнекивайся. данные из инструментов перескажи своими словами, не зачитывай",
+    );
+    expect(lastCapturedModelBodyJson()).toContain(
+      "погоду вызывай когда она полезна. веб-поиск (search) — только если собеседник просит посмотреть в интернете",
     );
   });
 

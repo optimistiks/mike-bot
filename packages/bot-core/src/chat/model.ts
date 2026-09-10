@@ -2,6 +2,7 @@ import { generateText, isStepCount } from "ai";
 
 import { logInfo } from "#src/log.js";
 
+import type { SearchHit, SearchReply } from "./search.js";
 import type { ChatCompleteInput, PromptMessage } from "./types.js";
 
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
@@ -12,6 +13,7 @@ import {
   reportEmptyCompletion,
 } from "./observability.js";
 import { CHAT_SYSTEM_PROMPT, chatMessages } from "./prompt.js";
+import { searchHitsFromOutput, searchReply, searchTool } from "./search.js";
 import { weatherTool } from "./weather.js";
 
 const CHAT_MODEL = "zai/glm-5.3-flash";
@@ -28,16 +30,58 @@ const COMPLETION_TELEMETRY = {
   recordOutputs: true,
 } as const;
 
+interface Sample {
+  hits: SearchHit[];
+  text: string;
+}
+
+interface ChatCompletion {
+  entities?: SearchReply["entities"];
+  linkPreviewDisabled?: true;
+  text: string;
+}
+
+const EMPTY_COMPLETION: ChatCompletion = { text: "" };
+
 function logCompletionAttempt(entry: { completion: string | null; prompt: unknown }): void {
   logInfo(JSON.stringify(entry));
+}
+
+function lastSearchHits(
+  toolResults: readonly { output: unknown; toolName: string }[],
+): SearchHit[] {
+  for (const result of toolResults) {
+    if (result.toolName === "search") {
+      const hits = searchHitsFromOutput(result.output);
+      if (hits.length > 0) {
+        return hits;
+      }
+    }
+  }
+  return [];
+}
+
+function asCompletion(text: string, hits: SearchHit[]): ChatCompletion {
+  if (text === "") {
+    return { text };
+  }
+  const reply = searchReply(text, hits);
+  if (reply === null) {
+    return { text };
+  }
+  return {
+    entities: reply.entities,
+    linkPreviewDisabled: reply.linkPreviewDisabled,
+    text: reply.text,
+  };
 }
 
 async function generateSample(
   messages: PromptMessage[],
   signal: AbortSignal,
   now: Date,
-): Promise<string> {
-  const { text } = await generateText({
+): Promise<Sample> {
+  const { text, toolResults } = await generateText({
     abortSignal: signal,
     allowSystemInMessages: true,
     instructions: CHAT_SYSTEM_PROMPT,
@@ -50,67 +94,71 @@ async function generateSample(
     stopWhen: isStepCount(MAX_TOOL_STEPS),
     telemetry: COMPLETION_TELEMETRY,
     temperature: TEMPERATURE,
-    tools: { weather: weatherTool(now) },
+    tools: { search: searchTool(now), weather: weatherTool(now) },
   });
-  return text;
+  return { hits: lastSearchHits(toolResults), text };
 }
 
-function finishSample(messages: PromptMessage[], sample: string): string {
-  const text = postProcess(sample);
-  logCompletionAttempt({ completion: sample, prompt: messages });
-  return text;
+function finishSample(messages: PromptMessage[], sample: Sample): ChatCompletion {
+  const text = postProcess(sample.text);
+  logCompletionAttempt({ completion: sample.text, prompt: messages });
+  return asCompletion(text, sample.hits);
 }
 
-function finishCut(messages: PromptMessage[], sample: string): string {
-  const cut = cutBanned(sample);
+function finishCut(messages: PromptMessage[], sample: Sample): ChatCompletion {
+  const cut = cutBanned(sample.text);
   if (isBlank(cut)) {
-    logCompletionAttempt({ completion: sample, prompt: messages });
-    return "";
+    logCompletionAttempt({ completion: sample.text, prompt: messages });
+    return asCompletion("", sample.hits);
   }
-  return finishSample(messages, cut);
+  return finishSample(messages, { hits: sample.hits, text: cut });
 }
 
 async function sampleUntilClean(
   messages: PromptMessage[],
   signal: AbortSignal,
   now: Date,
-): Promise<string> {
+): Promise<ChatCompletion> {
   let sample = await generateSample(messages, signal, now);
   let retries = 0;
-  while (hasBannedPhrase(sample) && !isBlank(sample) && retries < MAX_BANNED_RETRIES) {
-    logCompletionAttempt({ completion: sample, prompt: messages });
+  while (hasBannedPhrase(sample.text) && !isBlank(sample.text) && retries < MAX_BANNED_RETRIES) {
+    logCompletionAttempt({ completion: sample.text, prompt: messages });
     retries += 1;
     // eslint-disable-next-line no-await-in-loop -- banned retries must see the previous sample
     sample = await generateSample(messages, signal, now);
   }
-  if (isBlank(sample)) {
-    logCompletionAttempt({ completion: sample, prompt: messages });
-    return "";
+  if (isBlank(sample.text) && sample.hits.length === 0) {
+    logCompletionAttempt({ completion: sample.text, prompt: messages });
+    return EMPTY_COMPLETION;
   }
-  if (hasBannedPhrase(sample)) {
+  if (hasBannedPhrase(sample.text)) {
     return finishCut(messages, sample);
   }
   return finishSample(messages, sample);
 }
 
-function failCompletion(messages: PromptMessage[], signal: AbortSignal, error: unknown): string {
+function failCompletion(
+  messages: PromptMessage[],
+  signal: AbortSignal,
+  error: unknown,
+): ChatCompletion {
   reportCompletionFailure(error, signal);
   logCompletionAttempt({ completion: null, prompt: messages });
-  return "";
+  return EMPTY_COMPLETION;
 }
 
-async function completeWithTimeout(input: ChatCompleteInput): Promise<string> {
+async function completeWithTimeout(input: ChatCompleteInput): Promise<ChatCompletion> {
   const messages = chatMessages(input);
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
   }, COMPLETE_TIMEOUT_MS);
   try {
-    const text = await sampleUntilClean(messages, controller.signal, input.now);
-    if (text === "") {
+    const completion = await sampleUntilClean(messages, controller.signal, input.now);
+    if (completion.text === "") {
       reportEmptyCompletion();
     }
-    return text;
+    return completion;
   } catch (error) {
     return failCompletion(messages, controller.signal, error);
   } finally {
@@ -118,9 +166,10 @@ async function completeWithTimeout(input: ChatCompleteInput): Promise<string> {
   }
 }
 
-function complete(input: ChatCompleteInput): Promise<string> {
+function complete(input: ChatCompleteInput): Promise<ChatCompletion> {
   bindConversation(input);
   return invokeAgent(CHAT_MODEL, () => completeWithTimeout(input));
 }
 
+export type { ChatCompletion };
 export { complete };
