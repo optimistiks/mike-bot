@@ -111,6 +111,23 @@ describe("sentry transcript stamp", () => {
     );
   });
 
+  it("does not attach transcript attrs to spans without prompt input", () => {
+    expect.hasAssertions();
+
+    const attributes: Record<string, string> = {
+      "gen_ai.operation.name": "invoke_agent",
+    };
+    const span = { attributes };
+
+    withSentryTranscript({ age: AGE, iso: ISO }, () => {
+      stampSentryTranscriptSpan(span);
+    });
+
+    expect(attributes).toStrictEqual({
+      "gen_ai.operation.name": "invoke_agent",
+    });
+  });
+
   it("leaves spans unchanged without a transcript stamp", () => {
     expect.hasAssertions();
 

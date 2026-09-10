@@ -185,7 +185,15 @@ function stampInputKeys(span: SentrySpanBag, stamp: TranscriptStamp): void {
   }
 }
 
+function hasPromptInput(attrs: Record<string, unknown>): boolean {
+  return INPUT_KEYS.some((key) => stringAttr(attrs, key) !== undefined);
+}
+
 function stampSentryTranscriptSpan(span: SentrySpanBag): void {
+  const attrs = collectAttrs(span);
+  if (!hasPromptInput(attrs)) {
+    return;
+  }
   const stamp = readStamp(span);
   if (stamp === undefined) {
     return;
