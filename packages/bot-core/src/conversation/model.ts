@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, isStepCount } from "ai";
 
 import { logInfo } from "#src/log.js";
 
@@ -13,11 +13,13 @@ import {
 } from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
 import { withSentryTranscript } from "./sentry-transcript.js";
+import { weatherTool } from "./weather.js";
 
 const CONVERSATION_MODEL = "zai/glm-5.3-flash";
-const COMPLETE_TIMEOUT_MS = 8000;
+const COMPLETE_TIMEOUT_MS = 30_000;
 const MAX_BANNED_RETRIES = 2;
-const MAX_OUTPUT_TOKENS = 100;
+const MAX_OUTPUT_TOKENS = 500;
+const MAX_TOOL_STEPS = 3;
 const STOP_SEQUENCES = ["\n\n", "\n["];
 const TEMPERATURE = 1;
 const COMPLETION_TELEMETRY = {
@@ -31,7 +33,11 @@ function logCompletionAttempt(entry: { completion: string | null; prompt: unknow
   logInfo(JSON.stringify(entry));
 }
 
-async function generateSample(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
+async function generateSample(
+  messages: PromptMessage[],
+  signal: AbortSignal,
+  now: Date,
+): Promise<string> {
   const { text } = await generateText({
     abortSignal: signal,
     allowSystemInMessages: true,
@@ -42,8 +48,10 @@ async function generateSample(messages: PromptMessage[], signal: AbortSignal): P
     model: CONVERSATION_MODEL,
     reasoning: "low",
     stopSequences: STOP_SEQUENCES,
+    stopWhen: isStepCount(MAX_TOOL_STEPS),
     telemetry: COMPLETION_TELEMETRY,
     temperature: TEMPERATURE,
+    tools: { weather: weatherTool(now) },
   });
   return text;
 }
@@ -63,14 +71,18 @@ function finishCut(messages: PromptMessage[], sample: string): string {
   return finishSample(messages, cut);
 }
 
-async function sampleUntilClean(messages: PromptMessage[], signal: AbortSignal): Promise<string> {
-  let sample = await generateSample(messages, signal);
+async function sampleUntilClean(
+  messages: PromptMessage[],
+  signal: AbortSignal,
+  now: Date,
+): Promise<string> {
+  let sample = await generateSample(messages, signal, now);
   let retries = 0;
   while (hasBannedPhrase(sample) && !isBlank(sample) && retries < MAX_BANNED_RETRIES) {
     logCompletionAttempt({ completion: sample, prompt: messages });
     retries += 1;
     // eslint-disable-next-line no-await-in-loop -- banned retries must see the previous sample
-    sample = await generateSample(messages, signal);
+    sample = await generateSample(messages, signal, now);
   }
   if (isBlank(sample)) {
     logCompletionAttempt({ completion: sample, prompt: messages });
@@ -95,7 +107,7 @@ async function completeWithTimeout(input: ConversationCompleteInput): Promise<st
     controller.abort();
   }, COMPLETE_TIMEOUT_MS);
   try {
-    const text = await sampleUntilClean(messages, controller.signal);
+    const text = await sampleUntilClean(messages, controller.signal, input.now);
     if (text === "") {
       reportEmptyCompletion();
     }
