@@ -1,11 +1,11 @@
 import type { Message, Update } from "grammy/types";
 
-import type { ConversationWork } from "./conversation/pending.js";
+import type { ChatWork } from "./chat/pending.js";
 import type { BotDatabase, BotSession } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
-import { persistConversation, persistSilentMemberTurn } from "./conversation/apply.js";
-import { conversationWork, finishConversationWork } from "./conversation/pending.js";
+import { persistChat, persistSilentMemberTurn } from "./chat/apply.js";
+import { chatWork, finishChatWork } from "./chat/pending.js";
 import { claimUpdate, upsertMember } from "./db/store.js";
 import { tryApplyScoring } from "./scoring/apply.js";
 import { applyStandings } from "./standings/apply.js";
@@ -37,20 +37,20 @@ async function handleNonCommand(
   db: BotSession,
   message: Message,
   botUserId: number | undefined,
-): Promise<ConversationWork> {
+): Promise<ChatWork> {
   const scoring = await tryApplyScoring(db, message, botUserId);
   if (scoring !== null) {
     await persistSilentMemberTurn(db, message, botUserId);
     return { type: "scoring", ...scoring };
   }
-  return conversationWork(await persistConversation(db, message, botUserId));
+  return chatWork(await persistChat(db, message, botUserId));
 }
 
 function routeMessage(
   db: BotSession,
   message: Message,
   botUserId: number | undefined,
-): Promise<ConversationWork> {
+): Promise<ChatWork> {
   const command = botCommand(message);
   if (command !== null) {
     return handleCommand(db, message, command.name);
@@ -62,7 +62,7 @@ async function dispatchClaimed(
   db: BotSession,
   update: Update,
   botUserId: number | undefined,
-): Promise<ConversationWork> {
+): Promise<ChatWork> {
   const message = inboundMessage(update);
   if (!hasSender(message)) {
     return { type: "noop" };
@@ -75,7 +75,7 @@ function claimAndDispatch(
   db: BotDatabase,
   update: Update,
   botUserId: number | undefined,
-): Promise<ConversationWork> {
+): Promise<ChatWork> {
   return db.transaction(async (session) => {
     if (!(await claimUpdate(session, update.update_id))) {
       return { type: "noop" };
@@ -87,7 +87,7 @@ function claimAndDispatch(
 function persistUpdate(
   update: Update,
   { botUserId, db }: { botUserId?: number; db: BotDatabase },
-): Promise<ConversationWork> {
+): Promise<ChatWork> {
   return claimAndDispatch(db, update, botUserId);
 }
 
@@ -96,7 +96,7 @@ async function handleUpdate(
   { botUserId, db }: { botUserId?: number; db: BotDatabase },
 ): Promise<HandlerResult> {
   const work = await persistUpdate(update, { botUserId, db });
-  return finishConversationWork(db, work);
+  return finishChatWork(db, work);
 }
 
 export { handleUpdate, persistUpdate };

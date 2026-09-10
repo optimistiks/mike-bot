@@ -50,33 +50,31 @@ const marks = pgTable(
   ],
 );
 
-const conversations = pgTable(
-  "conversations",
-  {
-    chatId: bigint("chat_id", { mode: "number" }).notNull(),
-    id: uuid("id").primaryKey().defaultRandom(),
-  },
-  (table) => [uniqueIndex("conversations_one_per_chat").on(table.chatId)],
-);
+const chats = pgTable("chats", {
+  chatId: bigint("chat_id", { mode: "number" }).primaryKey(),
+  lastLlmRepliedAt: timestamp("last_llm_replied_at", { withTimezone: true }),
+  sentryConversationBoundAt: timestamp("sentry_conversation_bound_at", { withTimezone: true }),
+  sentryConversationId: uuid("sentry_conversation_id"),
+});
 
-const conversationCompletionLeases = pgTable(
-  "conversation_completion_leases",
+const chatCompletionLeases = pgTable(
+  "chat_completion_leases",
   {
-    completingAt: timestamp("completing_at", { withTimezone: true }),
-    conversationId: uuid("conversation_id")
+    chatId: bigint("chat_id", { mode: "number" })
       .notNull()
-      .references(() => conversations.id),
+      .references(() => chats.chatId),
+    completingAt: timestamp("completing_at", { withTimezone: true }),
     memberId: bigint("member_id", { mode: "number" }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.conversationId, table.memberId] })],
+  (table) => [primaryKey({ columns: [table.chatId, table.memberId] })],
 );
 
-const conversationTurns = pgTable(
-  "conversation_turns",
+const chatTurns = pgTable(
+  "chat_turns",
   {
-    conversationId: uuid("conversation_id")
+    chatId: bigint("chat_id", { mode: "number" })
       .notNull()
-      .references(() => conversations.id),
+      .references(() => chats.chatId),
     id: uuid("id").primaryKey().defaultRandom(),
     memberId: bigint("member_id", { mode: "number" }),
     postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
@@ -87,9 +85,7 @@ const conversationTurns = pgTable(
     speakerLabel: text("speaker_label"),
     text: text("text").notNull(),
   },
-  (table) => [
-    uniqueIndex("conversation_turns_conversation_id_seq").on(table.conversationId, table.seq),
-  ],
+  (table) => [uniqueIndex("chat_turns_chat_id_seq").on(table.chatId, table.seq)],
 );
 
 const processedUpdates = pgTable("processed_updates", {
@@ -97,9 +93,9 @@ const processedUpdates = pgTable("processed_updates", {
 });
 
 const schema = {
-  conversationCompletionLeases,
-  conversationTurns,
-  conversations,
+  chatCompletionLeases,
+  chatTurns,
+  chats,
   marks,
   members,
   messages,
@@ -109,9 +105,9 @@ const schema = {
 type Schema = typeof schema;
 
 export {
-  conversationCompletionLeases,
-  conversationTurns,
-  conversations,
+  chatCompletionLeases,
+  chatTurns,
+  chats,
   marks,
   members,
   messages,

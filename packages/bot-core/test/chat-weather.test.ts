@@ -2,7 +2,7 @@ import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { lookupWeather } from "#src/conversation/weather.js";
+import { lookupWeather } from "#src/chat/weather.js";
 
 const NOW = new Date("2026-09-10T12:00:00.000Z");
 const MOSCOW_DATE = "2026-09-11";

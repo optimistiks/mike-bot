@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { postProcess } from "#src/conversation/filter.js";
+import { postProcess } from "#src/chat/filter.js";
 
-describe("conversation reply filters", () => {
+describe("chat reply filters", () => {
   it("strips a leading name label and keeps the reply", () => {
     expect.hasAssertions();
     expect(postProcess("[alice] че")).toBe("че");

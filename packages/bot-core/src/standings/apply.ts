@@ -3,7 +3,7 @@ import type { Message } from "grammy/types";
 import type { BotSession } from "#src/db/runtime.js";
 import type { StandingsOutcome } from "#src/outcomes.js";
 
-import { persistSilentAssistantTurn } from "#src/conversation/apply.js";
+import { persistSilentAssistantTurn } from "#src/chat/apply.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 import { botCommand } from "#src/telegram/text.js";
 

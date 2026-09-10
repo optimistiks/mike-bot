@@ -2,15 +2,12 @@ import type { Context } from "grammy";
 
 import { Bot } from "grammy";
 
-import type { ConversationWork } from "./conversation/pending.js";
+import type { ChatWork } from "./chat/pending.js";
 import type { BotDatabase } from "./db/runtime.js";
 import type { HandlerResult } from "./outcomes.js";
 
-import {
-  flushConversationTelemetry,
-  reportUnhandledFailure,
-} from "./conversation/observability.js";
-import { finishConversationWork } from "./conversation/pending.js";
+import { flushChatTelemetry, reportUnhandledFailure } from "./chat/observability.js";
+import { finishChatWork } from "./chat/pending.js";
 import { persistUpdate } from "./handle-update.js";
 import { logError } from "./log.js";
 import { telegramBotUserId } from "./telegram/identity.js";
@@ -68,12 +65,12 @@ async function applyStandingsOutcome(
   });
 }
 
-async function applyConversationOutcome(
+async function applyChatOutcome(
   ctx: Context,
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
-  if (result.type !== "conversation" || result.kind !== "reply") {
+  if (result.type !== "chat" || result.kind !== "reply") {
     return;
   }
   await ctx.reply(result.text, {
@@ -95,8 +92,8 @@ async function applyOutcome(ctx: Context, result: HandlerResult): Promise<void> 
       await applyStandingsOutcome(ctx, message, result);
       break;
     }
-    case "conversation": {
-      await applyConversationOutcome(ctx, message, result);
+    case "chat": {
+      await applyChatOutcome(ctx, message, result);
       break;
     }
     case "noop": {
@@ -117,19 +114,15 @@ async function tryApplyOutcome(ctx: Context, result: HandlerResult): Promise<voi
   }
 }
 
-async function completeScheduled(
-  ctx: Context,
-  db: BotDatabase,
-  work: ConversationWork,
-): Promise<void> {
+async function completeScheduled(ctx: Context, db: BotDatabase, work: ChatWork): Promise<void> {
   try {
-    const result = await finishConversationWork(db, work);
+    const result = await finishChatWork(db, work);
     await tryApplyOutcome(ctx, result);
   } catch (error) {
-    logError("failed to complete Conversation work", error);
+    logError("failed to complete Chat work", error);
     reportUnhandledFailure(error);
   } finally {
-    await flushConversationTelemetry();
+    await flushChatTelemetry();
   }
 }
 
