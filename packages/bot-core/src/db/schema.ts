@@ -56,9 +56,19 @@ const conversations = pgTable(
     chatId: bigint("chat_id", { mode: "number" }).notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     id: uuid("id").primaryKey().defaultRandom(),
-    openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
   },
-  (table) => [uniqueIndex("conversations_one_per_chat").on(table.chatId)],
+  (table) => [
+    uniqueIndex("conversations_one_open_per_chat")
+      .on(table.chatId)
+      .where(sql`${table.closedAt} is null`),
+    uniqueIndex("conversations_one_unopened_per_chat")
+      .on(table.chatId)
+      .where(sql`${table.openedAt} is null`),
+    uniqueIndex("conversations_one_active_per_chat")
+      .on(table.chatId)
+      .where(sql`${table.openedAt} is null or ${table.closedAt} is null`),
+  ],
 );
 
 const conversationParticipants = pgTable(

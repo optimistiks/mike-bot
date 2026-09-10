@@ -1,44 +1,66 @@
 import { describe, expect, it } from "vitest";
 
-import { rewriteSentryAiSpan, withSentryTranscript } from "#src/conversation/sentry-transcript.js";
+import { stampRelativeAgeLabels } from "#src/conversation/age.js";
+import { stampSentrySpanTranscript } from "#src/conversation/sentry-transcript.js";
 
 const NOW = new Date("2024-06-15T12:00:00.000Z");
-const ISO = "2024-06-15T12:00:00Z";
+const START = NOW.getTime() / 1000;
 
-describe("sentry transcript rewrite", () => {
-  it("stamps the current turn's time label to ISO and leaves older ages", () => {
+describe("relative age ISO labels", () => {
+  it("replaces Russian relative age brackets with ISO from now minus the offset", () => {
+    expect.hasAssertions();
+
+    expect(stampRelativeAgeLabels("[alice][0 сек. назад] сейчас", NOW)).toBe(
+      "[alice][2024-06-15T12:00:00Z] сейчас",
+    );
+    expect(stampRelativeAgeLabels("[alice][5 сек. назад] че", NOW)).toBe(
+      "[alice][2024-06-15T11:59:55Z] че",
+    );
+    expect(stampRelativeAgeLabels("[alice][2 ч назад] давно", NOW)).toBe(
+      "[alice][2024-06-15T10:00:00Z] давно",
+    );
+    expect(stampRelativeAgeLabels('[Ты → alice][0 сек. назад][на "сейчас"] база', NOW)).toBe(
+      '[Ты → alice][2024-06-15T12:00:00Z][на "сейчас"] база',
+    );
+  });
+});
+
+describe("sentry span transcript", () => {
+  it("stamps input and output message attributes on the span", () => {
     expect.hasAssertions();
 
     const span = {
       data: {
-        "gen_ai.input.messages":
-          '[{"role":"user","content":"[username1][2 ч назад] че"},{"role":"user","content":"[username1][0 сек. назад] сейчас"}]',
-        "gen_ai.output.messages": '[Ты → username1][0 сек. назад][на "сейчас"] база',
+        "gen_ai.input.messages": JSON.stringify([
+          { content: "[alice][2 ч назад] че", role: "user" },
+          { content: "[alice][0 сек. назад] сейчас", role: "user" },
+        ]),
+        "gen_ai.output.messages": '[Ты → alice][0 сек. назад][на "сейчас"] база',
       },
+      start_timestamp: START,
     };
 
-    withSentryTranscript(NOW, () => {
-      rewriteSentryAiSpan(span);
-    });
+    stampSentrySpanTranscript(span);
 
-    expect(span.data["gen_ai.input.messages"]).toBe(
-      `[{"role":"user","content":"[username1][2 ч назад] че"},{"role":"user","content":"[username1][${ISO}] сейчас"}]`,
+    expect(JSON.parse(span.data["gen_ai.input.messages"])).toStrictEqual([
+      { content: "[alice][2024-06-15T10:00:00Z] че", role: "user" },
+      { content: "[alice][2024-06-15T12:00:00Z] сейчас", role: "user" },
+    ]);
+    expect(span.data["gen_ai.output.messages"]).toBe(
+      '[Ты → alice][2024-06-15T12:00:00Z][на "сейчас"] база',
     );
-    expect(span.data["gen_ai.output.messages"]).toBe(`[Ты → username1][${ISO}][на "сейчас"] база`);
   });
 
-  it("leaves spans unchanged outside a Sentry transcript", () => {
+  it("leaves spans without prompt messages unchanged", () => {
     expect.hasAssertions();
 
-    const captured = "[username1][0 сек. назад] че";
     const span = {
-      data: {
-        "gen_ai.input.messages": captured,
-      },
+      data: { "http.route": "/api/telegram" },
+      start_timestamp: START,
     };
 
-    rewriteSentryAiSpan(span);
+    stampSentrySpanTranscript(span);
 
-    expect(span.data["gen_ai.input.messages"]).toBe(captured);
+    expect(span.data).toStrictEqual({ "http.route": "/api/telegram" });
   });
 });

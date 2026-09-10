@@ -2,7 +2,7 @@ import type { Message, User } from "grammy/types";
 
 import type { ConversationTurn, ReplyMark } from "#src/conversation/types.js";
 import type { BotSession } from "#src/db/runtime.js";
-import type { conversationTurns } from "#src/db/schema.js";
+import type { conversationTurns, conversations } from "#src/db/schema.js";
 
 import { CLOSED_TURN_WINDOW } from "#src/constants.js";
 import { replyMark, speakerLabel } from "#src/conversation/label.js";
@@ -10,32 +10,38 @@ import { replyFromMessage } from "#src/conversation/reply.js";
 import {
   appendTurn,
   closeConversation,
-  findConversation,
-  insertConversation,
+  fillTurnsFromPrevious,
+  findOpenConversation,
+  findUnopenedConversation,
   isParticipant,
   joinParticipant,
+  latestMemberTurnSeq,
   leaveParticipant,
-  reopenConversation,
+  trimIfUnopened,
   trimOldestTurns,
+  tryInsertUnopenedConversation,
+  tryOpenConversation,
 } from "#src/db/store.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
 import { isStopMessage, isWakeMessage } from "#src/telegram/text.js";
 
 type ConversationTurnRow = typeof conversationTurns.$inferSelect;
-type ChatConversation = NonNullable<Awaited<ReturnType<typeof findConversation>>>;
+type ChatConversation = typeof conversations.$inferSelect;
+
+interface PersistedTurn {
+  addresseeLabel: string;
+  conversationId: string;
+  kind: "turn";
+  memberId: number;
+  now: Date;
+  turnSeq: number;
+}
 
 type PersistedConversation =
   | { kind: "closed" }
   | { kind: "left" }
   | { kind: "silence" }
-  | {
-      kind: "turn";
-      addresseeLabel: string;
-      conversationId: string;
-      memberId: number;
-      now: Date;
-      turnSeq: number;
-    };
+  | PersistedTurn;
 
 const SILENCE: PersistedConversation = { kind: "silence" };
 const UNKNOWN_REPLY: ReplyMark = { quote: null, targetLabel: "???" };
@@ -111,7 +117,7 @@ async function persistMemberTurn(
   text: string,
   now: Date,
   reply: ReplyMark | null,
-): Promise<PersistedConversation> {
+): Promise<PersistedTurn> {
   const input = memberTurnInput(conversation.id, actor, text, now, reply);
   const turnSeq = await appendTurn(db, input);
   return {
@@ -151,55 +157,142 @@ async function persistStop(
   const remaining = await leaveParticipant(db, conversation.id, actor.id);
   if (remaining === 0) {
     await closeConversation(db, conversation.id, now);
-    await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
     return { kind: "closed" };
   }
   return { kind: "left" };
 }
 
-async function persistTalk(
+async function findOrMintWriteTarget(
   db: BotSession,
-  existing: ChatConversation | null,
-  actor: User,
   chatId: number,
+  now: Date,
+): Promise<ChatConversation> {
+  const open = await findOpenConversation(db, chatId);
+  if (open !== null) {
+    return open;
+  }
+  const unopened = await findUnopenedConversation(db, chatId);
+  if (unopened !== null) {
+    return unopened;
+  }
+  const minted = await tryInsertUnopenedConversation(db, chatId, now);
+  if (minted !== null) {
+    return minted;
+  }
+  const racedUnopened = await findUnopenedConversation(db, chatId);
+  if (racedUnopened !== null) {
+    return racedUnopened;
+  }
+  const racedOpen = await findOpenConversation(db, chatId);
+  if (racedOpen !== null) {
+    return racedOpen;
+  }
+  return findOrMintWriteTarget(db, chatId, now);
+}
+
+async function joinWake(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedTurn> {
+  const persisted = await persistMemberTurn(db, conversation, actor, text, now, reply);
+  await joinParticipant(db, conversation.id, actor.id, now);
+  return persisted;
+}
+
+async function refreshWakeSeq(
+  db: BotSession,
+  persisted: PersistedTurn,
+  conversationId: string,
+  memberId: number,
+): Promise<PersistedTurn> {
+  const turnSeq = (await latestMemberTurnSeq(db, conversationId, memberId)) ?? persisted.turnSeq;
+  return { ...persisted, conversationId, turnSeq };
+}
+
+async function openUnopenedWake(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedTurn> {
+  const persisted = await persistMemberTurn(db, conversation, actor, text, now, reply);
+  const opened = await tryOpenConversation(db, conversation.id, now);
+  if (opened !== null) {
+    await fillTurnsFromPrevious(db, opened, CLOSED_TURN_WINDOW);
+    await joinParticipant(db, opened.id, actor.id, now);
+    return refreshWakeSeq(db, persisted, opened.id, actor.id);
+  }
+  const existingOpen = await findOpenConversation(db, conversation.chatId);
+  if (existingOpen !== null && existingOpen.id !== conversation.id) {
+    return joinWake(db, existingOpen, actor, text, now, reply);
+  }
+  await joinParticipant(db, conversation.id, actor.id, now);
+  return refreshWakeSeq(db, persisted, conversation.id, actor.id);
+}
+
+function persistWake(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedTurn> {
+  if (conversation.closedAt === null) {
+    return joinWake(db, conversation, actor, text, now, reply);
+  }
+  return openUnopenedWake(db, conversation, actor, text, now, reply);
+}
+
+async function persistIdleTurn(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
   text: string,
   now: Date,
   reply: ReplyMark | null,
 ): Promise<PersistedConversation> {
-  const wake = isWakeMessage(text);
-  const conversation = existing ?? (await insertConversation(db, chatId, now, wake ? null : now));
-  if (wake) {
-    if (conversation.closedAt !== null) {
-      await reopenConversation(db, conversation.id);
-    }
-    await joinParticipant(db, conversation.id, actor.id, now);
-    return persistMemberTurn(db, conversation, actor, text, now, reply);
-  }
-  if (conversation.closedAt !== null) {
-    const result = await persistBystanderTurn(db, conversation, actor, text, now, reply);
-    await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
-    return result;
-  }
+  const result = await persistBystanderTurn(db, conversation, actor, text, now, reply);
+  await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
+  return result;
+}
+
+async function persistOpenTalk(
+  db: BotSession,
+  conversation: ChatConversation,
+  actor: User,
+  text: string,
+  now: Date,
+  reply: ReplyMark | null,
+): Promise<PersistedConversation> {
   if (await isParticipant(db, conversation.id, actor.id)) {
     return persistMemberTurn(db, conversation, actor, text, now, reply);
   }
   return persistBystanderTurn(db, conversation, actor, text, now, reply);
 }
 
-async function conversationForContext(
+async function persistTalk(
   db: BotSession,
+  actor: User,
   chatId: number,
+  text: string,
   now: Date,
-): Promise<ChatConversation> {
-  const existing = await findConversation(db, chatId);
-  return existing ?? insertConversation(db, chatId, now, now);
-}
-
-async function trimContextIfClosed(db: BotSession, conversation: ChatConversation): Promise<void> {
-  if (conversation.closedAt === null) {
-    return;
+  reply: ReplyMark | null,
+): Promise<PersistedConversation> {
+  const conversation = await findOrMintWriteTarget(db, chatId, now);
+  if (isWakeMessage(text)) {
+    return persistWake(db, conversation, actor, text, now, reply);
   }
-  await trimOldestTurns(db, conversation.id, CLOSED_TURN_WINDOW);
+  if (conversation.openedAt === null) {
+    return persistIdleTurn(db, conversation, actor, text, now, reply);
+  }
+  return persistOpenTalk(db, conversation, actor, text, now, reply);
 }
 
 async function persistSilentMemberTurn(
@@ -213,7 +306,7 @@ async function persistSilentMemberTurn(
     return;
   }
   const now = telegramDateToPostedAt(message.date);
-  const conversation = await conversationForContext(db, message.chat.id, now);
+  const conversation = await findOrMintWriteTarget(db, message.chat.id, now);
   const input = memberTurnInput(
     conversation.id,
     actor,
@@ -222,7 +315,7 @@ async function persistSilentMemberTurn(
     replyFromMessage(message, botUserId),
   );
   await appendTurn(db, { ...input, memberId: null });
-  await trimContextIfClosed(db, conversation);
+  await trimIfUnopened(db, conversation.id);
 }
 
 async function persistSilentAssistantTurn(
@@ -236,7 +329,7 @@ async function persistSilentAssistantTurn(
     return;
   }
   const now = telegramDateToPostedAt(message.date);
-  const conversation = await conversationForContext(db, message.chat.id, now);
+  const conversation = await findOrMintWriteTarget(db, message.chat.id, now);
   const reply = replyMark(speakerLabel(actor), commandText);
   await appendTurn(db, {
     conversationId: conversation.id,
@@ -248,7 +341,7 @@ async function persistSilentAssistantTurn(
     speakerLabel: null,
     text,
   });
-  await trimContextIfClosed(db, conversation);
+  await trimIfUnopened(db, conversation.id);
 }
 
 async function persistConversation(
@@ -262,12 +355,11 @@ async function persistConversation(
     return SILENCE;
   }
   const now = telegramDateToPostedAt(message.date);
-  const conversation = await findConversation(db, message.chat.id);
   const reply = replyFromMessage(message, botUserId);
   if (isStopMessage(text)) {
-    return persistStop(db, conversation, actor, now);
+    return persistStop(db, await findOpenConversation(db, message.chat.id), actor, now);
   }
-  return persistTalk(db, conversation, actor, message.chat.id, text, now, reply);
+  return persistTalk(db, actor, message.chat.id, text, now, reply);
 }
 
 export {

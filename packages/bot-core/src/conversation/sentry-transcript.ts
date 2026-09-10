@@ -1,47 +1,32 @@
-import { AsyncLocalStorage } from "node:async_hooks";
+import { stampRelativeAgeLabels } from "./age.js";
 
-import { absolutePostedAtLabel } from "./age.js";
+const MESSAGE_KEYS = [
+  "ai.prompt.messages",
+  "gen_ai.input.messages",
+  "gen_ai.output.messages",
+  "gen_ai.request.messages",
+] as const;
 
-const CURRENT_AGE = /\[0 сек\. назад\]/gu;
-const INPUT_KEY = "gen_ai.input.messages";
-const OUTPUT_KEY = "gen_ai.output.messages";
-
-interface SentrySpanBag {
-  attributes?: Record<string, unknown>;
+interface TranscriptSpan {
   data?: Record<string, unknown>;
+  start_timestamp?: number;
 }
 
-const sentryStamp = new AsyncLocalStorage<string>();
-
-function withSentryTranscript<Result>(now: Date, work: () => Result): Result {
-  return sentryStamp.run(absolutePostedAtLabel(now), work);
-}
-
-function stampKey(bag: Record<string, unknown>, key: string, iso: string): void {
-  const value = bag[key];
-  if (typeof value !== "string") {
-    return;
-  }
-  bag[key] = value.replace(CURRENT_AGE, `[${iso}]`);
-}
-
-function stampBag(bag: Record<string, unknown> | undefined, iso: string): void {
+function stampSentrySpanTranscript<Span extends TranscriptSpan>(span: Span): Span {
+  const bag = span.data;
   if (bag === undefined) {
-    return;
-  }
-  stampKey(bag, INPUT_KEY, iso);
-  stampKey(bag, OUTPUT_KEY, iso);
-}
-
-function rewriteSentryAiSpan<SpanBag extends SentrySpanBag>(span: SpanBag): SpanBag {
-  const iso = sentryStamp.getStore();
-  if (iso === undefined) {
     return span;
   }
-  stampBag(span.data, iso);
-  stampBag(span.attributes, iso);
+  const now =
+    typeof span.start_timestamp === "number" ? new Date(span.start_timestamp * 1000) : new Date();
+  for (const key of MESSAGE_KEYS) {
+    const value = bag[key];
+    if (typeof value === "string") {
+      bag[key] = stampRelativeAgeLabels(value, now);
+    }
+  }
   return span;
 }
 
-export { rewriteSentryAiSpan, withSentryTranscript };
-export type { SentrySpanBag };
+export { stampSentrySpanTranscript };
+export type { TranscriptSpan };

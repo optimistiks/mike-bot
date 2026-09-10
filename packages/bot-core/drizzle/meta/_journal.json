@@ -15,6 +15,13 @@
       "when": 1788825933803,
       "tag": "0001_bouncy_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789049186326,
+      "tag": "0002_neat_micromacro",
+      "breakpoints": true
     }
   ]
 }
