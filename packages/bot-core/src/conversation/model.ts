@@ -12,7 +12,7 @@ import {
   reportEmptyCompletion,
 } from "./observability.js";
 import { CONVERSATION_SYSTEM_PROMPT, conversationMessages } from "./prompt.js";
-import { withSentryTranscript } from "./sentry-transcript.js";
+import { transcriptStampFrom, withSentryTranscript } from "./sentry-transcript.js";
 import { weatherTool } from "./weather.js";
 
 const CONVERSATION_MODEL = "zai/glm-5.3-flash";
@@ -121,7 +121,7 @@ async function completeWithTimeout(input: ConversationCompleteInput): Promise<st
 
 function complete(input: ConversationCompleteInput): Promise<string> {
   bindConversation(input);
-  return withSentryTranscript(input.now, () =>
+  return withSentryTranscript(transcriptStampFrom(input), () =>
     invokeAgent(CONVERSATION_MODEL, () => completeWithTimeout(input)),
   );
 }
