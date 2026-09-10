@@ -1,3 +1,3 @@
-const CLOSED_TURN_WINDOW = 100;
+const TURN_WINDOW = 100;
 
-export { CLOSED_TURN_WINDOW };
+export { TURN_WINDOW };

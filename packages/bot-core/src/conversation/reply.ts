@@ -48,4 +48,8 @@ function replyFromMessage(message: Message, botUserId: number | undefined): Repl
   return replyFromParent(parent, botUserId);
 }
 
-export { replyFromMessage };
+function isReplyToBot(message: Message, botUserId: number | undefined): boolean {
+  return isSelfUser(message.reply_to_message?.from, botUserId);
+}
+
+export { isReplyToBot, replyFromMessage };

@@ -2,7 +2,6 @@ import type { Message } from "grammy/types";
 
 const COMMAND_PATTERN = /^\/(?<name>[A-Za-z0-9_]+)(?:@[A-Za-z0-9_]+)?/u;
 const WAKE_TOKEN = "бот";
-const STOP_TEXT = "довольно";
 
 interface BotCommand {
   firstArg: string | undefined;
@@ -51,8 +50,4 @@ function isWakeMessage(text: string): boolean {
   return keyword === WAKE_TOKEN;
 }
 
-function isStopMessage(text: string): boolean {
-  return text.trim().toLowerCase() === STOP_TEXT;
-}
-
-export { botCommand, isStopMessage, isWakeMessage, type BotCommand };
+export { botCommand, isWakeMessage, type BotCommand };

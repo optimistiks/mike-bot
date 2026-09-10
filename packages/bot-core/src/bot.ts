@@ -35,14 +35,6 @@ async function tryDeleteMessage(
   }
 }
 
-async function tryReactToStop(ctx: Context, emoji: "👍" | "👌"): Promise<void> {
-  try {
-    await ctx.react(emoji, { is_big: false });
-  } catch (error) {
-    logError("failed to react to Stop message", error);
-  }
-}
-
 async function applyScoringOutcome(
   ctx: Context,
   message: TelegramMessage,
@@ -81,18 +73,7 @@ async function applyConversationOutcome(
   message: TelegramMessage,
   result: HandlerResult,
 ): Promise<void> {
-  if (result.type !== "conversation") {
-    return;
-  }
-  if (result.kind === "closed") {
-    await tryReactToStop(ctx, "👌");
-    return;
-  }
-  if (result.kind === "left") {
-    await tryReactToStop(ctx, "👍");
-    return;
-  }
-  if (result.kind !== "reply") {
+  if (result.type !== "conversation" || result.kind !== "reply") {
     return;
   }
   await ctx.reply(result.text, {

@@ -5,11 +5,9 @@ import {
   appendTurn,
   endCompletionLease,
   findConversationById,
-  isParticipant,
-  latestMemberTurnSeq,
   listMembersByIds,
   listTurns,
-  trimIfUnopened,
+  trimOldestTurns,
   tryBeginCompletionLease,
 } from "#src/db/store.js";
 import { logInfo } from "#src/log.js";
@@ -34,19 +32,14 @@ interface PendingTurn {
   conversationId: string;
   memberId: number;
   now: Date;
-  turnSeq: number;
+  text: string;
 }
 
 type ConversationWork = HandlerResult | PendingTurn;
 
-interface CompletePendingOptions {
-  waitForQuiet?: () => Promise<void>;
-}
-
 const CONVERSATION_SILENCE: HandlerResult = { kind: "silence", type: "conversation" };
 const COMPLETION_LEASE_TTL_MS = 15_000;
 const MS_PER_SECOND = 1000;
-const QUIET_WINDOW_MS = 1000;
 
 function conversationWork(persisted: PersistedConversation): ConversationWork {
   if (persisted.kind === "turn") {
@@ -55,34 +48,19 @@ function conversationWork(persisted: PersistedConversation): ConversationWork {
       conversationId: persisted.conversationId,
       memberId: persisted.memberId,
       now: persisted.now,
-      turnSeq: persisted.turnSeq,
+      text: persisted.text,
       type: "pending-turn",
     };
   }
   return { kind: persisted.kind, type: "conversation" };
 }
 
-function waitForQuietWindow(): Promise<void> {
-  // eslint-disable-next-line promise/avoid-new -- sleep for the quiet window
-  return new Promise((resolve) => {
-    setTimeout(resolve, QUIET_WINDOW_MS);
-  });
-}
-
 function completionPostedAt(): Date {
   return new Date(Math.floor(Date.now() / MS_PER_SECOND) * MS_PER_SECOND);
 }
 
-function quotedMemberText(turns: ConversationTurn[], memberId: number): string {
-  const last = turns.findLast((turn) => turn.role === "member" && turn.memberId === memberId);
-  if (last === undefined || last.role !== "member") {
-    return "";
-  }
-  return last.text;
-}
-
-function wakeReply(pending: PendingTurn, turns: ConversationTurn[]): ReplyMark {
-  return replyMark(pending.addresseeLabel, quotedMemberText(turns, pending.memberId));
+function wakeReply(pending: PendingTurn): ReplyMark {
+  return replyMark(pending.addresseeLabel, pending.text);
 }
 
 async function persistAssistantTurn(
@@ -102,28 +80,19 @@ async function persistAssistantTurn(
       speakerLabel: null,
       text,
     });
-    await trimIfUnopened(session, conversationId);
+    await trimOldestTurns(session, conversationId);
   });
 }
 
 async function canComplete(db: BotDatabase, pending: PendingTurn): Promise<boolean> {
   const conversation = await findConversationById(db, pending.conversationId);
-  if (conversation === null || conversation.closedAt !== null) {
-    return false;
-  }
-  return isParticipant(db, pending.conversationId, pending.memberId);
-}
-
-async function isLatestTurn(db: BotDatabase, pending: PendingTurn): Promise<boolean> {
-  const latest = await latestMemberTurnSeq(db, pending.conversationId, pending.memberId);
-  return latest === pending.turnSeq;
+  return conversation !== null;
 }
 
 async function replyFromText(
   db: BotDatabase,
   pending: PendingTurn,
   text: string,
-  turns: ConversationTurn[],
 ): Promise<HandlerResult> {
   if (text === "") {
     return CONVERSATION_SILENCE;
@@ -131,7 +100,7 @@ async function replyFromText(
   if (!(await canComplete(db, pending))) {
     return CONVERSATION_SILENCE;
   }
-  await persistAssistantTurn(db, pending.conversationId, text, wakeReply(pending, turns));
+  await persistAssistantTurn(db, pending.conversationId, text, wakeReply(pending));
   return { kind: "reply", text, type: "conversation" };
 }
 
@@ -207,7 +176,7 @@ async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<Han
     }
     const input = await completeInput(db, pending);
     const reply = await complete(input);
-    return await replyFromText(db, pending, reply, input.turns);
+    return await replyFromText(db, pending, reply);
   } catch (error) {
     reportUnhandledFailure(error);
     return CONVERSATION_SILENCE;
@@ -225,15 +194,7 @@ async function skipInFlight(db: BotDatabase, pending: PendingTurn): Promise<Hand
   return CONVERSATION_SILENCE;
 }
 
-async function completePendingTurn(
-  db: BotDatabase,
-  pending: PendingTurn,
-  waitForQuiet: () => Promise<void>,
-): Promise<HandlerResult> {
-  await waitForQuiet();
-  if (!(await canComplete(db, pending)) || !(await isLatestTurn(db, pending))) {
-    return CONVERSATION_SILENCE;
-  }
+async function completePendingTurn(db: BotDatabase, pending: PendingTurn): Promise<HandlerResult> {
   const leaseAt = await tryBeginCompletionLease(
     db,
     pending.conversationId,
@@ -245,22 +206,15 @@ async function completePendingTurn(
     return skipInFlight(db, pending);
   }
   try {
-    if (!(await canComplete(db, pending)) || !(await isLatestTurn(db, pending))) {
-      return CONVERSATION_SILENCE;
-    }
     return await runCompletion(db, pending);
   } finally {
     await endCompletionLease(db, pending.conversationId, pending.memberId, leaseAt);
   }
 }
 
-function finishConversationWork(
-  db: BotDatabase,
-  work: ConversationWork,
-  options: CompletePendingOptions = {},
-): Promise<HandlerResult> {
+function finishConversationWork(db: BotDatabase, work: ConversationWork): Promise<HandlerResult> {
   if (work.type === "pending-turn") {
-    return completePendingTurn(db, work, options.waitForQuiet ?? waitForQuietWindow);
+    return completePendingTurn(db, work);
   }
   return Promise.resolve(work);
 }
