@@ -1,4 +1,3 @@
-import { sentryTranscriptIntegration } from "@mike-bot/bot-core";
 import { init, vercelAIIntegration } from "@sentry/nextjs";
 
 import { sentryDsn } from "./sentry-dsn";
@@ -13,7 +12,6 @@ init({
       recordInputs: true,
       recordOutputs: true,
     }),
-    sentryTranscriptIntegration(),
   ],
   tracesSampler,
 });
