@@ -1,9 +1,11 @@
 import type { Message, User } from "grammy/types";
 
+import { telegramDateToPostedAt } from "#src/telegram/identity.js";
+
 import type { ReplyMark } from "./types.js";
 
 import { speakerHandle, speakerLabel } from "./label.js";
-import { sanitizedQuote } from "./quote.js";
+import { parentQuote } from "./quote.js";
 import { SELF_LABEL } from "./transcript.js";
 
 function isSelfUser(from: User | undefined, botUserId: number | undefined): boolean {
@@ -35,8 +37,10 @@ function messageBody(message: Message): string {
 
 function replyFromParent(parent: Message, botUserId: number | undefined): ReplyMark {
   return {
-    quote: sanitizedQuote(messageBody(parent)),
+    quote: parentQuote(messageBody(parent)),
     targetLabel: parentSpeakerLabel(parent.from, botUserId),
+    targetMessageId: parent.message_id,
+    targetPostedAt: telegramDateToPostedAt(parent.date),
   };
 }
 

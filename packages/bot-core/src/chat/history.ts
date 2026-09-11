@@ -14,12 +14,30 @@ function speakerFor(turn: ChatTurn): string {
   return turn.label;
 }
 
-function liveMessage(turn: ChatTurn, now: Date): PromptMessage {
+function liveMessageIds(turns: readonly ChatTurn[]): Set<number> {
+  const ids = new Set<number>();
+  for (const turn of turns) {
+    if (turn.messageId !== null) {
+      ids.add(turn.messageId);
+    }
+  }
+  return ids;
+}
+
+function replyIsInWindow(reply: ChatTurn["reply"], ids: Set<number>): boolean {
+  if (reply === null) {
+    return false;
+  }
+  return reply.targetMessageId !== null && ids.has(reply.targetMessageId);
+}
+
+function liveMessage(turn: ChatTurn, now: Date, ids: Set<number>): PromptMessage {
   const content = promptLine(
     speakerFor(turn),
     timeBracket(turn.postedAt, now),
     turn.text,
     turn.reply,
+    replyIsInWindow(turn.reply, ids),
   );
   if (turn.role === "assistant") {
     return { content, role: "assistant" };
@@ -28,7 +46,8 @@ function liveMessage(turn: ChatTurn, now: Date): PromptMessage {
 }
 
 function liveMessages(turns: ChatTurn[], now: Date): PromptMessage[] {
-  return turns.map((turn) => liveMessage(turn, now));
+  const ids = liveMessageIds(turns);
+  return turns.map((turn) => liveMessage(turn, now, ids));
 }
 
 export { liveMessages };

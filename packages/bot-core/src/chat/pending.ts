@@ -2,13 +2,10 @@ import type { BotDatabase } from "#src/db/runtime.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
 import {
-  appendTurn,
   bindSentryConversation,
   endCompletionLease,
   listMembersByIds,
   listTurns,
-  stampLastLlmRepliedAt,
-  trimOldestTurns,
   tryBeginCompletionLease,
 } from "#src/db/store.js";
 import { logInfo } from "#src/log.js";
@@ -28,6 +25,7 @@ interface PendingTurn {
   addresseeLabel: string;
   chatId: number;
   memberId: number;
+  messageId: number;
   now: Date;
   text: string;
 }
@@ -36,7 +34,6 @@ type ChatWork = HandlerResult | PendingTurn;
 
 const CHAT_SILENCE: HandlerResult = { kind: "silence", type: "chat" };
 const COMPLETION_LEASE_TTL_MS = 15_000;
-const MS_PER_SECOND = 1000;
 
 function chatWork(persisted: PersistedChat): ChatWork {
   if (persisted.kind === "turn") {
@@ -44,6 +41,7 @@ function chatWork(persisted: PersistedChat): ChatWork {
       addresseeLabel: persisted.addresseeLabel,
       chatId: persisted.chatId,
       memberId: persisted.memberId,
+      messageId: persisted.messageId,
       now: persisted.now,
       text: persisted.text,
       type: "pending-turn",
@@ -52,46 +50,14 @@ function chatWork(persisted: PersistedChat): ChatWork {
   return { kind: persisted.kind, type: "chat" };
 }
 
-function completionPostedAt(): Date {
-  return new Date(Math.floor(Date.now() / MS_PER_SECOND) * MS_PER_SECOND);
-}
-
 function wakeReply(pending: PendingTurn): ReplyMark {
-  return replyMark(pending.addresseeLabel, pending.text);
+  return replyMark(pending.addresseeLabel, pending.text, pending.messageId, pending.now);
 }
 
-async function persistAssistantTurn(
-  db: BotDatabase,
-  chatId: number,
-  text: string,
-  reply: ReplyMark,
-): Promise<void> {
-  await db.transaction(async (session) => {
-    const postedAt = completionPostedAt();
-    await appendTurn(session, {
-      chatId,
-      memberId: null,
-      postedAt,
-      replyQuote: reply.quote,
-      replyTargetLabel: reply.targetLabel,
-      role: "assistant",
-      speakerLabel: null,
-      text,
-    });
-    await stampLastLlmRepliedAt(session, chatId, postedAt);
-    await trimOldestTurns(session, chatId);
-  });
-}
-
-async function replyFromText(
-  db: BotDatabase,
-  pending: PendingTurn,
-  completion: ChatCompletion,
-): Promise<HandlerResult> {
+function replyFromText(completion: ChatCompletion): HandlerResult {
   if (completion.text === "") {
     return CHAT_SILENCE;
   }
-  await persistAssistantTurn(db, pending.chatId, completion.text, wakeReply(pending));
   return {
     ...(completion.entities === undefined ? {} : { entities: completion.entities }),
     kind: "reply",
@@ -171,7 +137,7 @@ async function runCompletion(db: BotDatabase, pending: PendingTurn): Promise<Han
     );
     const input = await completeInput(db, pending, sentryConversationId);
     const completion = await complete(input);
-    return await replyFromText(db, pending, completion);
+    return replyFromText(completion);
   } catch (error) {
     reportUnhandledFailure(error);
     return CHAT_SILENCE;
@@ -214,4 +180,4 @@ function finishChatWork(db: BotDatabase, work: ChatWork): Promise<HandlerResult>
   return Promise.resolve(work);
 }
 
-export { chatWork, finishChatWork, type ChatWork };
+export { chatWork, finishChatWork, wakeReply, type ChatWork, type PendingTurn };

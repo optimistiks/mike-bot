@@ -155,9 +155,12 @@ async function nextTurnSeq(db: BotSession, chatId: number): Promise<number> {
 interface AppendTurnInput {
   chatId: number;
   memberId: number | null;
+  messageId: number | null;
   postedAt: Date;
+  replyPostedAt: Date | null;
   replyQuote: string | null;
   replyTargetLabel: string | null;
+  replyToMessageId: number | null;
   role: "member" | "assistant";
   speakerLabel: string | null;
   text: string;
@@ -173,9 +176,12 @@ async function tryInsertTurn(
     .values({
       chatId: input.chatId,
       memberId: input.memberId,
+      messageId: input.messageId,
       postedAt: input.postedAt,
+      replyPostedAt: input.replyPostedAt,
       replyQuote: input.replyQuote,
       replyTargetLabel: input.replyTargetLabel,
+      replyToMessageId: input.replyToMessageId,
       role: input.role,
       seq,
       speakerLabel: input.speakerLabel,
