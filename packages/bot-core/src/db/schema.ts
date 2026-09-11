@@ -77,7 +77,7 @@ const chatTurns = pgTable(
       .references(() => chats.chatId),
     id: uuid("id").primaryKey().defaultRandom(),
     memberId: bigint("member_id", { mode: "number" }),
-    messageId: bigint("message_id", { mode: "number" }),
+    messageId: bigint("message_id", { mode: "number" }).notNull(),
     postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
     replyPostedAt: timestamp("reply_posted_at", { withTimezone: true }),
     replyQuote: text("reply_quote"),
@@ -88,7 +88,25 @@ const chatTurns = pgTable(
     speakerLabel: text("speaker_label"),
     text: text("text").notNull(),
   },
-  (table) => [uniqueIndex("chat_turns_chat_id_seq").on(table.chatId, table.seq)],
+  (table) => [
+    uniqueIndex("chat_turns_chat_id_seq").on(table.chatId, table.seq),
+    check(
+      "chat_turns_reply_identity",
+      sql`(
+        (
+          ${table.replyTargetLabel} is null
+          and ${table.replyToMessageId} is null
+          and ${table.replyPostedAt} is null
+          and ${table.replyQuote} is null
+        )
+        or (
+          ${table.replyTargetLabel} is not null
+          and ${table.replyToMessageId} is not null
+          and ${table.replyPostedAt} is not null
+        )
+      )`,
+    ),
+  ],
 );
 
 const processedUpdates = pgTable("processed_updates", {

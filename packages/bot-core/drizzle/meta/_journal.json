@@ -43,6 +43,13 @@
       "when": 1789159336938,
       "tag": "0005_chat_turn_message_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789161157312,
+      "tag": "0006_chat_turn_required_message_id",
+      "breakpoints": true
     }
   ]
 }

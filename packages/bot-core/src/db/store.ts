@@ -155,7 +155,7 @@ async function nextTurnSeq(db: BotSession, chatId: number): Promise<number> {
 interface AppendTurnInput {
   chatId: number;
   memberId: number | null;
-  messageId: number | null;
+  messageId: number;
   postedAt: Date;
   replyPostedAt: Date | null;
   replyQuote: string | null;

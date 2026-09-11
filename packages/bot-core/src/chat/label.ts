@@ -40,8 +40,8 @@ function speakerLabel(user: User): string {
 function replyMark(
   targetLabel: string,
   rawQuote: string,
-  targetMessageId: number | null,
-  targetPostedAt: Date | null,
+  targetMessageId: number,
+  targetPostedAt: Date,
 ): ReplyMark {
   return { quote: parentQuote(rawQuote), targetLabel, targetMessageId, targetPostedAt };
 }

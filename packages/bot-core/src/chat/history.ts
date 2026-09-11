@@ -15,20 +15,14 @@ function speakerFor(turn: ChatTurn): string {
 }
 
 function liveMessageIds(turns: readonly ChatTurn[]): Set<number> {
-  const ids = new Set<number>();
-  for (const turn of turns) {
-    if (turn.messageId !== null) {
-      ids.add(turn.messageId);
-    }
-  }
-  return ids;
+  return new Set(turns.map((turn) => turn.messageId));
 }
 
 function replyIsInWindow(reply: ChatTurn["reply"], ids: Set<number>): boolean {
   if (reply === null) {
     return false;
   }
-  return reply.targetMessageId !== null && ids.has(reply.targetMessageId);
+  return ids.has(reply.targetMessageId);
 }
 
 function liveMessage(turn: ChatTurn, now: Date, ids: Set<number>): PromptMessage {
