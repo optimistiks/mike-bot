@@ -29,12 +29,18 @@ const bodySchema = z.object({
 
 const LIVE_LABEL = /^\[[^\]]+\]\[/u;
 const POLL_MS = 10;
+const TELEGRAM_API = /https:\/\/api\.telegram\.org\/bot[^/]+\/(?<method>[A-Za-z]+)$/u;
+const TELEGRAM_FIRST_MESSAGE_ID = 10_000;
+const TELEGRAM_SENT_DATE = 1_700_000_000;
 
 const capturedModelBodies: unknown[] = [];
+const capturedTelegramMessageIds: number[] = [];
 const queuedTexts: string[] = [];
 const holdEvents = new EventTarget();
 
 let holdGate: Promise<undefined> | null = null;
+let nextTelegramMessageId = TELEGRAM_FIRST_MESSAGE_ID;
+let failNextTelegram = false;
 
 function modelJson(text: string): ReturnType<typeof HttpResponse.json> {
   return HttpResponse.json({
@@ -65,6 +71,53 @@ function nextModelText(): string {
   return queuedTexts.shift() ?? "че";
 }
 
+function telegramSendResult(messageId: number, text: string): ReturnType<typeof HttpResponse.json> {
+  return HttpResponse.json({
+    ok: true,
+    result: {
+      chat: { id: -1001, type: "supergroup" },
+      date: TELEGRAM_SENT_DATE,
+      message_id: messageId,
+      text,
+    },
+  });
+}
+
+function telegramTextFromBody(body: unknown): string {
+  if (typeof body !== "object" || body === null || !("text" in body)) {
+    return "";
+  }
+  if (typeof body.text !== "string") {
+    return "";
+  }
+  return body.text;
+}
+
+function failTelegramSend(): ReturnType<typeof HttpResponse.json> {
+  failNextTelegram = false;
+  return HttpResponse.json({ description: "failed", error_code: 400, ok: false }, { status: 400 });
+}
+
+function succeedTelegramSend(body: unknown): ReturnType<typeof HttpResponse.json> {
+  const messageId = nextTelegramMessageId;
+  nextTelegramMessageId += 1;
+  capturedTelegramMessageIds.push(messageId);
+  return telegramSendResult(messageId, telegramTextFromBody(body));
+}
+
+function telegramResponse(method: string, body: unknown): ReturnType<typeof HttpResponse.json> {
+  if (method === "deleteMessage") {
+    return HttpResponse.json({ ok: true, result: true });
+  }
+  if (method !== "sendMessage" && method !== "sendRichMessage") {
+    return HttpResponse.json({ ok: true, result: true });
+  }
+  if (failNextTelegram) {
+    return failTelegramSend();
+  }
+  return succeedTelegramSend(body);
+}
+
 const modelServer = setupServer(
   http.post("https://ai-gateway.vercel.sh/v4/ai/language-model", async ({ request }) => {
     const body: unknown = await request.json();
@@ -72,13 +125,33 @@ const modelServer = setupServer(
     await waitIfHeld();
     return modelJson(nextModelText());
   }),
+  http.post(TELEGRAM_API, async ({ params, request }) => {
+    const method = typeof params.method === "string" ? params.method : "";
+    const body: unknown = method === "deleteMessage" ? null : await request.json();
+    return telegramResponse(method, body);
+  }),
 );
 
 function resetCapturedModelBodies(): void {
   capturedModelBodies.length = 0;
+  capturedTelegramMessageIds.length = 0;
   queuedTexts.length = 0;
+  nextTelegramMessageId = TELEGRAM_FIRST_MESSAGE_ID;
+  failNextTelegram = false;
   holdEvents.dispatchEvent(new Event("release"));
   holdGate = null;
+}
+
+function failNextTelegramSend(): void {
+  failNextTelegram = true;
+}
+
+function lastSentTelegramMessageId(): number {
+  const messageId = capturedTelegramMessageIds.at(-1);
+  if (messageId === undefined) {
+    throw new Error("no Telegram send was captured");
+  }
+  return messageId;
 }
 
 function failNextModelRequest(): void {
@@ -186,8 +259,10 @@ export {
   capturedModelBodies,
   enqueueModelTexts,
   failNextModelRequest,
+  failNextTelegramSend,
   holdNextModelResponse,
   lastCapturedModelBodyJson,
+  lastSentTelegramMessageId,
   liveLabeledTurnTextsFromLastModelBody,
   modelServer,
   resetCapturedModelBodies,

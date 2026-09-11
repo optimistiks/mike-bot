@@ -6,17 +6,29 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { PgliteDatabase } from "#src/db/pglite.js";
 import type { HandlerResult } from "#src/outcomes.js";
 
+import { createBot } from "#src/bot.js";
 import { closePgliteDb, createPgliteDb, resetPgliteDb } from "#src/db/pglite.js";
-import { handleUpdate } from "#src/handle-update.js";
 
-import { ALICE, BOB, BOT_USER, CAROL, DAVE, LENA, statsUpdate, textUpdate } from "./helpers.js";
+import {
+  ALICE,
+  BOB,
+  BOT_USER,
+  CAROL,
+  DAVE,
+  LENA,
+  statsUpdate,
+  testBotInfo,
+  textUpdate,
+} from "./helpers.js";
 import {
   assistantTurnTextsFromLastModelBody,
   capturedModelBodies,
   enqueueModelTexts,
   failNextModelRequest,
+  failNextTelegramSend,
   holdNextModelResponse,
   lastCapturedModelBodyJson,
+  lastSentTelegramMessageId,
   liveLabeledTurnTextsFromLastModelBody,
   modelServer,
   resetCapturedModelBodies,
@@ -35,11 +47,27 @@ const MOSCOW_BEFORE_2025 = 1_735_678_799;
 const TURN_WINDOW = 100;
 const ZERO_AGE = "0 сек. назад";
 const TWO_HOURS_SECONDS = 7200;
-const QUOTE_CAP = 200;
-const QUOTE_OVER_CAP = 201;
+const OUT_OF_WINDOW_WHEN = "от 15 ноября в 1:13";
 
 function liveLabeled(handle: string, text: string, age = ZERO_AGE): string {
-  return `[${handle}][${age}] ${text}`;
+  if (text.includes("\n")) {
+    return `[${handle}][${age}]:\n${text}`;
+  }
+  return `[${handle}][${age}]: ${text}`;
+}
+
+function liveInWindowReply(speaker: string, target: string, text: string, age = ZERO_AGE): string {
+  if (text.includes("\n")) {
+    return `[${speaker}][${age}] в ответ ${target}:\n${text}`;
+  }
+  return `[${speaker}][${age}] в ответ ${target}: ${text}`;
+}
+
+function quotedOriginal(quote: string): string {
+  return quote
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
 }
 
 function liveReplyLabeled(
@@ -49,10 +77,14 @@ function liveReplyLabeled(
   text: string,
   age = ZERO_AGE,
 ): string {
+  const header = `[${speaker}][${age}] в ответ ${target} ${OUT_OF_WINDOW_WHEN}:`;
   if (quote === null) {
-    return `[${speaker} → ${target}][${age}] ${text}`;
+    if (text.includes("\n")) {
+      return `${header}\n${text}`;
+    }
+    return `${header} ${text}`;
   }
-  return `[${speaker} → ${target}][${age}][на "${quote}"] ${text}`;
+  return `${header}\n${quotedOriginal(quote)}\n\n${text}`;
 }
 
 function numberedTexts(prefix: string, count: number): string[] {
@@ -148,11 +180,27 @@ describe("telegram update handling", () => {
     await resetPgliteDb(currentDb());
   });
 
-  function handle(update: Update, botUserId?: number): Promise<HandlerResult> {
-    return handleUpdate(update, {
-      botUserId,
+  async function handle(update: Update, botUserId?: number): Promise<HandlerResult> {
+    const scheduled: Promise<void>[] = [];
+    let result: HandlerResult | undefined = undefined;
+    const id = botUserId ?? 1;
+    const bot = createBot({
+      botInfo: testBotInfo(id),
       db: currentDb().db,
+      onResult: (next) => {
+        result = next;
+      },
+      schedule: (task) => {
+        scheduled.push(task());
+      },
+      token: `${String(id)}:test-token`,
     });
+    await bot.handleUpdate(update);
+    await Promise.all(scheduled);
+    if (result === undefined) {
+      throw new Error("handler did not produce a result");
+    }
+    return result;
   }
 
   async function handleNumberedTexts(
@@ -362,7 +410,7 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот как дела"),
     ]);
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("Ты", "alice", "бот", "че"),
+      liveInWindowReply("Ты", "alice", "че"),
     ]);
   });
 
@@ -458,7 +506,7 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот как дела"),
     ]);
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("Ты", "alice", "бот", "че"),
+      liveInWindowReply("Ты", "alice", "че"),
     ]);
   });
 
@@ -709,6 +757,44 @@ describe("telegram update handling", () => {
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
       liveReplyLabeled("bob", "alice", "шутка", "+"),
       liveLabeled("alice", "бот"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("Ты", "alice", "/stats", plusOnlySeasonLine("2023", "alice", "bob")),
+    ]);
+  });
+
+  it("treats a reply to a sent Standings message as in-window", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: BOB,
+        messageId: 20,
+        replyTo: { from: ALICE, messageId: 10, text: "шутка" },
+        text: "+",
+        updateId: 1,
+      }),
+    );
+    await handle(statsUpdate(STANDINGS_UPDATE_ID, ALICE));
+    const statsMessageId = lastSentTelegramMessageId();
+    const woken = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 21,
+        replyTo: {
+          from: BOT_USER,
+          messageId: statsMessageId,
+          text: plusOnlySeasonLine("2023", "alice", "bob"),
+        },
+        text: "ну",
+        updateId: STANDINGS_UPDATE_ID + 1,
+      }),
+      BOT_USER.id,
+    );
+
+    expect(woken).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("bob", "alice", "шутка", "+"),
+      liveInWindowReply("alice", "Ты", "ну"),
     ]);
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
       liveReplyLabeled("Ты", "alice", "/stats", plusOnlySeasonLine("2023", "alice", "bob")),
@@ -991,7 +1077,7 @@ describe("telegram update handling", () => {
       liveLabeled("alice", "бот как дела"),
     ]);
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("Ты", "alice", "бот", "че"),
+      liveInWindowReply("Ты", "alice", "че", "2 ч назад"),
     ]);
   });
 
@@ -1643,7 +1729,7 @@ describe("telegram update handling", () => {
 
     expect(next).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
     expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("Ты", "alice", "бот", "че"),
+      liveInWindowReply("Ты", "alice", "че"),
     ]);
   });
 
@@ -1855,7 +1941,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("keeps the reply arrow and drops the quote when the parent has no text", async () => {
+  it("keeps в ответ and drops the quote when the parent has no text", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -1907,7 +1993,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("sanitizes reply quotes by stripping brackets and quotes and collapsing space", async () => {
+  it("strips brackets from an out-of-window quote and keeps quotes and newlines", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -1920,13 +2006,13 @@ describe("telegram update handling", () => {
     );
 
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("alice", "bob", "он сказал привет alice", "бот"),
+      liveReplyLabeled("alice", "bob", 'он сказал "привет"\nalice', "бот"),
     ]);
   });
 
-  it("caps a long reply quote at 200 characters with ascii ellipsis", async () => {
+  it("keeps a long out-of-window quote in full", async () => {
     expect.hasAssertions();
-    const longParent = "я".repeat(QUOTE_OVER_CAP);
+    const longParent = "я".repeat(201);
     await handle(
       textUpdate({
         from: ALICE,
@@ -1938,7 +2024,79 @@ describe("telegram update handling", () => {
     );
 
     expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
-      liveReplyLabeled("alice", "bob", `${"я".repeat(QUOTE_CAP)}...`, "бот"),
+      liveReplyLabeled("alice", "bob", longParent, "бот"),
+    ]);
+  });
+
+  it("treats a reply to a sent Chat message as in-window", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 3000,
+        text: "бот",
+        updateId: 3000,
+      }),
+    );
+    const botMessageId = lastSentTelegramMessageId();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 3001,
+        replyTo: { from: BOT_USER, messageId: botMessageId, text: "че" },
+        text: "ну",
+        updateId: 3001,
+      }),
+      BOT_USER.id,
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот"),
+      liveInWindowReply("alice", "Ты", "ну"),
+    ]);
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([
+      liveInWindowReply("Ты", "alice", "че"),
+    ]);
+  });
+
+  it("does not record an Assistant Turn when Telegram send fails", async () => {
+    expect.hasAssertions();
+    failNextTelegramSend();
+    const first = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 3100,
+        text: "бот",
+        updateId: 3100,
+      }),
+    );
+    const second = await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 3101,
+        text: "бот ещё",
+        updateId: 3101,
+      }),
+    );
+
+    expect(first).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+    expect(second).toStrictEqual({ kind: "reply", text: "че", type: "chat" });
+    expect(assistantTurnTextsFromLastModelBody()).toStrictEqual([]);
+  });
+
+  it("puts a multiline member body below the header", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 3200,
+        text: "бот\nвторая",
+        updateId: 3200,
+      }),
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот\nвторая"),
     ]);
   });
 });

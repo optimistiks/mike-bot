@@ -2,7 +2,7 @@ import type { User } from "grammy/types";
 
 import type { ReplyMark } from "./types.js";
 
-import { sanitizedQuote } from "./quote.js";
+import { parentQuote } from "./quote.js";
 
 const UNKNOWN_LABEL = "???";
 
@@ -37,8 +37,13 @@ function speakerLabel(user: User): string {
   return speakerHandle(user.username, user.first_name);
 }
 
-function replyMark(targetLabel: string, rawQuote: string): ReplyMark {
-  return { quote: sanitizedQuote(rawQuote), targetLabel };
+function replyMark(
+  targetLabel: string,
+  rawQuote: string,
+  targetMessageId: number | null,
+  targetPostedAt: Date | null,
+): ReplyMark {
+  return { quote: parentQuote(rawQuote), targetLabel, targetMessageId, targetPostedAt };
 }
 
 export { replyMark, speakerHandle, speakerLabel };

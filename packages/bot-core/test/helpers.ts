@@ -1,4 +1,4 @@
-import type { MessageEntity, Update, User } from "grammy/types";
+import type { MessageEntity, Update, User, UserFromGetMe } from "grammy/types";
 
 const DEFAULT_DATE = 1_700_000_000;
 const STATS_MESSAGE_ID_BASE = 9000;
@@ -47,6 +47,24 @@ const BOT_USER: User = {
   is_bot: true,
   username: "some_bot",
 };
+
+function testBotInfo(id: number): UserFromGetMe {
+  return {
+    allows_users_to_create_topics: false,
+    can_connect_to_business: false,
+    can_join_groups: true,
+    can_manage_bots: false,
+    can_read_all_group_messages: true,
+    first_name: "Bot",
+    has_main_web_app: false,
+    has_topics_enabled: false,
+    id,
+    is_bot: true,
+    supports_inline_queries: false,
+    supports_join_request_queries: false,
+    username: "test_bot",
+  };
+}
 
 interface TextUpdateOptions {
   updateId: number;
@@ -162,4 +180,16 @@ function statsUpdate(
   });
 }
 
-export { ALICE, BOB, BOT_USER, CAROL, CHAT_ID, DAVE, LENA, statsUpdate, textUpdate };
+export {
+  ALICE,
+  BOB,
+  BOT_USER,
+  CAROL,
+  CHAT_ID,
+  DAVE,
+  DEFAULT_DATE,
+  LENA,
+  statsUpdate,
+  testBotInfo,
+  textUpdate,
+};

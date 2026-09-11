@@ -10,17 +10,17 @@ describe("relative age ISO labels", () => {
   it("replaces Russian relative age brackets with ISO from now minus the offset", () => {
     expect.hasAssertions();
 
-    expect(stampRelativeAgeLabels("[alice][0 сек. назад] сейчас", NOW)).toBe(
-      "[alice][2024-06-15T12:00:00Z] сейчас",
+    expect(stampRelativeAgeLabels("[alice][0 сек. назад]: сейчас", NOW)).toBe(
+      "[alice][2024-06-15T12:00:00Z]: сейчас",
     );
-    expect(stampRelativeAgeLabels("[alice][5 сек. назад] че", NOW)).toBe(
-      "[alice][2024-06-15T11:59:55Z] че",
+    expect(stampRelativeAgeLabels("[alice][5 сек. назад]: че", NOW)).toBe(
+      "[alice][2024-06-15T11:59:55Z]: че",
     );
-    expect(stampRelativeAgeLabels("[alice][2 ч назад] давно", NOW)).toBe(
-      "[alice][2024-06-15T10:00:00Z] давно",
+    expect(stampRelativeAgeLabels("[alice][2 ч назад]: давно", NOW)).toBe(
+      "[alice][2024-06-15T10:00:00Z]: давно",
     );
-    expect(stampRelativeAgeLabels('[Ты → alice][0 сек. назад][на "сейчас"] база', NOW)).toBe(
-      '[Ты → alice][2024-06-15T12:00:00Z][на "сейчас"] база',
+    expect(stampRelativeAgeLabels("[Ты][0 сек. назад] в ответ alice: база", NOW)).toBe(
+      "[Ты][2024-06-15T12:00:00Z] в ответ alice: база",
     );
   });
 });
@@ -32,10 +32,10 @@ describe("sentry span transcript", () => {
     const span = {
       data: {
         "gen_ai.input.messages": JSON.stringify([
-          { content: "[alice][2 ч назад] че", role: "user" },
-          { content: "[alice][0 сек. назад] сейчас", role: "user" },
+          { content: "[alice][2 ч назад]: че", role: "user" },
+          { content: "[alice][0 сек. назад]: сейчас", role: "user" },
         ]),
-        "gen_ai.output.messages": '[Ты → alice][0 сек. назад][на "сейчас"] база',
+        "gen_ai.output.messages": "[Ты][0 сек. назад] в ответ alice: база",
       },
       start_timestamp: START,
     };
@@ -43,11 +43,11 @@ describe("sentry span transcript", () => {
     stampSentrySpanTranscript(span);
 
     expect(JSON.parse(span.data["gen_ai.input.messages"])).toStrictEqual([
-      { content: "[alice][2024-06-15T10:00:00Z] че", role: "user" },
-      { content: "[alice][2024-06-15T12:00:00Z] сейчас", role: "user" },
+      { content: "[alice][2024-06-15T10:00:00Z]: че", role: "user" },
+      { content: "[alice][2024-06-15T12:00:00Z]: сейчас", role: "user" },
     ]);
     expect(span.data["gen_ai.output.messages"]).toBe(
-      '[Ты → alice][2024-06-15T12:00:00Z][на "сейчас"] база',
+      "[Ты][2024-06-15T12:00:00Z] в ответ alice: база",
     );
   });
 

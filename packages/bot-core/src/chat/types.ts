@@ -1,12 +1,15 @@
 interface ReplyMark {
   quote: string | null;
   targetLabel: string;
+  targetMessageId: number | null;
+  targetPostedAt: Date | null;
 }
 
 interface MemberTurn {
   role: "member";
   label: string;
   memberId: number | null;
+  messageId: number | null;
   postedAt: Date;
   reply: ReplyMark | null;
   text: string;
@@ -14,6 +17,7 @@ interface MemberTurn {
 
 interface AssistantTurn {
   role: "assistant";
+  messageId: number | null;
   postedAt: Date;
   reply: ReplyMark;
   text: string;

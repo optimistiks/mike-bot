@@ -2,6 +2,8 @@ const BANNED_PHRASES = ["без обид", "если серьезно", "я по
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
 const LABEL_NEXT_LINE = "\n[";
 const LEADING_LABELS = /^\s*(?:\[[^\]]+\]\s*)+/u;
+const REPLY_PREFIX = /^в ответ .+?(?: от \d+ \S+ в \d+:\d{2})?:\s*/u;
+const HEADER_COLON = /^:\s*/u;
 
 function isBlank(text: string): boolean {
   return text.trim() === "";
@@ -35,12 +37,33 @@ function stripEmoji(text: string): string {
   return text.replace(EMOJI_PATTERN, "");
 }
 
-function stripLeadingLabels(text: string): string {
-  const next = text.replace(LEADING_LABELS, "");
-  if (next === text) {
+function stripQuoteBlock(text: string): string {
+  if (!text.startsWith("> ")) {
     return text;
   }
-  return next.trim();
+  const lines = text.split("\n");
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line === undefined || !line.startsWith("> ")) {
+      break;
+    }
+    index += 1;
+  }
+  if (lines[index] === "") {
+    index += 1;
+  }
+  return lines.slice(index).join("\n");
+}
+
+function stripReplicaMeta(text: string): string {
+  const withoutLabels = text.replace(LEADING_LABELS, "");
+  const labelsPresent = withoutLabels !== text;
+  let rest = text;
+  if (labelsPresent) {
+    rest = withoutLabels.trim().replace(REPLY_PREFIX, "").replace(HEADER_COLON, "");
+  }
+  return stripQuoteBlock(rest).trim();
 }
 
 function stripTrailingPeriod(text: string): string {
@@ -59,7 +82,7 @@ function truncateLabeledTail(text: string): string {
 }
 
 function postProcess(sample: string): string {
-  const stripped = stripTrailingPeriod(stripEmoji(stripLeadingLabels(sample)));
+  const stripped = stripTrailingPeriod(stripEmoji(stripReplicaMeta(sample)));
   const truncated = stripTrailingPeriod(truncateLabeledTail(stripped)).trim();
   if (isBlank(truncated)) {
     return "";
