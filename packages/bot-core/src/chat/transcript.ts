@@ -19,10 +19,7 @@ function quotedLines(quote: string): string {
     .join("\n");
 }
 
-function absoluteWhen(postedAt: Date | null): string {
-  if (postedAt === null) {
-    return "";
-  }
+function absoluteWhen(postedAt: Date): string {
   return ` от ${MOSCOW_ABSOLUTE.format(postedAt)}`;
 }
 

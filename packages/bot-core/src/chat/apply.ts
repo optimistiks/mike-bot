@@ -38,15 +38,13 @@ interface SentAssistantTurn {
 type PersistedChat = { kind: "silence" } | PersistedTurn;
 
 const SILENCE: PersistedChat = { kind: "silence" };
-const UNKNOWN_REPLY: ReplyMark = {
-  quote: null,
-  targetLabel: "???",
-  targetMessageId: null,
-  targetPostedAt: null,
-};
 
 function optionalReply(row: ChatTurnRow): ReplyMark | null {
-  if (row.replyTargetLabel === null) {
+  if (
+    row.replyTargetLabel === null ||
+    row.replyToMessageId === null ||
+    row.replyPostedAt === null
+  ) {
     return null;
   }
   return {
@@ -58,7 +56,11 @@ function optionalReply(row: ChatTurnRow): ReplyMark | null {
 }
 
 function requiredReply(row: ChatTurnRow): ReplyMark {
-  return optionalReply(row) ?? UNKNOWN_REPLY;
+  const reply = optionalReply(row);
+  if (reply === null) {
+    throw new Error("assistant chat turn is missing reply identity");
+  }
+  return reply;
 }
 
 function modelTurn(row: ChatTurnRow): ChatTurn {
@@ -230,16 +232,9 @@ async function persistStandingsAssistantTurn(
 
 function commandReplyMark(message: Message): ReplyMark {
   const actor = message.from;
-  const commandText = message.text;
-  if (actor === undefined || commandText === undefined) {
-    return UNKNOWN_REPLY;
-  }
-  return replyMark(
-    speakerLabel(actor),
-    commandText,
-    message.message_id,
-    telegramDateToPostedAt(message.date),
-  );
+  const commandText = message.text ?? "";
+  const label = actor === undefined ? "???" : speakerLabel(actor);
+  return replyMark(label, commandText, message.message_id, telegramDateToPostedAt(message.date));
 }
 
 function persistChat(
