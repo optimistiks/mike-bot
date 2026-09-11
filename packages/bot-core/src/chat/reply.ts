@@ -1,6 +1,7 @@
 import type { Message, User } from "grammy/types";
 
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
+import { visibleMessageBody } from "#src/telegram/text.js";
 
 import type { ReplyMark } from "./types.js";
 
@@ -25,7 +26,7 @@ function parentSpeakerLabel(from: User | undefined, botUserId: number | undefine
   return speakerLabel(from);
 }
 
-function messageBody(message: Message): string {
+function rawMessageBody(message: Message): string {
   if (message.text !== undefined) {
     return message.text;
   }
@@ -35,9 +36,16 @@ function messageBody(message: Message): string {
   return "";
 }
 
+function quotedParentBody(parent: Message, botUserId: number | undefined): string {
+  if (isSelfUser(parent.from, botUserId)) {
+    return rawMessageBody(parent);
+  }
+  return visibleMessageBody(parent);
+}
+
 function replyFromParent(parent: Message, botUserId: number | undefined): ReplyMark {
   return {
-    quote: parentQuote(messageBody(parent)),
+    quote: parentQuote(quotedParentBody(parent, botUserId)),
     targetLabel: parentSpeakerLabel(parent.from, botUserId),
     targetMessageId: parent.message_id,
     targetPostedAt: telegramDateToPostedAt(parent.date),

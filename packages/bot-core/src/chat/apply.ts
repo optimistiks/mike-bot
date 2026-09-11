@@ -13,7 +13,7 @@ import {
   trimOldestTurns,
 } from "#src/db/store.js";
 import { telegramDateToPostedAt } from "#src/telegram/identity.js";
-import { isWakeMessage } from "#src/telegram/text.js";
+import { isWakeMessage, visibleMessageText } from "#src/telegram/text.js";
 
 type ChatTurnRow = typeof chatTurns.$inferSelect;
 
@@ -181,7 +181,7 @@ async function persistSilentMemberTurn(
   botUserId: number | undefined,
 ): Promise<void> {
   const actor = message.from;
-  const { text } = message;
+  const text = visibleMessageText(message);
   if (actor === undefined || text === undefined) {
     return;
   }
@@ -243,7 +243,7 @@ function persistChat(
   botUserId: number | undefined,
 ): Promise<PersistedChat> {
   const actor = message.from;
-  const { text } = message;
+  const text = visibleMessageText(message);
   if (actor === undefined || text === undefined) {
     return Promise.resolve(SILENCE);
   }

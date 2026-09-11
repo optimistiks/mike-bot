@@ -7,7 +7,7 @@ import { env } from "@/env";
 const WEBHOOK_TIMEOUT_PADDING_SECONDS = 5;
 const MS_PER_SECOND = 1000;
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export const POST = createTelegramWebhook({
   db,
