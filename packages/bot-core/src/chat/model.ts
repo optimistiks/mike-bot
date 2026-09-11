@@ -19,7 +19,7 @@ import { weatherTool } from "./weather.js";
 const CHAT_MODEL = "zai/glm-5.3-flash";
 const COMPLETE_TIMEOUT_MS = 30_000;
 const MAX_BANNED_RETRIES = 2;
-const MAX_OUTPUT_TOKENS = 1000;
+const MAX_OUTPUT_TOKENS = 2000;
 const MAX_TOOL_STEPS = 3;
 const STOP_SEQUENCES = ["\n["];
 const TEMPERATURE = 1;
