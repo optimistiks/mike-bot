@@ -976,7 +976,7 @@ describe("telegram update handling", () => {
     ]);
   });
 
-  it("offers weather and search on every chat completion", async () => {
+  it("offers weather, search, and contents on every chat completion", async () => {
     expect.hasAssertions();
     await handle(
       textUpdate({
@@ -987,14 +987,90 @@ describe("telegram update handling", () => {
       }),
     );
 
-    expect(lastCapturedModelBodyJson()).toContain('"weather"');
-    expect(lastCapturedModelBodyJson()).toContain('"search"');
-    expect(lastCapturedModelBodyJson()).toContain(
-      "если есть инструмент (tool) который может быть полезен для ответа — вызови его, не отнекивайся. данные из инструментов перескажи своими словами, не зачитывай",
+    const body = lastCapturedModelBodyJson();
+    expect({
+      contents: body.includes('"contents"'),
+      contentsPrompt: body.includes(
+        "страницу (contents) — если в этой реплике есть http(s) ссылка, или это ответ на сообщение члена чата со ссылкой",
+      ),
+      search: body.includes('"search"'),
+      searchPrompt: body.includes(
+        "погоду вызывай когда она полезна. веб-поиск (search) — только если собеседник просит посмотреть в интернете",
+      ),
+      tools: body.includes(
+        "если есть инструмент (tool) который может быть полезен для ответа — вызови его, не отнекивайся. данные из инструментов перескажи своими словами, не зачитывай",
+      ),
+      weather: body.includes('"weather"'),
+    }).toStrictEqual({
+      contents: true,
+      contentsPrompt: true,
+      search: true,
+      searchPrompt: true,
+      tools: true,
+      weather: true,
+    });
+  });
+
+  it("puts a text_link url into the replica the model sees", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        entities: [{ length: 6, offset: 10, type: "text_link", url: "https://example.com/a" }],
+        from: ALICE,
+        messageId: 71,
+        text: "бот глянь статью",
+        updateId: 1,
+      }),
     );
-    expect(lastCapturedModelBodyJson()).toContain(
-      "погоду вызывай когда она полезна. веб-поиск (search) — только если собеседник просит посмотреть в интернете",
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveLabeled("alice", "бот глянь статью https://example.com/a"),
+    ]);
+  });
+
+  it("puts a parent text_link url into the quote the model sees", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 72,
+        replyTo: {
+          entities: [{ length: 6, offset: 0, type: "text_link", url: "https://example.com/a" }],
+          from: BOB,
+          messageId: 10,
+          text: "статья",
+        },
+        text: "бот",
+        updateId: 1,
+      }),
     );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "bob", "статья https://example.com/a", "бот"),
+    ]);
+  });
+
+  it("does not put a bot parent text_link url into the quote", async () => {
+    expect.hasAssertions();
+    await handle(
+      textUpdate({
+        from: ALICE,
+        messageId: 73,
+        replyTo: {
+          entities: [{ length: 5, offset: 8, type: "text_link", url: "https://www.afisha.ru/" }],
+          from: BOT_USER,
+          messageId: 11,
+          text: "ссылки: Афиша",
+        },
+        text: "бот",
+        updateId: 1,
+      }),
+      BOT_USER.id,
+    );
+
+    expect(liveLabeledTurnTextsFromLastModelBody()).toStrictEqual([
+      liveReplyLabeled("alice", "Ты", "ссылки: Афиша", "бот"),
+    ]);
   });
 
   it("falls back to first_name when the speaker has no username", async () => {

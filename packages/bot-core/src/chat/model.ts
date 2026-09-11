@@ -5,6 +5,7 @@ import { logInfo } from "#src/log.js";
 import type { SearchHit, SearchReply } from "./search.js";
 import type { ChatCompleteInput, PromptMessage } from "./types.js";
 
+import { contentsTool } from "./contents.js";
 import { cutBanned, hasBannedPhrase, isBlank, postProcess } from "./filter.js";
 import {
   bindConversation,
@@ -17,10 +18,10 @@ import { searchHitsFromOutput, searchReply, searchTool } from "./search.js";
 import { weatherTool } from "./weather.js";
 
 const CHAT_MODEL = "zai/glm-5.3-flash";
-const COMPLETE_TIMEOUT_MS = 30_000;
+const COMPLETE_TIMEOUT_MS = 60_000;
 const MAX_BANNED_RETRIES = 2;
 const MAX_OUTPUT_TOKENS = 2000;
-const MAX_TOOL_STEPS = 3;
+const MAX_TOOL_STEPS = 6;
 const STOP_SEQUENCES = ["\n["];
 const TEMPERATURE = 1;
 const COMPLETION_TELEMETRY = {
@@ -94,7 +95,7 @@ async function generateSample(
     stopWhen: isStepCount(MAX_TOOL_STEPS),
     telemetry: COMPLETION_TELEMETRY,
     temperature: TEMPERATURE,
-    tools: { search: searchTool(now), weather: weatherTool(now) },
+    tools: { contents: contentsTool(), search: searchTool(now), weather: weatherTool(now) },
   });
   return { hits: lastSearchHits(toolResults), text };
 }

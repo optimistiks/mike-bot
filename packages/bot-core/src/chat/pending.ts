@@ -33,7 +33,7 @@ interface PendingTurn {
 type ChatWork = HandlerResult | PendingTurn;
 
 const CHAT_SILENCE: HandlerResult = { kind: "silence", type: "chat" };
-const COMPLETION_LEASE_TTL_MS = 15_000;
+const COMPLETION_LEASE_TTL_MS = 60_000;
 
 function chatWork(persisted: PersistedChat): ChatWork {
   if (persisted.kind === "turn") {

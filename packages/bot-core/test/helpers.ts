@@ -71,7 +71,13 @@ interface TextUpdateOptions {
   messageId: number;
   from: User;
   text: string;
-  replyTo?: { date?: number; from: User; messageId: number; text?: string | null };
+  replyTo?: {
+    date?: number;
+    from: User;
+    messageId: number;
+    text?: string | null;
+    entities?: MessageEntity[];
+  };
   entities?: MessageEntity[];
   chatId?: number;
   date?: number;
@@ -110,7 +116,10 @@ function replyToMessage(
   if (parentText === undefined) {
     return parent;
   }
-  return { ...parent, text: parentText };
+  if (options.entities === undefined) {
+    return { ...parent, text: parentText };
+  }
+  return { ...parent, entities: options.entities, text: parentText };
 }
 
 function applyOptionalMessageFields(
