@@ -991,7 +991,7 @@ describe("telegram update handling", () => {
     expect({
       contents: body.includes('"contents"'),
       contentsPrompt: body.includes(
-        "страницу (contents) — если в этой реплике есть http(s) ссылка, или это ответ на сообщение члена чата со ссылкой",
+        "страницу (contents) — только если есть http(s) ссылка в этой реплике или в сообщении члена чата на которое это ответ, и собеседник просит глянуть",
       ),
       search: body.includes('"search"'),
       searchPrompt: body.includes(
