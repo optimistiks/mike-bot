@@ -220,6 +220,9 @@ describe("chat prompt", () => {
         "реплика начинается с [говорящий], потом [время], потом в ответ имя если это ответ, потом текст",
       ),
       multilineExample: CHAT_SYSTEM_PROMPT.includes("икея и не думай"),
+      name: CHAT_SYSTEM_PROMPT.includes(
+        "тебя зовут Майк Литорис. ты в групповом чате где сидят только друзья которые давно друг друга знают",
+      ),
       quoteTag: CHAT_SYSTEM_PROMPT.includes('[на "'),
       ty: CHAT_SYSTEM_PROMPT.includes('"Ты" это не имя'),
     }).toStrictEqual({
@@ -227,6 +230,7 @@ describe("chat prompt", () => {
       arrow: false,
       format: true,
       multilineExample: true,
+      name: true,
       quoteTag: false,
       ty: true,
     });
