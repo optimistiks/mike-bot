@@ -1,8 +1,11 @@
+import { captureException } from "@sentry/core";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { lookupWeather } from "#src/chat/weather.js";
+
+vi.mock(import("@sentry/core"), { spy: true });
 
 const NOW = new Date("2026-09-10T12:00:00.000Z");
 const MOSCOW_DATE = "2026-09-11";
@@ -39,6 +42,7 @@ describe("weather lookup", () => {
 
   afterEach(() => {
     weatherServer.resetHandlers();
+    vi.mocked(captureException).mockClear();
   });
 
   afterAll(() => {
@@ -78,6 +82,7 @@ describe("weather lookup", () => {
     await expect(
       lookupWeather({ date: MOSCOW_DATE, location: "мск", now: NOW }),
     ).resolves.toStrictEqual({ error: "место не найдено", ok: false });
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("picks the geocode hit with the highest population", async () => {
@@ -176,6 +181,10 @@ describe("weather lookup", () => {
     await expect(
       lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
     ).resolves.toStrictEqual({ error: "погода недоступна", ok: false });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "weather http 500" }),
+      expect.objectContaining({ tags: { tool: "weather", tool_failure: "http" } }),
+    );
   });
 
   it("returns a miss when the forecast has no row for the date", async () => {
@@ -200,5 +209,97 @@ describe("weather lookup", () => {
     await expect(
       lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
     ).resolves.toStrictEqual({ error: "нет прогноза на эту дату", ok: false });
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("returns a miss when the date is not a calendar day", async () => {
+    expect.hasAssertions();
+    await expect(
+      lookupWeather({ date: "завтра", location: "Москва", now: NOW }),
+    ).resolves.toStrictEqual({ error: "некорректная дата", ok: false });
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("reports a network failure when fetch throws", async () => {
+    expect.hasAssertions();
+    weatherServer.use(
+      http.get("https://geocoding-api.open-meteo.com/v1/search", () => HttpResponse.error()),
+    );
+
+    await expect(
+      lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
+    ).resolves.toStrictEqual({ error: "погода недоступна", ok: false });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "weather network" }),
+      expect.objectContaining({ tags: { tool: "weather", tool_failure: "network" } }),
+    );
+  });
+
+  it("reports a parse failure when the body is not JSON", async () => {
+    expect.hasAssertions();
+    weatherServer.use(
+      http.get("https://geocoding-api.open-meteo.com/v1/search", () =>
+        HttpResponse.text("not json", { status: 200 }),
+      ),
+    );
+
+    await expect(
+      lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
+    ).resolves.toStrictEqual({ error: "погода недоступна", ok: false });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "weather parse" }),
+      expect.objectContaining({ tags: { tool: "weather", tool_failure: "parse" } }),
+    );
+  });
+
+  it("reports a parse failure when geocoding fails the schema", async () => {
+    expect.hasAssertions();
+    weatherServer.use(
+      http.get("https://geocoding-api.open-meteo.com/v1/search", () =>
+        HttpResponse.json({ results: [{}] }),
+      ),
+    );
+
+    await expect(
+      lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
+    ).resolves.toStrictEqual({ error: "место не найдено", ok: false });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "weather parse" }),
+      expect.objectContaining({ tags: { tool: "weather", tool_failure: "parse" } }),
+    );
+  });
+
+  it("reports a parse failure when the forecast fails the schema", async () => {
+    expect.hasAssertions();
+    weatherServer.use(
+      http.get("https://geocoding-api.open-meteo.com/v1/search", () =>
+        HttpResponse.json(MOSCOW_GEOCODE),
+      ),
+      http.get("https://api.open-meteo.com/v1/forecast", () => HttpResponse.json({ daily: {} })),
+    );
+
+    await expect(
+      lookupWeather({ date: MOSCOW_DATE, location: "Москва", now: NOW }),
+    ).resolves.toStrictEqual({ error: "погода недоступна", ok: false });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "weather parse" }),
+      expect.objectContaining({ tags: { tool: "weather", tool_failure: "parse" } }),
+    );
+  });
+
+  it("does not report an aborted fetch", async () => {
+    expect.hasAssertions();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      lookupWeather({
+        date: MOSCOW_DATE,
+        location: "Москва",
+        now: NOW,
+        signal: controller.signal,
+      }),
+    ).resolves.toStrictEqual({ error: "погода недоступна", ok: false });
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

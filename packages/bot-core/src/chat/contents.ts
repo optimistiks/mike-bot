@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { exaApiKey } from "#src/env.js";
 
+import { readToolJson, reportToolFailure } from "./observability.js";
+
 const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 const URL_COUNT = 3;
 const HTTP_PROTOCOLS = new Set(["http:", "https:"]);
@@ -91,13 +93,13 @@ function asPage(page: z.infer<typeof exaPageSchema>): ContentsPage | null {
   };
 }
 
-async function readJson(
+function readJson(
   signal: AbortSignal | undefined,
   apiKey: string,
   urls: readonly string[],
 ): Promise<JsonRead> {
-  try {
-    const response = await fetch(EXA_CONTENTS_URL, {
+  return readToolJson("contents", "страница недоступна", () =>
+    fetch(EXA_CONTENTS_URL, {
       body: JSON.stringify({ text: true, urls }),
       headers: {
         "content-type": "application/json",
@@ -105,19 +107,14 @@ async function readJson(
       },
       method: "POST",
       signal,
-    });
-    if (!response.ok) {
-      return fail("страница недоступна");
-    }
-    return { data: await response.json(), ok: true };
-  } catch {
-    return fail("страница недоступна");
-  }
+    }),
+  );
 }
 
 function pagesFromData(data: unknown): ContentsPage[] | null {
   const parsed = exaResponseSchema.safeParse(data);
   if (!parsed.success) {
+    reportToolFailure({ cause: parsed.error, kind: "parse", tool: "contents" });
     return null;
   }
   const pages: ContentsPage[] = [];
@@ -132,6 +129,7 @@ function pagesFromData(data: unknown): ContentsPage[] | null {
 
 async function lookupContents(input: LookupContentsInput): Promise<ContentsLookup> {
   if (input.apiKey === undefined || input.apiKey === "") {
+    reportToolFailure({ kind: "config", tool: "contents" });
     return fail("страница недоступна");
   }
   const urls = usableUrls(input.urls);

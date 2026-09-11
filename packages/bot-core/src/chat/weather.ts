@@ -3,6 +3,8 @@ import type { Tool } from "ai";
 import { tool } from "ai";
 import { z } from "zod";
 
+import { readToolJson, reportToolFailure } from "./observability.js";
+
 const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const MOSCOW_TIME_ZONE = "Europe/Moscow";
@@ -157,16 +159,8 @@ function densestHit(results: GeocodeHit[]): GeocodeHit | undefined {
   return best;
 }
 
-async function readJson(url: URL, signal: AbortSignal | undefined): Promise<JsonRead> {
-  try {
-    const response = await fetch(url, { signal });
-    if (!response.ok) {
-      return fail("погода недоступна");
-    }
-    return { data: await response.json(), ok: true };
-  } catch {
-    return fail("погода недоступна");
-  }
+function readJson(url: URL, signal: AbortSignal | undefined): Promise<JsonRead> {
+  return readToolJson("weather", "погода недоступна", () => fetch(url, { signal }));
 }
 
 function geocodeUrl(location: string): URL {
@@ -201,6 +195,7 @@ async function geocodePlace(
   }
   const parsed = geocodeResponseSchema.safeParse(read.data);
   if (!parsed.success) {
+    reportToolFailure({ cause: parsed.error, kind: "parse", tool: "weather" });
     return fail("место не найдено");
   }
   const hit = densestHit(parsed.data.results ?? []);
@@ -246,6 +241,7 @@ async function readForecast(
   }
   const parsed = forecastResponseSchema.safeParse(read.data);
   if (!parsed.success) {
+    reportToolFailure({ cause: parsed.error, kind: "parse", tool: "weather" });
     return fail("погода недоступна");
   }
   const day = dailyAt(parsed.data.daily, date);
