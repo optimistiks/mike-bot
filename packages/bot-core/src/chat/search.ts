@@ -6,6 +6,8 @@ import { z } from "zod";
 
 import { exaApiKey } from "#src/env.js";
 
+import { readToolJson, reportToolFailure } from "./observability.js";
+
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const FOOTER_PREFIX = "ссылки: ";
 const LINK_COUNT = 3;
@@ -86,13 +88,13 @@ function asHit(hit: z.infer<typeof exaHitSchema>): SearchHit | null {
   };
 }
 
-async function readJson(
+function readJson(
   signal: AbortSignal | undefined,
   apiKey: string,
   query: string,
 ): Promise<JsonRead> {
-  try {
-    const response = await fetch(EXA_SEARCH_URL, {
+  return readToolJson("search", "поиск недоступен", () =>
+    fetch(EXA_SEARCH_URL, {
       body: JSON.stringify({
         contents: { highlights: true, maxAgeHours: MAX_AGE_HOURS },
         query,
@@ -104,19 +106,14 @@ async function readJson(
       },
       method: "POST",
       signal,
-    });
-    if (!response.ok) {
-      return fail("поиск недоступен");
-    }
-    return { data: await response.json(), ok: true };
-  } catch {
-    return fail("поиск недоступен");
-  }
+    }),
+  );
 }
 
 function hitsFromData(data: unknown): SearchHit[] | null {
   const parsed = exaResponseSchema.safeParse(data);
   if (!parsed.success) {
+    reportToolFailure({ cause: parsed.error, kind: "parse", tool: "search" });
     return null;
   }
   const hits: SearchHit[] = [];
@@ -131,7 +128,11 @@ function hitsFromData(data: unknown): SearchHit[] | null {
 
 async function lookupSearch(input: LookupSearchInput): Promise<SearchLookup> {
   const query = input.query.trim();
-  if (input.apiKey === undefined || input.apiKey === "" || query === "") {
+  if (input.apiKey === undefined || input.apiKey === "") {
+    reportToolFailure({ kind: "config", tool: "search" });
+    return fail("поиск недоступен");
+  }
+  if (query === "") {
     return fail("поиск недоступен");
   }
   const read = await readJson(input.signal, input.apiKey, query);

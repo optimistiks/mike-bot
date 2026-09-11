@@ -1,8 +1,11 @@
+import { captureException } from "@sentry/core";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { lookupSearch, searchReply } from "#src/chat/search.js";
+
+vi.mock(import("@sentry/core"), { spy: true });
 
 const API_KEY = "test-exa-key";
 const QUERY = "кинотеатры москва 12 сентября 2026 афиша";
@@ -22,6 +25,7 @@ describe("search lookup", () => {
 
   afterEach(() => {
     searchServer.resetHandlers();
+    vi.mocked(captureException).mockClear();
   });
 
   afterAll(() => {
@@ -79,6 +83,10 @@ describe("search lookup", () => {
       error: "поиск недоступен",
       ok: false,
     });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "search config" }),
+      expect.objectContaining({ tags: { tool: "search", tool_failure: "config" } }),
+    );
   });
 
   it("returns a miss when Exa is down", async () => {
@@ -93,6 +101,10 @@ describe("search lookup", () => {
       error: "поиск недоступен",
       ok: false,
     });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "search http 500" }),
+      expect.objectContaining({ tags: { tool: "search", tool_failure: "http" } }),
+    );
   });
 
   it("returns a miss when Exa finds no pages", async () => {
@@ -105,6 +117,76 @@ describe("search lookup", () => {
       error: "ничего не нашлось",
       ok: false,
     });
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("returns a miss when the query is empty", async () => {
+    expect.hasAssertions();
+    await expect(lookupSearch({ apiKey: API_KEY, query: "  " })).resolves.toStrictEqual({
+      error: "поиск недоступен",
+      ok: false,
+    });
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("reports a network failure when fetch throws", async () => {
+    expect.hasAssertions();
+    searchServer.use(http.post("https://api.exa.ai/search", () => HttpResponse.error()));
+
+    await expect(lookupSearch({ apiKey: API_KEY, query: QUERY })).resolves.toStrictEqual({
+      error: "поиск недоступен",
+      ok: false,
+    });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "search network" }),
+      expect.objectContaining({ tags: { tool: "search", tool_failure: "network" } }),
+    );
+  });
+
+  it("reports a parse failure when the body is not JSON", async () => {
+    expect.hasAssertions();
+    searchServer.use(
+      http.post("https://api.exa.ai/search", () => HttpResponse.text("not json", { status: 200 })),
+    );
+
+    await expect(lookupSearch({ apiKey: API_KEY, query: QUERY })).resolves.toStrictEqual({
+      error: "поиск недоступен",
+      ok: false,
+    });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "search parse" }),
+      expect.objectContaining({ tags: { tool: "search", tool_failure: "parse" } }),
+    );
+  });
+
+  it("reports a parse failure when the body fails the schema", async () => {
+    expect.hasAssertions();
+    searchServer.use(
+      http.post("https://api.exa.ai/search", () => HttpResponse.json({ results: [{}] })),
+    );
+
+    await expect(lookupSearch({ apiKey: API_KEY, query: QUERY })).resolves.toStrictEqual({
+      error: "поиск недоступен",
+      ok: false,
+    });
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "search parse" }),
+      expect.objectContaining({ tags: { tool: "search", tool_failure: "parse" } }),
+    );
+  });
+
+  it("does not report an aborted fetch", async () => {
+    expect.hasAssertions();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      lookupSearch({ apiKey: API_KEY, query: QUERY, signal: controller.signal }),
+    ).resolves.toStrictEqual({
+      error: "поиск недоступен",
+      ok: false,
+    });
+    expect(captureException).not.toHaveBeenCalled();
   });
 });
 
